@@ -66,10 +66,12 @@ pub fn instantiate(
     }
 
     let mut track_asset_balances = false;
+    let mut pool_unpause_at = None;
 
     if let Some(init_params) = msg.init_params {
         let params: XYKPoolParams = from_json(init_params)?;
         track_asset_balances = params.track_asset_balances.unwrap_or_default();
+        pool_unpause_at = params.pool_unpause_at;
     }
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -88,6 +90,7 @@ pub fn instantiate(
         track_asset_balances,
         fee_share: None,
         tracker_addr: None,
+        pool_unpause_at,
     };
 
     if track_asset_balances {
@@ -626,6 +629,17 @@ pub fn swap(
     offer_asset.assert_sent_native_token_balance(&info)?;
 
     let mut config = CONFIG.load(deps.storage)?;
+
+    // MEV-protection pause window. If the pair was instantiated with
+    // a future `pool_unpause_at`, reject swaps until that timestamp
+    // has elapsed. Liquidity provision/withdraw entry points are
+    // intentionally not gated — the seeder funds the pool before
+    // unpause. See planning/02-juno-patches.md.
+    if let Some(unpause_at) = config.pool_unpause_at {
+        if env.block.time < unpause_at {
+            return Err(ContractError::PoolPaused { unpause_at });
+        }
+    }
 
     // If the asset balance is already increased, we should subtract the user deposit from the pool amount
     let pools = config

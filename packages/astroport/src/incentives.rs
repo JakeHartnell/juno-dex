@@ -2,8 +2,8 @@ use std::hash::{Hash, Hasher};
 use std::ops::RangeInclusive;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_schema::serde::{de::Error as _, Deserialize as _, Deserializer};
 use cosmwasm_std::{Addr, Coin, Decimal256, Env, StdError, StdResult, Uint128};
-use cw20::Cw20ReceiveMsg;
 
 use crate::asset::{Asset, AssetInfo};
 
@@ -34,8 +34,10 @@ pub const MAX_ORPHANED_REWARD_LIMIT: u8 = 10;
 pub struct InstantiateMsg {
     pub owner: String,
     pub factory: String,
-    pub astro_token: AssetInfo,
-    pub vesting_contract: String,
+    /// The internal "main emission" reward token. Renamed from upstream's
+    /// `astro_token`; Juno's deployment defaults this to native ujuno but
+    /// any AssetInfo is allowed at instantiate time.
+    pub reward_token: AssetInfo,
     pub incentivization_fee_info: Option<IncentivizationFeeInfo>,
     pub guardian: Option<String>,
 }
@@ -107,10 +109,13 @@ pub enum ExecuteMsg {
         /// The LP token cw20 address or token factory denom
         lp_tokens: Vec<String>,
     },
-    /// Receives a message of type [`Cw20ReceiveMsg`]. Handles cw20 LP token deposits.
-    Receive(Cw20ReceiveMsg),
     /// Stake LP tokens in the Generator. LP tokens staked on behalf of recipient if recipient is set.
     /// Otherwise LP tokens are staked on behalf of message sender.
+    ///
+    /// Astroport-Juno only accepts token-factory LP tokens (the pair contract
+    /// emits only TF LPs in this fork); the legacy cw20-LP entry point
+    /// (`ExecuteMsg::Receive` + `Cw20Msg::{Deposit, DepositFor}`) was stripped
+    /// in P2.5. See planning/11-incentives-and-gauges.md.
     Deposit { recipient: Option<String> },
     /// Withdraw LP tokens from the Generator
     Withdraw {
@@ -119,10 +124,10 @@ pub enum ExecuteMsg {
         /// The amount to withdraw. Must not exceed total staked amount.
         amount: Uint128,
     },
-    /// Set a new amount of ASTRO to distribute per seconds.
+    /// Set a new amount of the internal reward token to distribute per second.
     /// Only the owner can execute this.
     SetTokensPerSecond {
-        /// The new amount of ASTRO to distribute per second
+        /// The new amount of the internal reward token to distribute per second
         amount: Uint128,
     },
     /// Incentivize a pool with external rewards. Rewards can be in either native or cw20 form.
@@ -165,13 +170,29 @@ pub enum ExecuteMsg {
     },
     /// Update config.
     /// Only the owner can execute it.
+    ///
+    /// Astroport-Juno stripped `astro_token` and `vesting_contract` from the
+    /// upstream UpdateConfig payload — the internal reward token is now
+    /// immutable post-instantiate (a rotation requires migration) and
+    /// rewards are paid directly from the incentives contract's own bank
+    /// balance (the DAO refunds via BankMsg::Send).
     UpdateConfig {
-        /// The new ASTRO token info
-        astro_token: Option<AssetInfo>,
-        /// The new vesting contract address
-        vesting_contract: Option<String>,
-        /// The new generator controller contract address
-        generator_controller: Option<String>,
+        /// Tristate update for the generator controller contract address.
+        /// `Set(addr)` writes a new controller; `Unset` revokes the
+        /// existing one (clears the binding); `NoChange` (the default)
+        /// leaves the controller untouched. Both JSON field-omission AND
+        /// an explicit JSON `null` decode to `NoChange` — the latter so
+        /// cwgen-style TS clients that emit `null` for unset fields
+        /// (rather than omitting the key) don't fail at the contract
+        /// boundary. The controller — when set — is the only address
+        /// other than the owner allowed to call SetupPools, and is the
+        /// binding to the DAO DAO gauge adapter. An explicit `Unset`
+        /// path is required so the DAO can revoke a compromised adapter
+        /// without rotating ownership. See audit findings
+        /// "generator_controller unset path" (rc2) +
+        /// "GeneratorControllerUpdate rejects explicit JSON null" (rc3 R2).
+        #[serde(default, deserialize_with = "deserialize_generator_controller_update")]
+        generator_controller: GeneratorControllerUpdate,
         /// The new generator guardian
         guardian: Option<String>,
         /// New incentivization fee info
@@ -181,8 +202,8 @@ pub enum ExecuteMsg {
     },
     /// Add or remove token to the block list.
     /// Only owner or guardian can execute this.
-    /// Pools which contain these tokens can't be incentivized with ASTRO rewards.
-    /// Also blocked tokens can't be used as external reward.
+    /// Pools which contain these tokens can't be incentivized with internal
+    /// rewards. Blocked tokens also can't be used as external rewards.
     /// Current active pools with these tokens will be removed from active set.
     UpdateBlockedTokenslist {
         /// Tokens to add
@@ -213,15 +234,8 @@ pub enum ExecuteMsg {
     ClaimOwnership {},
 }
 
-#[cw_serde]
-/// Cw20 hook message template
-pub enum Cw20Msg {
-    Deposit {
-        recipient: Option<String>,
-    },
-    /// Besides this enum variant is redundant we keep this for backward compatibility with old pair contracts
-    DepositFor(String),
-}
+// Cw20Msg (was used for cw20-LP `Receive` hook variants Deposit / DepositFor)
+// removed in P2.5 — Astroport-Juno only accepts TF LP tokens.
 
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -277,7 +291,7 @@ pub enum QueryMsg {
         limit: Option<u8>,
     },
     #[returns(Vec<(String, Uint128)>)]
-    /// Returns the list of all pools receiving astro emissions
+    /// Returns the list of all pools receiving internal emissions
     ActivePools {},
 }
 
@@ -289,6 +303,49 @@ pub struct IncentivizationFeeInfo {
     pub fee: Coin,
 }
 
+/// Tristate update wire for the optional `generator_controller` field on
+/// `UpdateConfig`. The previous `Option<String>` wire could only set or
+/// no-op — it had no path to revoke a controller short of rotating
+/// ownership — so a compromised gauge adapter could not be cleanly
+/// detached. This enum gives the owner an explicit `Unset` path.
+///
+/// JSON shape (cw_serde lowercases variant names):
+///   - `{"set": "<addr>"}`  — write a new controller address
+///   - `"unset"`            — clear the controller (set to `None`)
+///   - `"no_change"`        — leave the controller untouched (also the
+///                            default when the field is omitted)
+#[cw_serde]
+#[derive(Default)]
+pub enum GeneratorControllerUpdate {
+    /// Set the controller to the given address.
+    Set(String),
+    /// Revoke the controller (clear `Config.generator_controller`).
+    Unset,
+    /// Leave the controller untouched. This is the default so that
+    /// omitting the field from a JSON `UpdateConfig` payload behaves
+    /// identically to the pre-rc3 `Option<String>::None` semantics.
+    #[default]
+    NoChange,
+}
+
+/// Custom deserialize for the `generator_controller` field on
+/// `UpdateConfig::UpdateConfig` so explicit JSON `null` decodes to
+/// `GeneratorControllerUpdate::NoChange`. Cw_serde's default derive on a
+/// tagged enum rejects `null` (the `Option<String>` shape from rc2),
+/// which would force every cwgen-generated TS client to omit the field
+/// rather than emit `null`. This wrapper preserves backward compatibility
+/// for both wire shapes.
+fn deserialize_generator_controller_update<'de, D>(
+    deserializer: D,
+) -> Result<GeneratorControllerUpdate, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<GeneratorControllerUpdate>::deserialize(deserializer)
+        .map_err(D::Error::custom)?;
+    Ok(opt.unwrap_or_default())
+}
+
 #[cw_serde]
 pub struct Config {
     /// Address allowed to change contract parameters
@@ -297,14 +354,15 @@ pub struct Config {
     pub factory: Addr,
     /// Contract address which can only set active generators and their alloc points
     pub generator_controller: Option<Addr>,
-    /// [`AssetInfo`] of the ASTRO token
-    pub astro_token: AssetInfo,
-    /// Total amount of ASTRO rewards per second
-    pub astro_per_second: Uint128,
+    /// [`AssetInfo`] of the internal (DAO-funded) reward token. Renamed from
+    /// upstream's `astro_token`; for Astroport-Juno this is typically
+    /// `AssetInfo::native("ujuno")`. Immutable post-instantiate.
+    pub reward_token: AssetInfo,
+    /// Total amount of the internal reward token to distribute per second.
+    /// Renamed from upstream's `astro_per_second`.
+    pub reward_per_second: Uint128,
     /// Total allocation points. Must be the sum of all allocation points in all active generators
     pub total_alloc_points: Uint128,
-    /// The vesting contract which distributes internal (ASTRO) rewards
-    pub vesting_contract: Addr,
     /// The guardian address which can add or remove tokens from blacklist
     pub guardian: Option<Addr>,
     /// Defines native fee along with fee receiver.
@@ -322,7 +380,11 @@ pub struct Config {
 /// This enum is a tiny wrapper over [`AssetInfo`] to differentiate between internal and external rewards.
 /// External rewards always have a next_update_ts field which is used to update reward per second (or disable them).
 pub enum RewardType {
-    /// Internal rewards aka ASTRO emissions don't have next_update_ts field and they are paid out from Vesting contract.
+    /// Internal rewards (the DAO-funded "main emission" reward token; was
+    /// ASTRO upstream) don't have a next_update_ts field. Astroport-Juno
+    /// pays these directly from the incentives contract's own bank balance
+    /// (the DAO refunds via BankMsg::Send) — upstream's vesting-contract
+    /// dependency was stripped in P2.5.
     Int(AssetInfo),
     /// External rewards always have corresponding schedules. Reward is paid out from Incentives contract balance.
     Ext {
@@ -332,6 +394,8 @@ pub enum RewardType {
     },
 }
 
+// RewardType::Int means "the internal DAO-funded reward token"
+// (was named "ASTRO" upstream).
 impl RewardType {
     pub fn is_external(&self) -> bool {
         matches!(&self, RewardType::Ext { .. })
@@ -499,5 +563,71 @@ mod tests {
             schedule.next_epoch_start_ts + 3 * EPOCH_LENGTH
         );
         assert_eq!(schedule.rps, Decimal256::one());
+    }
+
+    /// rc4 R2 polish: explicit JSON `null` on the `generator_controller`
+    /// field of `UpdateConfig` must decode to `GeneratorControllerUpdate::
+    /// NoChange`. This is the wire shape `Option<String>::None` would
+    /// serialize to under the rc2 enum, and the shape cwgen-style TS
+    /// clients commonly emit for unset fields. Without the custom
+    /// deserializer, serde-json-wasm rejects `null` on a tagged enum.
+    #[test]
+    fn update_config_decodes_explicit_null_generator_controller_as_no_change() {
+        let payload = r#"{"update_config":{"generator_controller":null,"guardian":null,"incentivization_fee_info":null,"token_transfer_gas_limit":null}}"#;
+        let decoded: ExecuteMsg = cosmwasm_std::from_json(payload).unwrap();
+        match decoded {
+            ExecuteMsg::UpdateConfig {
+                generator_controller,
+                ..
+            } => {
+                assert!(matches!(
+                    generator_controller,
+                    GeneratorControllerUpdate::NoChange
+                ));
+            }
+            _ => panic!("expected UpdateConfig"),
+        }
+    }
+
+    /// And: field omission still works (sanity check on the
+    /// `#[serde(default)]` half).
+    #[test]
+    fn update_config_decodes_omitted_generator_controller_as_no_change() {
+        let payload = r#"{"update_config":{"guardian":null,"incentivization_fee_info":null,"token_transfer_gas_limit":null}}"#;
+        let decoded: ExecuteMsg = cosmwasm_std::from_json(payload).unwrap();
+        match decoded {
+            ExecuteMsg::UpdateConfig {
+                generator_controller,
+                ..
+            } => {
+                assert!(matches!(
+                    generator_controller,
+                    GeneratorControllerUpdate::NoChange
+                ));
+            }
+            _ => panic!("expected UpdateConfig"),
+        }
+    }
+
+    /// And: existing tri-state variants still decode.
+    #[test]
+    fn update_config_decodes_set_unset_variants() {
+        let set_payload = r#"{"update_config":{"generator_controller":{"set":"juno1xxx"},"guardian":null,"incentivization_fee_info":null,"token_transfer_gas_limit":null}}"#;
+        let unset_payload = r#"{"update_config":{"generator_controller":"unset","guardian":null,"incentivization_fee_info":null,"token_transfer_gas_limit":null}}"#;
+
+        match cosmwasm_std::from_json(set_payload).unwrap() {
+            ExecuteMsg::UpdateConfig {
+                generator_controller: GeneratorControllerUpdate::Set(addr),
+                ..
+            } => assert_eq!(addr, "juno1xxx"),
+            other => panic!("expected Set, got {other:?}"),
+        }
+        match cosmwasm_std::from_json(unset_payload).unwrap() {
+            ExecuteMsg::UpdateConfig {
+                generator_controller: GeneratorControllerUpdate::Unset,
+                ..
+            } => {}
+            other => panic!("expected Unset, got {other:?}"),
+        }
     }
 }

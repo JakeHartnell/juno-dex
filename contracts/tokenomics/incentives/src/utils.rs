@@ -1,11 +1,11 @@
 use cosmwasm_std::{
     attr, ensure, wasm_execute, Addr, BankMsg, Deps, DepsMut, Env, MessageInfo, Order, ReplyOn,
-    Response, StdError, StdResult, Storage, SubMsg, Uint128,
+    Response, StdError, StdResult, Storage, Uint128,
 };
 use itertools::Itertools;
 
 use crate::error::ContractError;
-use crate::reply::POST_TRANSFER_REPLY_ID;
+use crate::reply::register_pending_transfer;
 use crate::state::{
     Op, PoolInfo, UserInfo, ACTIVE_POOLS, BLOCKED_TOKENS, CONFIG, ORPHANED_REWARDS,
 };
@@ -15,14 +15,24 @@ use astroport::asset::{
 use astroport::common::LP_SUBDENOM;
 use astroport::factory::PairType;
 use astroport::incentives::{Config, IncentivesSchedule, InputSchedule, MAX_ORPHANED_REWARD_LIMIT};
-use astroport::{factory, pair, vesting};
+use astroport::{factory, pair};
 
 /// Claim all rewards and compose [`Response`] object containing all attributes and messages.
-/// This function doesn't mutate the state but mutates in-memory objects.
-/// Function caller is responsible for updating the state.
-/// If vesting_contract is None this function reads config from state and gets vesting address.
+/// Mutates in-memory `PoolInfo` / `UserInfo` objects passed via `pool_tuples`;
+/// the caller is responsible for `save`-ing those back to storage.
+///
+/// The function also registers per-transfer pending payloads in
+/// `PENDING_REWARD_TRANSFERS` (via `register_pending_transfer`) so the reply
+/// handler can route failed transfers into `ORPHANED_REWARDS`. This is the
+/// only direct storage mutation `claim_rewards` performs.
+///
+/// Astroport-Juno change (P2.5): internal protocol rewards are paid directly
+/// from this contract's own balance (a `BankMsg::Send` for native or
+/// `cw20::Transfer` for cw20), not through a vesting contract. Upstream's
+/// `astroport-vesting` dep was stripped — the DAO refunds this contract's
+/// bank balance via `BankMsg::Send` when budget runs low.
 pub fn claim_rewards(
-    storage: &dyn Storage,
+    storage: &mut dyn Storage,
     config: &Config,
     env: Env,
     user: &Addr,
@@ -65,30 +75,42 @@ pub fn claim_rewards(
 
     // Aggregating rewards by asset info.
     // This allows to reduce number of output messages thus reducing total gas cost.
-    let mut messages = external_rewards
+    // Each transfer gets a unique reply id (via `register_pending_transfer`) and
+    // `ReplyOn::Always` so the reply handler can either GC the entry on success
+    // or credit `ORPHANED_REWARDS` on failure — the stuck-funds bug fix.
+    let aggregated: Vec<(AssetInfo, Uint128)> = external_rewards
         .into_iter()
         .group_by(|asset| asset.info.clone())
         .into_iter()
         .map(|(info, assets)| {
             let amount: Uint128 = assets.into_iter().map(|asset| asset.amount).sum();
-            info.with_balance(amount).into_submsg(
-                user,
-                Some((ReplyOn::Error, POST_TRANSFER_REPLY_ID)),
-                config.token_transfer_gas_limit,
-            )
+            (info, amount)
         })
-        .collect::<StdResult<Vec<_>>>()?;
+        .collect();
 
-    // Claim Astroport rewards
+    let mut messages = Vec::with_capacity(aggregated.len() + 1);
+    for (info, amount) in aggregated {
+        let reply_id = register_pending_transfer(storage, &info, amount)?;
+        let submsg = info.with_balance(amount).into_submsg(
+            user,
+            Some((ReplyOn::Always, reply_id)),
+            config.token_transfer_gas_limit,
+        )?;
+        messages.push(submsg);
+    }
+
+    // Pay protocol rewards directly from this contract's balance.
+    // Native: BankMsg::Send. cw20: cw20::ExecuteMsg::Transfer.
     if !protocol_reward_amount.is_zero() {
-        messages.push(SubMsg::new(wasm_execute(
-            &config.vesting_contract,
-            &vesting::ExecuteMsg::Claim {
-                recipient: Some(user.to_string()),
-                amount: Some(protocol_reward_amount),
-            },
-            vec![],
-        )?));
+        let reply_id =
+            register_pending_transfer(storage, &config.reward_token, protocol_reward_amount)?;
+        let reward_asset = config.reward_token.with_balance(protocol_reward_amount);
+        let transfer = reward_asset.into_submsg(
+            user,
+            Some((ReplyOn::Always, reply_id)),
+            config.token_transfer_gas_limit,
+        )?;
+        messages.push(transfer);
     }
 
     Ok(Response::new()
@@ -116,14 +138,22 @@ pub fn deactivate_pool(
         Some(mut pool_info) if pool_info.is_active_pool() => {
             let mut active_pools = ACTIVE_POOLS.load(deps.storage)?;
 
+            // `is_active_pool()` (state.rs) and `ACTIVE_POOLS` are two sides of
+            // the same invariant: every pool whose internal-reward rps is
+            // non-zero must appear in `ACTIVE_POOLS`. If they desync (e.g. via
+            // a buggy migration), surface a typed error instead of unwrapping —
+            // a panic at this point would brick `DeactivatePool` for the
+            // affected pool with no way to recover other than another migration.
             let (ind, _) = active_pools
                 .iter()
                 .find_position(|(lp_asset, _)| lp_asset == &lp_token_asset)
-                .unwrap();
+                .ok_or_else(|| ContractError::ActivePoolInvariantBroken {
+                    lp_token: lp_token.clone(),
+                })?;
             let (_, alloc_points) = active_pools.swap_remove(ind);
 
             pool_info.update_rewards(deps.storage, &env, &lp_token_asset)?;
-            pool_info.disable_astro_rewards();
+            pool_info.disable_internal_rewards();
             pool_info.save(deps.storage, &lp_token_asset)?;
 
             config.total_alloc_points = config.total_alloc_points.checked_sub(alloc_points)?;
@@ -131,7 +161,7 @@ pub fn deactivate_pool(
             for (lp_asset, alloc_points) in &active_pools {
                 let mut pool_info = PoolInfo::load(deps.storage, lp_asset)?;
                 pool_info.update_rewards(deps.storage, &env, lp_asset)?;
-                pool_info.set_astro_rewards(&config, *alloc_points);
+                pool_info.set_internal_rewards(&config, *alloc_points);
                 pool_info.save(deps.storage, lp_asset)?;
             }
 
@@ -167,7 +197,7 @@ pub fn deactivate_blocked_pools(deps: DepsMut, env: Env) -> Result<Response, Con
         // check if pair type is blocked
         if blocked_pair_types.contains(&pair_info.pair_type) {
             pool_info.update_rewards(deps.storage, &env, lp_token_asset)?;
-            pool_info.disable_astro_rewards();
+            pool_info.disable_internal_rewards();
             pool_info.save(deps.storage, lp_token_asset)?;
 
             config.total_alloc_points = config.total_alloc_points.checked_sub(*alloc_points)?;
@@ -187,7 +217,7 @@ pub fn deactivate_blocked_pools(deps: DepsMut, env: Env) -> Result<Response, Con
         for (lp_asset, alloc_points) in &active_pools {
             let mut pool_info = PoolInfo::load(deps.storage, lp_asset)?;
             pool_info.update_rewards(deps.storage, &env, lp_asset)?;
-            pool_info.set_astro_rewards(&config, *alloc_points);
+            pool_info.set_internal_rewards(&config, *alloc_points);
             pool_info.save(deps.storage, lp_asset)?;
         }
 
@@ -236,7 +266,7 @@ pub fn incentivize(
         deps.storage,
         &lp_token_asset,
         &schedule,
-        &config.astro_token,
+        &config.reward_token,
     )?;
 
     // Check whether this is a new external reward token.
@@ -244,7 +274,8 @@ pub fn incentivize(
     // Otherwise, reward token will be removed from the pool info and go to outstanding rewards.
     // Next schedules with the same token will be considered as "new".
     // ASTRO rewards don't require incentivize fee.
-    if rewards_number_before < pool_info.rewards.len() && schedule.reward_info != config.astro_token
+    if rewards_number_before < pool_info.rewards.len()
+        && schedule.reward_info != config.reward_token
     {
         // If fee set we expect to receive it
         if let Some(incentivization_fee_info) = &config.incentivization_fee_info {
@@ -360,12 +391,15 @@ pub fn remove_reward_from_pool(
 
     let mut response = Response::new();
 
-    // Send unclaimed rewards
+    // Send unclaimed rewards. Use the per-transfer pending payload scheme so
+    // a failed bank/cw20 send routes the funds into `ORPHANED_REWARDS` instead
+    // of being lost — same orphan-on-failure invariant as `claim_rewards`.
     if !unclaimed.is_zero() {
         deps.api.addr_validate(&receiver)?;
+        let reply_id = register_pending_transfer(deps.storage, &reward_asset, unclaimed)?;
         let transfer_msg = reward_asset.with_balance(unclaimed).into_submsg(
             receiver,
-            Some((ReplyOn::Error, POST_TRANSFER_REPLY_ID)),
+            Some((ReplyOn::Always, reply_id)),
             config.token_transfer_gas_limit,
         )?;
         response = response.add_submessage(transfer_msg);
@@ -406,10 +440,80 @@ pub fn get_pair_from_denom(deps: Deps, denom: &str) -> StdResult<Addr> {
 
 /// Checks if the pool with the following asset infos is registered in the factory contract and
 /// LP tokens address/denom matches the one registered in the factory.
+///
+/// Astroport-Juno hardening (audit findings HIGH x2):
+///
+/// rc3 first pass: the upstream native-token branch only validated the bech32
+/// shape of the embedded lp-minter, which let any caller invent a
+/// `factory/<some-valid-addr>/<lp-suffix>` denom and seed fake rewards. rc3
+/// added a `pair::QueryMsg::Pair {}` round-trip against the alleged
+/// lp-minter — but that query targets the attacker's own contract, which
+/// can forge the response, so this gate alone is insufficient.
+///
+/// rc4 closure: after the pair-self-query, also consult the factory's PAIRS
+/// registry (mirroring the cw20 branch at lines 478-503) and require that
+/// (a) the factory has a pair registered for `pair_info.asset_infos` AND
+/// (b) the registered `contract_addr` equals the lp-minter AND
+/// (c) the registered `liquidity_token` equals the supplied denom.
+/// Spoofing now requires subverting the factory registry, which is
+/// owner-gated.
 pub fn is_valid_pool(deps: Deps, config: &Config, lp_token: &AssetInfo) -> StdResult<()> {
     if let AssetInfo::NativeToken { denom } = lp_token {
-        // Check if the native token at least follows Astroport LP token format
-        get_pair_from_denom(deps, denom).map(|_| ())
+        // Shape check first — fails fast for obvious non-LP denoms before we
+        // pay for a cross-contract query.
+        let lp_minter = get_pair_from_denom(deps, denom)?;
+
+        // Round-trip the alleged pair contract. Any query failure (wrong addr,
+        // non-pair contract, etc.) means this denom is not a registered LP.
+        let pair_info: PairInfo = deps
+            .querier
+            .query_wasm_smart(&lp_minter, &pair::QueryMsg::Pair {})
+            .map_err(|_| {
+                StdError::generic_err(format!(
+                    "LP token {denom} is not minted by a registered Astroport pair at {lp_minter}",
+                ))
+            })?;
+
+        if pair_info.liquidity_token != *denom {
+            return Err(StdError::generic_err(format!(
+                "LP token {denom} doesn't match LP token registered in pair {}",
+                pair_info.liquidity_token
+            )));
+        }
+
+        // Factory cross-check: the lp-minter must be the address the factory
+        // has registered for this asset pair. Without this, an attacker can
+        // deploy a fake-pair contract that forges the self-query response.
+        let registered: PairInfo = deps
+            .querier
+            .query_wasm_smart(
+                &config.factory,
+                &factory::QueryMsg::Pair {
+                    asset_infos: pair_info.asset_infos.to_vec(),
+                },
+            )
+            .map_err(|_| {
+                StdError::generic_err(format!(
+                    "The pair is not registered in factory: {}-{}",
+                    pair_info.asset_infos[0], pair_info.asset_infos[1]
+                ))
+            })?;
+
+        if registered.contract_addr != lp_minter {
+            return Err(StdError::generic_err(format!(
+                "LP token {denom} claims pair {lp_minter} but factory registers {} for this asset pair",
+                registered.contract_addr
+            )));
+        }
+
+        if registered.liquidity_token != *denom {
+            return Err(StdError::generic_err(format!(
+                "LP token {denom} doesn't match LP token registered in factory {}",
+                registered.liquidity_token
+            )));
+        }
+
+        Ok(())
     } else {
         // Full check that cw20 LP token is registered in the factory
         let pair_info = query_pair_info(deps, lp_token)?;
@@ -439,6 +543,23 @@ pub fn is_valid_pool(deps: Deps, config: &Config, lp_token: &AssetInfo) -> StdRe
     }
 }
 
+/// Claim orphaned rewards on behalf of the protocol.
+///
+/// Astroport-Juno hardening (audit finding MEDIUM): the upstream behaviour
+/// accepted an owner-supplied `receiver: String` and forwarded the funds to
+/// it, which is a clean backdoor — the owner could siphon orphaned rewards
+/// (deposited in good faith by external incentivizers) into any address by
+/// proposing a single governance call. We now hard-bind the receiver to
+/// `config.owner`, i.e. the DAO core address, and surface the supplied value
+/// in an event attribute only when it disagrees so the caller is not silently
+/// surprised.
+///
+/// Funder-trust assumption: by sending external rewards into this contract,
+/// incentivizers extend their trust to `config.owner` (the DAO) — the same
+/// principal who can reconfigure emissions and deregister rewards. Orphan
+/// recovery therefore terminates at the DAO's treasury, which the funder has
+/// already accepted as the protocol's fiduciary endpoint. Re-routing orphans
+/// elsewhere would break that trust model.
 pub fn claim_orphaned_rewards(
     deps: DepsMut,
     info: MessageInfo,
@@ -448,7 +569,13 @@ pub fn claim_orphaned_rewards(
     let config = CONFIG.load(deps.storage)?;
     ensure!(info.sender == config.owner, ContractError::Unauthorized {});
 
-    let receiver = deps.api.addr_validate(&receiver)?;
+    // Ignore the supplied receiver and route to the DAO core address.
+    // The argument is still validated for bech32 shape and echoed back as an
+    // attribute so callers do not pass garbage by mistake; the value itself
+    // does not influence the funds flow.
+    let supplied_receiver = deps.api.addr_validate(&receiver)?;
+    let receiver = config.owner.clone();
+
     let limit = limit
         .unwrap_or(MAX_ORPHANED_REWARD_LIMIT)
         .min(MAX_ORPHANED_REWARD_LIMIT);
@@ -466,6 +593,7 @@ pub fn claim_orphaned_rewards(
     let mut attrs = vec![
         attr("action", "claim_orphaned_rewards"),
         attr("receiver", &receiver),
+        attr("supplied_receiver", &supplied_receiver),
     ];
 
     for (reward_info_binary, amount) in orphaned_rewards {
@@ -478,16 +606,20 @@ pub fn claim_orphaned_rewards(
 
             attrs.push(attr("claimed_orphaned_reward", reward_asset.to_string()));
 
+            let reply_id =
+                register_pending_transfer(deps.storage, &reward_asset.info, reward_asset.amount)?;
             let transfer_msg = reward_asset.into_submsg(
                 &receiver,
-                Some((ReplyOn::Error, POST_TRANSFER_REPLY_ID)),
+                Some((ReplyOn::Always, reply_id)),
                 config.token_transfer_gas_limit,
             )?;
             messages.push(transfer_msg);
         }
     }
 
-    Ok(Response::new().add_submessages(messages))
+    Ok(Response::new()
+        .add_attributes(attrs)
+        .add_submessages(messages))
 }
 
 pub fn asset_info_key(asset_info: &AssetInfo) -> Vec<u8> {
@@ -523,6 +655,13 @@ pub fn from_key_to_asset_info(bytes: Vec<u8>) -> StdResult<AssetInfo> {
 #[cfg(test)]
 mod unit_tests {
     use astroport::asset::AssetInfo;
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::{Reply, SubMsgResponse, SubMsgResult};
+
+    use crate::reply::{
+        register_pending_transfer, reply, FIRST_DYNAMIC_REPLY_ID, NEXT_REPLY_ID,
+        PENDING_REWARD_TRANSFERS, POST_TRANSFER_REPLY_ID,
+    };
 
     use super::*;
 
@@ -560,6 +699,239 @@ mod unit_tests {
         assert_eq!(
             from_key_to_asset_info(key).unwrap_err().to_string(),
             "Cannot decode UTF8 bytes into string: invalid utf-8 sequence of 1 bytes from index 0"
+        );
+    }
+
+    // ---------------------------------------------------------------------
+    // Astroport-Juno audit remediation tests
+    // ---------------------------------------------------------------------
+
+    /// `register_pending_transfer` should hand out monotonic ids starting from
+    /// `FIRST_DYNAMIC_REPLY_ID`, persist the (asset, amount) payload, and bump
+    /// the counter so the next caller never gets a colliding id.
+    #[test]
+    fn pending_transfer_registration_is_monotonic() {
+        let mut deps = mock_dependencies();
+        let reward_a = AssetInfo::native("ujuno");
+        let reward_b = AssetInfo::cw20_unchecked("juno1lpcontractxxx");
+
+        let id_1 = register_pending_transfer(deps.as_mut().storage, &reward_a, 100u128.into())
+            .expect("first registration");
+        let id_2 = register_pending_transfer(deps.as_mut().storage, &reward_b, 200u128.into())
+            .expect("second registration");
+
+        assert_eq!(id_1, FIRST_DYNAMIC_REPLY_ID);
+        assert_eq!(id_2, FIRST_DYNAMIC_REPLY_ID + 1);
+        assert_eq!(
+            NEXT_REPLY_ID.load(deps.as_ref().storage).unwrap(),
+            FIRST_DYNAMIC_REPLY_ID + 2
+        );
+
+        let (key_1, amt_1) = PENDING_REWARD_TRANSFERS
+            .load(deps.as_ref().storage, id_1)
+            .unwrap();
+        assert_eq!(key_1, asset_info_key(&reward_a));
+        assert_eq!(amt_1, Uint128::new(100));
+
+        let (key_2, amt_2) = PENDING_REWARD_TRANSFERS
+            .load(deps.as_ref().storage, id_2)
+            .unwrap();
+        assert_eq!(key_2, asset_info_key(&reward_b));
+        assert_eq!(amt_2, Uint128::new(200));
+    }
+
+    /// Critical audit finding: when a reward transfer fails, the funds must
+    /// land in `ORPHANED_REWARDS` so the DAO can recover them. The legacy
+    /// `ReplyOn::Error` + global id handler silently dropped the failure.
+    #[test]
+    fn failed_transfer_routes_to_orphaned_rewards() {
+        let mut deps = mock_dependencies();
+        let reward = AssetInfo::native("ujuno");
+        let amount = Uint128::new(1_234);
+
+        let reply_id = register_pending_transfer(deps.as_mut().storage, &reward, amount).unwrap();
+
+        let env = cosmwasm_std::testing::mock_env();
+        let response = reply(
+            deps.as_mut(),
+            env,
+            Reply {
+                id: reply_id,
+                result: SubMsgResult::Err("bank send: insufficient funds".to_string()),
+            },
+        )
+        .expect("reply handler succeeds even on transfer failure");
+
+        // Pending entry is garbage-collected.
+        assert!(PENDING_REWARD_TRANSFERS
+            .may_load(deps.as_ref().storage, reply_id)
+            .unwrap()
+            .is_none());
+
+        // Failed amount is now claimable as an orphaned reward.
+        let orphaned = ORPHANED_REWARDS
+            .load(deps.as_ref().storage, &asset_info_key(&reward))
+            .unwrap();
+        assert_eq!(orphaned, amount);
+
+        // Structured attributes are present for off-chain monitoring.
+        let attrs: std::collections::HashMap<_, _> = response
+            .attributes
+            .iter()
+            .map(|a| (a.key.as_str(), a.value.as_str()))
+            .collect();
+        assert_eq!(attrs.get("action"), Some(&"orphan_failed_transfer"));
+        assert_eq!(attrs.get("reward"), Some(&"ujuno"));
+        assert_eq!(attrs.get("amount"), Some(&"1234"));
+        assert!(attrs.contains_key("transfer_error"));
+    }
+
+    /// Successful transfers must also clean up their pending entry — using
+    /// `ReplyOn::Always` means we always get a chance to GC and storage does
+    /// not leak across the contract's lifetime.
+    #[test]
+    fn successful_transfer_cleans_up_pending_entry() {
+        let mut deps = mock_dependencies();
+        let reward = AssetInfo::native("ujuno");
+        let amount = Uint128::new(42);
+
+        let reply_id = register_pending_transfer(deps.as_mut().storage, &reward, amount).unwrap();
+
+        let env = cosmwasm_std::testing::mock_env();
+        reply(
+            deps.as_mut(),
+            env,
+            Reply {
+                id: reply_id,
+                result: SubMsgResult::Ok(SubMsgResponse {
+                    events: vec![],
+                    data: None,
+                }),
+            },
+        )
+        .unwrap();
+
+        assert!(PENDING_REWARD_TRANSFERS
+            .may_load(deps.as_ref().storage, reply_id)
+            .unwrap()
+            .is_none());
+        // No orphan credit on success.
+        assert!(ORPHANED_REWARDS
+            .may_load(deps.as_ref().storage, &asset_info_key(&reward))
+            .unwrap()
+            .is_none());
+    }
+
+    /// Legacy `POST_TRANSFER_REPLY_ID` branch keeps working — we only attach
+    /// the `transfer_error` attribute and do not panic. This preserves
+    /// compatibility with any in-flight submessage from before the migration.
+    #[test]
+    fn legacy_post_transfer_reply_id_is_still_accepted() {
+        let mut deps = mock_dependencies();
+        let env = cosmwasm_std::testing::mock_env();
+
+        let response = reply(
+            deps.as_mut(),
+            env,
+            Reply {
+                id: POST_TRANSFER_REPLY_ID,
+                result: SubMsgResult::Err("legacy".to_string()),
+            },
+        )
+        .expect("legacy id still accepted");
+
+        let attr = response
+            .attributes
+            .iter()
+            .find(|a| a.key == "transfer_error")
+            .expect("transfer_error attribute set");
+        assert_eq!(attr.value, "legacy");
+    }
+
+    /// `ActivePoolInvariantBroken` should render a useful message identifying
+    /// the desynced lp token so on-chain attribution can recover.
+    #[test]
+    fn active_pool_invariant_broken_error_message() {
+        let err = ContractError::ActivePoolInvariantBroken {
+            lp_token: "factory/juno1xxx/astroport/share".to_string(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("factory/juno1xxx/astroport/share"));
+        assert!(msg.contains("ACTIVE_POOLS"));
+    }
+
+    /// `deactivate_pool` must return the typed `ActivePoolInvariantBroken`
+    /// error (rather than panicking via `.unwrap()`) when `PoolInfo` claims
+    /// to be active but the corresponding `ACTIVE_POOLS` entry is missing.
+    /// Triggers the invariant break through the real production call site,
+    /// not just the Display impl — closes the rc4 R5 finding that the prior
+    /// test only guarded the error message format.
+    #[test]
+    fn deactivate_pool_returns_typed_error_when_invariant_broken() {
+        use crate::state::PoolInfo;
+        use astroport::asset::AssetInfo;
+        use astroport::incentives::{Config, RewardInfo, RewardType};
+        use cosmwasm_std::testing::{mock_env, mock_info};
+        use cosmwasm_std::{Decimal256, Uint128};
+
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let factory = deps.api.addr_make("factory");
+        let owner = deps.api.addr_make("owner");
+        let reward_token = AssetInfo::native("ujuno");
+        let lp_token = "factory/juno1lpxxx/astroport/share".to_string();
+        let lp_asset = AssetInfo::native(&lp_token);
+
+        // Seed a Config whose factory matches the simulated caller.
+        CONFIG
+            .save(
+                deps.as_mut().storage,
+                &Config {
+                    owner,
+                    factory: factory.clone(),
+                    generator_controller: None,
+                    reward_token: reward_token.clone(),
+                    reward_per_second: Uint128::new(1000),
+                    total_alloc_points: Uint128::new(100),
+                    guardian: None,
+                    incentivization_fee_info: None,
+                    token_transfer_gas_limit: None,
+                },
+            )
+            .unwrap();
+
+        // Seed an "active" PoolInfo — non-zero internal rps so
+        // `is_active_pool()` returns true and the deactivate_pool match
+        // arm enters the `Some(_) if pool_info.is_active_pool()` branch.
+        let mut pool_info = PoolInfo {
+            total_lp: Uint128::zero(),
+            rewards: vec![RewardInfo {
+                reward: RewardType::Int(reward_token.clone()),
+                rps: Decimal256::from_ratio(1u128, 1u128),
+                index: Decimal256::zero(),
+                orphaned: Decimal256::zero(),
+            }],
+            last_update_ts: env.block.time.seconds(),
+            rewards_to_remove: Default::default(),
+        };
+        pool_info.save(deps.as_mut().storage, &lp_asset).unwrap();
+
+        // Seed ACTIVE_POOLS with the desync invariant breach — empty list,
+        // even though PoolInfo above claims to be active.
+        ACTIVE_POOLS.save(deps.as_mut().storage, &vec![]).unwrap();
+
+        // Call the production deactivate_pool from the factory. Pre-rc3
+        // this would panic via `.unwrap()`; rc3 made it return the typed
+        // error; this test pins that contract so a future refactor can't
+        // silently re-introduce the unwrap.
+        let info = mock_info(factory.as_str(), &[]);
+        let err = deactivate_pool(deps.as_mut(), info, env, lp_token.clone())
+            .expect_err("desynced state must surface the typed error, not panic");
+
+        let lp_token_for_match = lp_token.clone();
+        assert!(
+            matches!(err, ContractError::ActivePoolInvariantBroken { lp_token: ref t } if t == &lp_token_for_match),
+            "expected typed ActivePoolInvariantBroken, got: {err:?}"
         );
     }
 }
