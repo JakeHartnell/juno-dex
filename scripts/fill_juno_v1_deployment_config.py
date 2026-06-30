@@ -147,11 +147,10 @@ def rewire(cfg: dict[str, Any]) -> None:
     msgs["astroport-router"]["astroport_factory"] = addresses["astroport-factory"]
 
     incentives = msgs["astroport-incentives"]
-    incentives["astro_token"] = {"native_token": {"denom": native_denom}}
+    incentives["reward_token"] = {"native_token": {"denom": native_denom}}
     incentives["factory"] = addresses["astroport-factory"]
     incentives["guardian"] = guardian
     incentives["owner"] = owner
-    incentives["vesting_contract"] = treasury
 
     oracle = msgs["astroport-oracle"]
     oracle["asset_infos"] = [{"native_token": {"denom": native_denom}}]

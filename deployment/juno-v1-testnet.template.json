@@ -76,7 +76,7 @@
       "astroport_factory": "juno1replacefactory000000000000000000000000000000"
     },
     "astroport-incentives": {
-      "astro_token": {
+      "reward_token": {
         "native_token": {
           "denom": "ujunox"
         }
@@ -84,8 +84,7 @@
       "factory": "juno1replacefactory000000000000000000000000000000",
       "guardian": "juno1replaceguardian000000000000000000000000000000",
       "incentivization_fee_info": null,
-      "owner": "juno1replaceowner000000000000000000000000000000000",
-      "vesting_contract": "juno1replacetreasury0000000000000000000000000000"
+      "owner": "juno1replaceowner000000000000000000000000000000000"
     },
     "astroport-oracle": {
       "asset_infos": [
