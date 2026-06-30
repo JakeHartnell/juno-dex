@@ -1,21 +1,17 @@
 {
   "contract_name": "astroport-incentives",
-  "contract_version": "1.4.0",
+  "contract_version": "1.4.0-juno",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
-      "astro_token",
       "factory",
       "owner",
-      "vesting_contract"
+      "reward_token"
     ],
     "properties": {
-      "astro_token": {
-        "$ref": "#/definitions/AssetInfo"
-      },
       "factory": {
         "type": "string"
       },
@@ -38,8 +34,13 @@
       "owner": {
         "type": "string"
       },
-      "vesting_contract": {
-        "type": "string"
+      "reward_token": {
+        "description": "The internal \"main emission\" reward token. Renamed from upstream's `astro_token`; Juno's deployment defaults this to native ujuno but any AssetInfo is allowed at instantiate time.",
+        "allOf": [
+          {
+            "$ref": "#/definitions/AssetInfo"
+          }
+        ]
       }
     },
     "additionalProperties": false,
@@ -211,20 +212,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Receives a message of type [`Cw20ReceiveMsg`]. Handles cw20 LP token deposits.",
-        "type": "object",
-        "required": [
-          "receive"
-        ],
-        "properties": {
-          "receive": {
-            "$ref": "#/definitions/Cw20ReceiveMsg"
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Stake LP tokens in the Generator. LP tokens staked on behalf of recipient if recipient is set. Otherwise LP tokens are staked on behalf of message sender.",
+        "description": "Stake LP tokens in the Generator. LP tokens staked on behalf of recipient if recipient is set. Otherwise LP tokens are staked on behalf of message sender.\n\nAstroport-Juno only accepts token-factory LP tokens (the pair contract emits only TF LPs in this fork); the legacy cw20-LP entry point (`ExecuteMsg::Receive` + `Cw20Msg::{Deposit, DepositFor}`) was stripped in P2.5. See planning/11-incentives-and-gauges.md.",
         "type": "object",
         "required": [
           "deposit"
@@ -278,7 +266,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Set a new amount of ASTRO to distribute per seconds. Only the owner can execute this.",
+        "description": "Set a new amount of the internal reward token to distribute per second. Only the owner can execute this.",
         "type": "object",
         "required": [
           "set_tokens_per_second"
@@ -291,7 +279,7 @@
             ],
             "properties": {
               "amount": {
-                "description": "The new amount of ASTRO to distribute per second",
+                "description": "The new amount of the internal reward token to distribute per second",
                 "allOf": [
                   {
                     "$ref": "#/definitions/Uint128"
@@ -433,7 +421,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Update config. Only the owner can execute it.",
+        "description": "Update config. Only the owner can execute it.\n\nAstroport-Juno stripped `astro_token` and `vesting_contract` from the upstream UpdateConfig payload — the internal reward token is now immutable post-instantiate (a rotation requires migration) and rewards are paid directly from the incentives contract's own bank balance (the DAO refunds via BankMsg::Send).",
         "type": "object",
         "required": [
           "update_config"
@@ -442,22 +430,13 @@
           "update_config": {
             "type": "object",
             "properties": {
-              "astro_token": {
-                "description": "The new ASTRO token info",
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/AssetInfo"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
               "generator_controller": {
-                "description": "The new generator controller contract address",
-                "type": [
-                  "string",
-                  "null"
+                "description": "Tristate update for the generator controller contract address. `Set(addr)` writes a new controller; `Unset` revokes the existing one (clears the binding); `NoChange` (the default) leaves the controller untouched. Both JSON field-omission AND an explicit JSON `null` decode to `NoChange` — the latter so cwgen-style TS clients that emit `null` for unset fields (rather than omitting the key) don't fail at the contract boundary. The controller — when set — is the only address other than the owner allowed to call SetupPools, and is the binding to the DAO DAO gauge adapter. An explicit `Unset` path is required so the DAO can revoke a compromised adapter without rotating ownership. See audit findings \"generator_controller unset path\" (rc2) + \"GeneratorControllerUpdate rejects explicit JSON null\" (rc3 R2).",
+                "default": "no_change",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/GeneratorControllerUpdate"
+                  }
                 ]
               },
               "guardian": {
@@ -486,13 +465,6 @@
                 ],
                 "format": "uint64",
                 "minimum": 0.0
-              },
-              "vesting_contract": {
-                "description": "The new vesting contract address",
-                "type": [
-                  "string",
-                  "null"
-                ]
               }
             },
             "additionalProperties": false
@@ -501,7 +473,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Add or remove token to the block list. Only owner or guardian can execute this. Pools which contain these tokens can't be incentivized with ASTRO rewards. Also blocked tokens can't be used as external reward. Current active pools with these tokens will be removed from active set.",
+        "description": "Add or remove token to the block list. Only owner or guardian can execute this. Pools which contain these tokens can't be incentivized with internal rewards. Blocked tokens also can't be used as external rewards. Current active pools with these tokens will be removed from active set.",
         "type": "object",
         "required": [
           "update_blocked_tokenslist"
@@ -708,10 +680,6 @@
           }
         ]
       },
-      "Binary": {
-        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
-        "type": "string"
-      },
       "Coin": {
         "type": "object",
         "required": [
@@ -727,26 +695,37 @@
           }
         }
       },
-      "Cw20ReceiveMsg": {
-        "description": "Cw20ReceiveMsg should be de/serialized under `Receive()` variant in a ExecuteMsg",
-        "type": "object",
-        "required": [
-          "amount",
-          "msg",
-          "sender"
-        ],
-        "properties": {
-          "amount": {
-            "$ref": "#/definitions/Uint128"
+      "GeneratorControllerUpdate": {
+        "description": "Tristate update wire for the optional `generator_controller` field on `UpdateConfig`. The previous `Option<String>` wire could only set or no-op — it had no path to revoke a controller short of rotating ownership — so a compromised gauge adapter could not be cleanly detached. This enum gives the owner an explicit `Unset` path.\n\nJSON shape (cw_serde lowercases variant names): - `{\"set\": \"<addr>\"}`  — write a new controller address - `\"unset\"`            — clear the controller (set to `None`) - `\"no_change\"`        — leave the controller untouched (also the default when the field is omitted)",
+        "oneOf": [
+          {
+            "description": "Set the controller to the given address.",
+            "type": "object",
+            "required": [
+              "set"
+            ],
+            "properties": {
+              "set": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           },
-          "msg": {
-            "$ref": "#/definitions/Binary"
+          {
+            "description": "Revoke the controller (clear `Config.generator_controller`).",
+            "type": "string",
+            "enum": [
+              "unset"
+            ]
           },
-          "sender": {
-            "type": "string"
+          {
+            "description": "Leave the controller untouched. This is the default so that omitting the field from a JSON `UpdateConfig` payload behaves identically to the pre-rc3 `Option<String>::None` semantics.",
+            "type": "string",
+            "enum": [
+              "no_change"
+            ]
           }
-        },
-        "additionalProperties": false
+        ]
       },
       "IncentivizationFeeInfo": {
         "type": "object",
@@ -1086,7 +1065,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Returns the list of all pools receiving astro emissions",
+        "description": "Returns the list of all pools receiving internal emissions",
         "type": "object",
         "required": [
           "active_pools"
@@ -1251,30 +1230,13 @@
       "title": "Config",
       "type": "object",
       "required": [
-        "astro_per_second",
-        "astro_token",
         "factory",
         "owner",
-        "total_alloc_points",
-        "vesting_contract"
+        "reward_per_second",
+        "reward_token",
+        "total_alloc_points"
       ],
       "properties": {
-        "astro_per_second": {
-          "description": "Total amount of ASTRO rewards per second",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Uint128"
-            }
-          ]
-        },
-        "astro_token": {
-          "description": "[`AssetInfo`] of the ASTRO token",
-          "allOf": [
-            {
-              "$ref": "#/definitions/AssetInfo"
-            }
-          ]
-        },
         "factory": {
           "description": "The Factory address",
           "allOf": [
@@ -1324,6 +1286,22 @@
             }
           ]
         },
+        "reward_per_second": {
+          "description": "Total amount of the internal reward token to distribute per second. Renamed from upstream's `astro_per_second`.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "reward_token": {
+          "description": "[`AssetInfo`] of the internal (DAO-funded) reward token. Renamed from upstream's `astro_token`; for Astroport-Juno this is typically `AssetInfo::native(\"ujuno\")`. Immutable post-instantiate.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/AssetInfo"
+            }
+          ]
+        },
         "token_transfer_gas_limit": {
           "description": "Max allowed gas limit per one external incentive token transfer. If token transfer hits this gas limit, reward will be considered as claimed while in reality it will be stuck in the contract. If None, there is no gas limit.",
           "type": [
@@ -1338,14 +1316,6 @@
           "allOf": [
             {
               "$ref": "#/definitions/Uint128"
-            }
-          ]
-        },
-        "vesting_contract": {
-          "description": "The vesting contract which distributes internal (ASTRO) rewards",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Addr"
             }
           ]
         }
@@ -1742,7 +1712,7 @@
           "description": "This enum is a tiny wrapper over [`AssetInfo`] to differentiate between internal and external rewards. External rewards always have a next_update_ts field which is used to update reward per second (or disable them).",
           "oneOf": [
             {
-              "description": "Internal rewards aka ASTRO emissions don't have next_update_ts field and they are paid out from Vesting contract.",
+              "description": "Internal rewards (the DAO-funded \"main emission\" reward token; was ASTRO upstream) don't have a next_update_ts field. Astroport-Juno pays these directly from the incentives contract's own bank balance (the DAO refunds via BankMsg::Send) — upstream's vesting-contract dependency was stripped in P2.5.",
               "type": "object",
               "required": [
                 "int"
@@ -1928,7 +1898,7 @@
           "description": "This enum is a tiny wrapper over [`AssetInfo`] to differentiate between internal and external rewards. External rewards always have a next_update_ts field which is used to update reward per second (or disable them).",
           "oneOf": [
             {
-              "description": "Internal rewards aka ASTRO emissions don't have next_update_ts field and they are paid out from Vesting contract.",
+              "description": "Internal rewards (the DAO-funded \"main emission\" reward token; was ASTRO upstream) don't have a next_update_ts field. Astroport-Juno pays these directly from the incentives contract's own bank balance (the DAO refunds via BankMsg::Send) — upstream's vesting-contract dependency was stripped in P2.5.",
               "type": "object",
               "required": [
                 "int"

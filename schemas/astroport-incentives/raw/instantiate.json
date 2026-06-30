@@ -3,15 +3,11 @@
   "title": "InstantiateMsg",
   "type": "object",
   "required": [
-    "astro_token",
     "factory",
     "owner",
-    "vesting_contract"
+    "reward_token"
   ],
   "properties": {
-    "astro_token": {
-      "$ref": "#/definitions/AssetInfo"
-    },
     "factory": {
       "type": "string"
     },
@@ -34,8 +30,13 @@
     "owner": {
       "type": "string"
     },
-    "vesting_contract": {
-      "type": "string"
+    "reward_token": {
+      "description": "The internal \"main emission\" reward token. Renamed from upstream's `astro_token`; Juno's deployment defaults this to native ujuno but any AssetInfo is allowed at instantiate time.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/AssetInfo"
+        }
+      ]
     }
   },
   "additionalProperties": false,

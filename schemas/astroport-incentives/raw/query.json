@@ -286,7 +286,7 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns the list of all pools receiving astro emissions",
+      "description": "Returns the list of all pools receiving internal emissions",
       "type": "object",
       "required": [
         "active_pools"

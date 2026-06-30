@@ -3,30 +3,13 @@
   "title": "Config",
   "type": "object",
   "required": [
-    "astro_per_second",
-    "astro_token",
     "factory",
     "owner",
-    "total_alloc_points",
-    "vesting_contract"
+    "reward_per_second",
+    "reward_token",
+    "total_alloc_points"
   ],
   "properties": {
-    "astro_per_second": {
-      "description": "Total amount of ASTRO rewards per second",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Uint128"
-        }
-      ]
-    },
-    "astro_token": {
-      "description": "[`AssetInfo`] of the ASTRO token",
-      "allOf": [
-        {
-          "$ref": "#/definitions/AssetInfo"
-        }
-      ]
-    },
     "factory": {
       "description": "The Factory address",
       "allOf": [
@@ -76,6 +59,22 @@
         }
       ]
     },
+    "reward_per_second": {
+      "description": "Total amount of the internal reward token to distribute per second. Renamed from upstream's `astro_per_second`.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint128"
+        }
+      ]
+    },
+    "reward_token": {
+      "description": "[`AssetInfo`] of the internal (DAO-funded) reward token. Renamed from upstream's `astro_token`; for Astroport-Juno this is typically `AssetInfo::native(\"ujuno\")`. Immutable post-instantiate.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/AssetInfo"
+        }
+      ]
+    },
     "token_transfer_gas_limit": {
       "description": "Max allowed gas limit per one external incentive token transfer. If token transfer hits this gas limit, reward will be considered as claimed while in reality it will be stuck in the contract. If None, there is no gas limit.",
       "type": [
@@ -90,14 +89,6 @@
       "allOf": [
         {
           "$ref": "#/definitions/Uint128"
-        }
-      ]
-    },
-    "vesting_contract": {
-      "description": "The vesting contract which distributes internal (ASTRO) rewards",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Addr"
         }
       ]
     }

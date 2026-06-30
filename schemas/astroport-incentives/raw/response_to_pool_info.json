@@ -137,7 +137,7 @@
       "description": "This enum is a tiny wrapper over [`AssetInfo`] to differentiate between internal and external rewards. External rewards always have a next_update_ts field which is used to update reward per second (or disable them).",
       "oneOf": [
         {
-          "description": "Internal rewards aka ASTRO emissions don't have next_update_ts field and they are paid out from Vesting contract.",
+          "description": "Internal rewards (the DAO-funded \"main emission\" reward token; was ASTRO upstream) don't have a next_update_ts field. Astroport-Juno pays these directly from the incentives contract's own bank balance (the DAO refunds via BankMsg::Send) — upstream's vesting-contract dependency was stripped in P2.5.",
           "type": "object",
           "required": [
             "int"
