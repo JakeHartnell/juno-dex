@@ -1,0 +1,42 @@
+{
+  "chainId": "juno-1",
+  "chainName": "Juno",
+  "rpcEndpoint": "https://juno-rpc.kleomedes.network",
+  "restEndpoint": "https://juno-api.polkachu.com",
+  "explorerBaseUrl": "https://www.mintscan.io/juno",
+  "factory": "juno1n5ettlqdt06nd346mnqy65fahcvmncaazpwn8s3m0df3ldv0d2yqjqelca",
+  "nativeCoinRegistry": "juno1qwer7jleluth33trk2ywqvp6vwjh4j4zar3ag6dw5d8derkpel0sq8vfh2",
+  "router": "juno1fppwfa2efpsahvwlqprrshjth2mfqyd8n80yd7z5kpjspq30s8ksrapa8s",
+  "incentives": "juno1h0auy2knfyhkcn877cqun0fu00safgsjwvt82d4cvd0slv8q7wtsk59598",
+  "oracle": "juno1szsxu32r7rnu5wq7yqlxq4x46g0fq7qpzyggcvgsh2cq554mcuqql6jw4p",
+  "updatedAt": "2026-07-01T00:00:00Z",
+  "pools": [
+    {
+      "id": "juno-agent-preview-xyk-1",
+      "label": "JUNO / Juno Agent Test",
+      "pair": "juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv",
+      "lpToken": "factory/juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv/astroport/share",
+      "type": "xyk",
+      "feeBps": 30,
+      "assets": [
+        {
+          "kind": "native",
+          "id": "ujuno",
+          "symbol": "JUNO",
+          "decimals": 6,
+          "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
+        },
+        {
+          "kind": "native",
+          "id": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/junoagenttest202607010323",
+          "symbol": "JUNOAGENT-TEST",
+          "decimals": 6
+        }
+      ],
+      "explorer": "https://www.mintscan.io/juno/wasm/contract/juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv",
+      "enabled": true,
+      "featured": true,
+      "notes": "Preview/test TokenFactory pool from PR #9. Treat as experimental thin-liquidity infrastructure, not a public launch market."
+    }
+  ]
+}
