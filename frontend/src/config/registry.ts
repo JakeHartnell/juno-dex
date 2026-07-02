@@ -1,12 +1,23 @@
 import registryJson from "../data/registry.juno-1.json";
+import { mergeAssetMetadata } from "../lib/assets/assetMetadata";
 
 export type RegistryAsset = {
   kind: "native" | "ibc" | "cw20";
   id: string;
   symbol: string;
+  name?: string;
+  display?: string;
   decimals: number;
   denomTrace?: string;
   logoURI?: string;
+  coingeckoId?: string;
+  trace?: {
+    path?: string;
+    channelId?: string;
+    counterpartyChainName?: string;
+    counterpartyBaseDenom?: string;
+    counterpartyChannelId?: string;
+  };
 };
 
 export type RegistryPool = {
@@ -78,8 +89,12 @@ function parseAsset(value: unknown, label: string): RegistryAsset {
   if (value.kind === "cw20") {
     assertJunoAddress(value.id, `${label}.id`);
   }
+  if (typeof value.name !== "undefined") assertString(value.name, `${label}.name`);
+  if (typeof value.display !== "undefined") assertString(value.display, `${label}.display`);
   if (typeof value.logoURI !== "undefined") assertString(value.logoURI, `${label}.logoURI`);
   if (typeof value.denomTrace !== "undefined") assertString(value.denomTrace, `${label}.denomTrace`);
+  if (typeof value.coingeckoId !== "undefined") assertString(value.coingeckoId, `${label}.coingeckoId`);
+  if (typeof value.trace !== "undefined") assertRecord(value.trace, `${label}.trace`);
   return value as RegistryAsset;
 }
 
@@ -131,5 +146,15 @@ export function parseDexRegistry(value: unknown): DexRegistry {
   return { ...value, pools } as DexRegistry;
 }
 
-export const dexRegistry = parseDexRegistry(registryJson);
+function withChainRegistryMetadata(registry: DexRegistry): DexRegistry {
+  return {
+    ...registry,
+    pools: registry.pools.map((pool) => ({
+      ...pool,
+      assets: [mergeAssetMetadata(pool.assets[0]), mergeAssetMetadata(pool.assets[1])],
+    })),
+  };
+}
+
+export const dexRegistry = withChainRegistryMetadata(parseDexRegistry(registryJson));
 export const enabledPools = dexRegistry.pools.filter((pool) => pool.enabled);

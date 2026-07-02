@@ -1,4 +1,5 @@
 import { dexRegistry, enabledPools, type RegistryAsset, type RegistryPool } from "../../config/registry";
+import { resolveAssetMetadata } from "../assets/assetMetadata";
 import type { AssetInfo, PairInfo, PairsResponse } from "../generated/Factory.types";
 
 export const FACTORY_PAIRS_PAGE_LIMIT = 30;
@@ -27,20 +28,10 @@ function assetKind(assetInfo: AssetInfo): RegistryAsset["kind"] {
   return assetInfo.native_token.denom.startsWith("ibc/") ? "ibc" : "native";
 }
 
-function fallbackSymbol(id: string): string {
-  if (id === "ujuno") return "JUNO";
-  const tail = id.split("/").filter(Boolean).at(-1) ?? id;
-  return tail.length > 18 ? `${tail.slice(0, 8)}…${tail.slice(-6)}` : tail.toUpperCase();
-}
-
 function fallbackAsset(assetInfo: AssetInfo): RegistryAsset {
   const id = assetId(assetInfo);
-  return {
-    kind: assetKind(assetInfo),
-    id,
-    symbol: fallbackSymbol(id),
-    decimals: 6,
-  };
+  const { source: _source, ...metadata } = resolveAssetMetadata(id, { kind: assetKind(assetInfo), id });
+  return metadata;
 }
 
 function curatedKey(pool: RegistryPool): string {
