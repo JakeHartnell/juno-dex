@@ -19,11 +19,12 @@ export function createSwapMessage(offerAsset: RegistryAsset, askAsset: RegistryA
   };
 }
 
-export function createProvideLiquidityMessage(assets: [RegistryAsset, RegistryAsset], amounts: [string, string], slippageTolerance = "0.01") {
+export function createProvideLiquidityMessage(assets: [RegistryAsset, RegistryAsset], amounts: [string, string], slippageTolerance = "0.01", minLpToReceive?: string) {
   const msg = {
     provide_liquidity: {
       assets: [toAsset(assets[0], amounts[0]), toAsset(assets[1], amounts[1])],
       slippage_tolerance: slippageTolerance,
+      min_lp_to_receive: minLpToReceive,
     },
   } satisfies PairExecuteMsg;
 

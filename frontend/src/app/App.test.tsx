@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import { ToastProvider } from "../components/common";
 
 const walletState = vi.hoisted(() => ({
   wallet: { status: "idle" } as {
@@ -41,7 +42,9 @@ function renderApp(route = "/liquidity") {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[route]}>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
