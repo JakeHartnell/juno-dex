@@ -1,15 +1,17 @@
 import { Button, Stack, Text } from "@interchain-ui/react";
-import { truncateAddress } from "../../lib/format/addresses";
 import { useWallet } from "../../wallet/WalletContext";
+import { WalletAddressActions } from "./WalletAddressActions";
 
 export function WalletConnectButton() {
   const { wallet, connect, disconnect } = useWallet();
 
   if (wallet.status === "connected" && wallet.address) {
     return (
-      <Button className="wallet-button connected" onClick={() => void disconnect()}>
-        {wallet.name ?? "Wallet"} · {truncateAddress(wallet.address)}
-      </Button>
+      <Stack className="wallet-stack connected" direction="vertical" space="2">
+        <span className="wallet-connected-name">{wallet.name ?? "Wallet"}</span>
+        <WalletAddressActions address={wallet.address} />
+        <Button className="wallet-button connected" onClick={() => void disconnect()}>Disconnect</Button>
+      </Stack>
     );
   }
 
