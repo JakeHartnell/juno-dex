@@ -99,11 +99,11 @@ function fallbackState(error: DataAccessState["error"], source: DataSourceKind =
 }
 
 export function dataSourceLabel(state: DataAccessState | undefined) {
-  if (!state) return "On-chain fallback";
-  if (state.source === "mock") return state.isStale ? "Mock indexer data (stale)" : "Mock indexer data";
-  if (state.source === "indexer") return state.isStale ? "Indexer data (stale)" : "Indexer data";
-  if (state.source === "disabled") return "Indexer disabled; on-chain fallback";
-  return "On-chain fallback";
+  if (!state) return "Live data";
+  if (state.source === "mock") return "Preview data";
+  if (state.source === "indexer") return "Live data";
+  if (state.source === "disabled") return "Live on-chain data";
+  return "Live on-chain data";
 }
 
 function normalizePoolMetric(row: Partial<IndexerPoolMetrics> & Record<string, unknown>, staleAfterMs: number): [string, PoolMetrics] | undefined {

@@ -97,7 +97,7 @@ export function mergeDiscoveredPools(
       explorer: curated?.explorer ?? `${dexRegistry.explorerBaseUrl}/wasm/contract/${pair.contract_addr}`,
       enabled: curated?.enabled ?? true,
       featured: curated?.featured,
-      notes: curated?.notes ?? "Discovered from the Astroport factory. Metadata is unverified; verify denoms and contract addresses before trading or providing liquidity.",
+      notes: curated?.notes ?? "Discovered from the factory. Metadata is unverified; review the assets before trading or providing liquidity.",
       source: curated ? "registry" : "factory",
       verified: Boolean(curated),
     });

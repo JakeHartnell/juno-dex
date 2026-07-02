@@ -45,7 +45,6 @@ function renderHistory(props: Partial<Parameters<typeof WalletTransactionHistory
     <WalletTransactionHistory
       history={txs}
       access={indexedAccess}
-      explorerBaseUrl="https://www.mintscan.io/juno"
       walletConnected
       {...props}
     />,
@@ -53,7 +52,7 @@ function renderHistory(props: Partial<Parameters<typeof WalletTransactionHistory
 }
 
 describe("WalletTransactionHistory", () => {
-  it("renders indexed wallet history rows with tx links, values, fees, assets, and source markers", () => {
+  it("renders wallet history rows with values, fees, assets, and tx hashes", () => {
     renderHistory();
 
     expect(screen.getByRole("heading", { name: "Wallet transaction history" })).toBeTruthy();
@@ -62,9 +61,8 @@ describe("WalletTransactionHistory", () => {
     expect(screen.getByText("12.5 JUNO → 24.9 USDC")).toBeTruthy();
     expect(screen.getByText("$24.90")).toBeTruthy();
     expect(screen.getByText("Fee $0.07")).toBeTruthy();
-    const link = screen.getByRole("link", { name: /ABCDEF12…567890/i });
-    expect(link.getAttribute("href")).toBe(`https://www.mintscan.io/juno/tx/${txs[0].txHash}`);
-    expect(screen.getAllByText("indexer").length).toBeGreaterThan(0);
+    expect(screen.getByText("ABCDEF12…567890")).toBeTruthy();
+    expect(screen.queryByText("indexer")).toBeNull();
   });
 
   it("shows an honest empty state when the indexer returns no wallet history", () => {
@@ -79,8 +77,7 @@ describe("WalletTransactionHistory", () => {
     renderHistory({ history: [], access: { source: "fallback", isFallback: true, isMock: false, isStale: false, error: { code: "network", message: "Indexer request failed" } } });
 
     expect(screen.getByText("Wallet history unavailable")).toBeTruthy();
-    expect(screen.getByText(/Indexer wallet history unavailable \(Indexer request failed\)/i)).toBeTruthy();
-    expect(screen.getByText(/No fallback fabricates transaction rows/i)).toBeTruthy();
+    expect(screen.getByText(/Wallet history is unavailable \(Indexer request failed\)/i)).toBeTruthy();
   });
 
   it("filters by transaction type", () => {

@@ -28,7 +28,7 @@ const pool: RegistryPool = {
     { kind: "native", id: "ujuno", symbol: "JUNO", name: "Juno", decimals: 6, logoURI: "https://example.com/juno.svg", verified: true },
     { kind: "ibc", id: "ibc/usdc", symbol: "USDC", name: "USD Coin", decimals: 6, logoURI: "https://example.com/usdc.svg", denomTrace: "transfer/channel-42/uusdc", verified: true },
   ],
-  explorer: "https://www.mintscan.io/juno/wasm/contract/juno1pooldetail",
+  explorer: "https://ping.pub/juno/wasm/contract/juno1pooldetail",
   enabled: true,
   verified: true,
   source: "registry",
@@ -37,7 +37,7 @@ const pool: RegistryPool = {
 
 vi.mock("../../queries/useDexRegistry", () => ({
   useDexRegistry: () => ({
-    registry: { explorerBaseUrl: "https://www.mintscan.io/juno" },
+    registry: { explorerBaseUrl: "https://ping.pub/juno" },
     pools: [pool],
     discovery: { isError: false },
   }),
@@ -118,7 +118,7 @@ describe("PoolDetailPage", () => {
     expect(screen.getByRole("link", { name: /swap/i }).getAttribute("href")).toBe("/swap");
     expect(screen.getByRole("link", { name: /add liquidity/i }).getAttribute("href")).toBe("#add-liquidity");
     expect(screen.getByRole("link", { name: /remove liquidity/i }).getAttribute("href")).toBe("#remove-liquidity");
-    expect(screen.getAllByRole("link", { name: /mintscan/i }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Show token ID")).toBeTruthy();
   });
 
   it("shows honest unavailable-metrics copy without fake TVL, volume, APR, charts, or transactions", () => {
@@ -126,9 +126,9 @@ describe("PoolDetailPage", () => {
 
     const analytics = screen.getByLabelText("Pool analytics cards");
     expect(within(analytics).getAllByText("Metrics unavailable").length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText(/TVL, 24h volume, and APR are unavailable from/i)).toBeTruthy();
+    expect(screen.getByText(/TVL, 24h volume, and APR are unavailable for this pool/i)).toBeTruthy();
     expect(screen.getByText(/No candles returned/i)).toBeTruthy();
     expect(screen.getByText(/No swap, add, withdraw, or claim activity was returned/i)).toBeTruthy();
-    expect(screen.getByText(/USD value, volume, and APR require external pricing\/indexer data/i)).toBeTruthy();
+    expect(screen.getByText(/USD value, volume, and APR require market data/i)).toBeTruthy();
   });
 });

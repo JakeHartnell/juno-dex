@@ -1,7 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import type { RegistryAsset, RegistryPool } from "../../config/registry";
 import type { PoolResponse } from "../../lib/astroport/queries";
-import { dataSourceLabel } from "../../lib/data-access/indexerFallback";
 import { formatAmount } from "../../lib/format/amounts";
 import { getPoolTotalApr } from "../../lib/pools/poolList";
 import type { PoolMetrics } from "../../lib/pools/poolList";
@@ -11,7 +10,7 @@ import { useDexRegistry } from "../../queries/useDexRegistry";
 import { usePoolMetrics, usePoolReserves, useWalletIndexerData } from "../../queries/usePools";
 import { PriceCandleChart } from "../charts/PriceCandleChart";
 import { useWallet } from "../../wallet/WalletContext";
-import { ExplorerLink, RiskBadgeList, TokenLogo } from "../common";
+import { RiskBadgeList, TokenLogo } from "../common";
 import { IncentivesPanel } from "../incentives/IncentivesPanel";
 import { AddLiquidityForm } from "../liquidity/AddLiquidityForm";
 import { LpPositionPanel } from "../liquidity/LpPositionPanel";
@@ -20,7 +19,7 @@ import { WalletTransactionHistory } from "../wallet/WalletTransactionHistory";
 
 export function PoolDetailPage() {
   const { pairAddress } = useParams();
-  const { registry, pools, discovery } = useDexRegistry();
+  const { pools, discovery } = useDexRegistry();
   const { wallet } = useWallet();
   const pool = pools.find((candidate) => candidate.pair === pairAddress);
   const poolMetrics = usePoolMetrics(pool ? [pool] : []);
@@ -35,8 +34,6 @@ export function PoolDetailPage() {
     return <section className="panel-page"><h2>Pool not found</h2><p className="empty-state">This pair was not found in factory discovery or the curated Juno registry.{discovery.isError ? " Factory discovery is currently degraded." : ""}</p><Link to="/pools">Back to pools</Link></section>;
   }
 
-  const pairExplorer = pool.explorer || `${registry.explorerBaseUrl}/wasm/contract/${pool.pair}`;
-  const lpExplorer = `${registry.explorerBaseUrl}/assets/${encodeURIComponent(pool.lpToken)}`;
   const poolStatus = reserves.isFetching ? "Refreshing" : reserves.data ? "Live reserves" : "Reserve query unavailable";
 
   return (
@@ -45,7 +42,7 @@ export function PoolDetailPage() {
         <div>
           <p className="eyebrow">Pool detail</p>
           <h2>{pool.label}</h2>
-          <p className="risk-copy">{pool.assets.map((asset) => asset.symbol).join(" / ")} analytics use live pair contract reserves plus indexer metrics when configured. Verify every denom and pair address before providing or removing liquidity. {poolType?.detailCopy}</p>
+          <p className="risk-copy">{pool.assets.map((asset) => asset.symbol).join(" / ")} analytics use live pair reserves plus market metrics when configured. {poolType?.detailCopy}</p>
           {risk ? <RiskBadgeList assessment={risk} max={6} /> : null}
         </div>
         <div className="pool-actions pool-detail-actions" aria-label="Pool actions">
@@ -56,22 +53,22 @@ export function PoolDetailPage() {
         </div>
       </div>
 
-      <div className="contract-strip"><span>Pair</span><code>{pool.pair}</code><button type="button" onClick={() => navigator.clipboard?.writeText(pool.pair)}>Copy</button><ExplorerLink href={pairExplorer}>Mintscan</ExplorerLink></div>
-      <div className="contract-strip"><span>LP denom</span><code>{pool.lpToken}</code><button type="button" onClick={() => navigator.clipboard?.writeText(pool.lpToken)}>Copy</button><ExplorerLink href={lpExplorer}>Mintscan asset</ExplorerLink></div>
+      <div className="contract-strip"><span>Pair</span><code>{pool.pair}</code><button type="button" onClick={() => navigator.clipboard?.writeText(pool.pair)}>Copy</button></div>
+      <div className="contract-strip"><span>LP token</span><details className="identifier-disclosure"><summary>Show token ID</summary><code>{pool.lpToken}</code></details><button type="button" onClick={() => navigator.clipboard?.writeText(pool.lpToken)}>Copy</button></div>
       {reserves.isError ? <p className="error-text">Live reserve query failed: {reserves.error instanceof Error ? reserves.error.message : String(reserves.error)}</p> : null}
-      {poolMetrics.access?.error ? <p className="error-text">Indexer metrics unavailable ({poolMetrics.access.error.message}); TVL, 24h volume, APR, charts, and recent transactions are shown as honest placeholders rather than estimates.</p> : null}
+      {poolMetrics.access?.error ? <p className="error-text">Pool metrics are temporarily unavailable.</p> : null}
 
       <div className="metrics-grid" aria-label="Pool analytics cards">
-        <MetricCard label="TVL" value={formatUsd(metrics?.tvlUsd) ?? "Metrics unavailable"} hint={metrics?.tvlUsd ? dataSourceLabel(poolMetrics.access) : `${dataSourceLabel(poolMetrics.access)} · requires pricing`} />
-        <MetricCard label="24h volume" value={formatUsd(metrics?.volume24hUsd) ?? "Metrics unavailable"} hint={metrics?.volume24hUsd ? dataSourceLabel(poolMetrics.access) : `${dataSourceLabel(poolMetrics.access)} · requires indexer volume feed`} />
-        <MetricCard label="APR" value={formatApr(getPoolTotalApr(metrics)) ?? "Metrics unavailable"} hint={metrics ? aprHint(metrics) : "Requires fee and incentives indexing"} />
+        <MetricCard label="TVL" value={formatUsd(metrics?.tvlUsd) ?? "Metrics unavailable"} hint={metrics?.tvlUsd ? "Updated market data" : "Requires pricing data"} />
+        <MetricCard label="24h volume" value={formatUsd(metrics?.volume24hUsd) ?? "Metrics unavailable"} hint={metrics?.volume24hUsd ? "Updated market data" : "Requires volume data"} />
+        <MetricCard label="APR" value={formatApr(getPoolTotalApr(metrics)) ?? "Metrics unavailable"} hint={metrics ? aprHint(metrics) : "Requires fee and incentives data"} />
         <MetricCard label="Pool type" value={poolType?.label ?? pool.type.toUpperCase()} hint={`${pool.feeBps} bps fee tier · ${poolType?.feeCopy ?? "pool fee"}`} />
-        <MetricCard label="Total share" value={reserves.data ? formatAmount(reserves.data.total_share, 6) : "—"} hint={pool.lpToken} />
+        <MetricCard label="Total share" value={reserves.data ? formatAmount(reserves.data.total_share, 6) : "—"} hint="LP token supply" />
         <MetricCard label="Query status" value={poolStatus} hint={reserves.data ? "Pair contract queried through RPC" : "RPC degraded or not queried"} />
       </div>
 
       {!metrics ? (
-        <p className="pool-metrics-copy">TVL, 24h volume, and APR are unavailable from {dataSourceLabel(poolMetrics.access).toLowerCase()} for this pool; no fake USD metrics are displayed.</p>
+        <p className="pool-metrics-copy">TVL, 24h volume, and APR are unavailable for this pool.</p>
       ) : null}
 
       <section className="pool-detail-section" aria-labelledby="composition-title">
@@ -89,7 +86,7 @@ export function PoolDetailPage() {
         <dl className="quote-details lp-underlying-list">
           <div><dt>Total LP shares</dt><dd className="quote-detail-value">{reserves.data ? formatAmount(reserves.data.total_share, 6) : "Unavailable until reserve query succeeds"}</dd></div>
           <div><dt>LP accounting</dt><dd className="quote-detail-value">Your pool share = wallet LP balance ÷ total LP shares. Underlying estimates in the position panel multiply that share by each reserve.</dd></div>
-          <div><dt>Pricing caveat</dt><dd className="quote-detail-value">USD value, volume, and APR require external pricing/indexer data and are never inferred from reserves alone. {poolType?.withdrawCopy}</dd></div>
+          <div><dt>Pricing caveat</dt><dd className="quote-detail-value">USD value, volume, and APR require market data and are never inferred from reserves alone. {poolType?.withdrawCopy}</dd></div>
         </dl>
       </section>
 
@@ -126,7 +123,6 @@ export function PoolDetailPage() {
           emptyTitle="No indexed transactions for this pool"
           history={walletIndexerData.data.history}
           access={walletIndexerData.access}
-          explorerBaseUrl={registry.explorerBaseUrl}
           walletConnected={Boolean(walletAddress)}
           isLoading={walletIndexerData.isLoading}
           pairAddress={pool.pair}
@@ -145,11 +141,11 @@ function ReserveCard({ asset, index, pool, reserves }: { asset: RegistryAsset; i
   const share = reserveCompositionPercent(pool, reserves, index);
   return (
     <div className="metric-card">
-      <span className="pool-asset-heading"><TokenLogo asset={asset} size="sm" /> {asset.name ?? asset.symbol}</span>
-      <strong>{reserve ? `${formatAmount(reserve, asset.decimals)} ${asset.symbol}` : "—"}</strong>
-      <code>{share ?? "Composition unavailable"}</code>
-      {asset.denomTrace ? <small>{asset.denomTrace}</small> : null}
-      <code>{asset.id}</code>
+    <span className="pool-asset-heading"><TokenLogo asset={asset} size="sm" /> {asset.name ?? asset.symbol}</span>
+    <strong>{reserve ? `${formatAmount(reserve, asset.decimals)} ${asset.symbol}` : "—"}</strong>
+    <code>{share ?? "Composition unavailable"}</code>
+    {asset.denomTrace ? <small>{asset.denomTrace}</small> : null}
+    <details className="identifier-disclosure"><summary>Asset ID</summary><code>{asset.id}</code></details>
     </div>
   );
 }
@@ -202,5 +198,5 @@ function aprHint(metrics: PoolMetrics) {
   const parts = [];
   if (typeof metrics.feeApr === "number") parts.push(`fees ${formatApr(metrics.feeApr)}`);
   if (typeof metrics.incentivesApr === "number") parts.push(`incentives ${formatApr(metrics.incentivesApr)}`);
-  return parts.length > 0 ? parts.join(" + ") : "From configured indexer";
+  return parts.length > 0 ? parts.join(" + ") : "Market data";
 }

@@ -10,7 +10,7 @@ const pool: RegistryPool = {
   lpToken: "factory/juno1pair/astroport/share",
   type: "xyk",
   feeBps: 30,
-  explorer: "https://www.mintscan.io/juno",
+  explorer: "https://ping.pub/juno",
   enabled: true,
   assets: [
     { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },

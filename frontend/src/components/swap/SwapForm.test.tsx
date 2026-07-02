@@ -77,7 +77,7 @@ const pool: RegistryPool = {
     { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },
     { kind: "ibc", id: "ibc/test", symbol: "TEST", decimals: 6 },
   ],
-  explorer: "https://www.mintscan.io/juno/address/juno1pair",
+  explorer: "https://ping.pub/juno/address/juno1pair",
   enabled: true,
 };
 

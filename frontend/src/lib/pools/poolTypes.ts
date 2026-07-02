@@ -26,7 +26,7 @@ const POOL_TYPE_METADATA: Record<PoolType, PoolTypeMetadata> = {
     label: "XYK constant product",
     shortLabel: "XYK",
     badgeClass: "status-ok",
-    description: "Standard Astroport x*y=k pair for volatile assets.",
+    description: "Standard x*y=k pair for volatile assets.",
     swapCopy: "Direct pair simulation returns contract pricing, spread, and fee for this XYK pool.",
     feeCopy: "Constant-product fee tier",
     provideCopy: "Two-sided deposits are balanced to the live XYK reserve ratio. Single-sided add liquidity is not enabled.",

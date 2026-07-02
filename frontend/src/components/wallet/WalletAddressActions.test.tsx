@@ -14,7 +14,7 @@ describe("WalletAddressActions", () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(address));
     expect(screen.getByText(/copied/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: /mintscan/i }).getAttribute("href")).toContain(`/address/${address}`);
+    expect(screen.queryByRole("link")).toBeNull();
   });
 
   it("falls back to document copy when clipboard is unavailable", async () => {

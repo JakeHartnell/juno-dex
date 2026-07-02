@@ -77,7 +77,7 @@ export function decodeTxError(error: unknown): DecodedTxError {
     return {
       kind: "timeout",
       title: "Transaction status timed out",
-      message: "The transaction was broadcast but indexing took too long. Check Mintscan before retrying.",
+      message: "The transaction was broadcast but indexing took too long. Wait a moment before retrying.",
       raw,
       retryable: true,
     };

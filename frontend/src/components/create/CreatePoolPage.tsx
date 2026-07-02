@@ -109,8 +109,8 @@ export function CreatePoolPage() {
   return (
     <section className="panel-page create-pool-page" aria-labelledby="create-pool-title">
       <p className="eyebrow">Create pool</p>
-      <h2 id="create-pool-title">Permissionless Astroport pool</h2>
-      <p>Select two verified or custom assets, choose an available factory pool type, review risk guardrails, then broadcast Astroport factory <code>create_pair</code> on Juno.</p>
+      <h2 id="create-pool-title">Permissionless pool</h2>
+      <p>Select two verified or custom assets, choose an available pool type, review risk guardrails, then broadcast <code>create_pair</code> on Juno.</p>
 
       <Stack className="swap-card" direction="vertical" space="6">
         <Stack className="swap-card-header" direction="horizontal" align="center" justify="space-between" flexWrap="wrap">
@@ -126,7 +126,7 @@ export function CreatePoolPage() {
         </Stack>
         {selectedAssets ? (
           <div className="pool-assets create-pool-assets">
-            {selectedAssets.map((asset) => <div key={asset.id}><span><TokenLogo asset={asset} size="sm" /> <strong>{asset.symbol}</strong> <RiskBadgeList assessment={validation.risk} max={3} /></span><small>{asset.id}</small></div>)}
+            {selectedAssets.map((asset) => <div key={asset.id}><span><TokenLogo asset={asset} size="sm" /> <strong>{asset.symbol}</strong> <RiskBadgeList assessment={validation.risk} max={3} /></span><details className="identifier-disclosure"><summary>Asset ID</summary><code>{asset.id}</code></details></div>)}
           </div>
         ) : null}
 

@@ -1,5 +1,5 @@
 {
-  "name": "astroport-juno-dex-frontend",
+  "name": "juno-dex-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -45,5 +45,8 @@
     "typescript": "^5.8.3",
     "vite": "^7.0.0",
     "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.62.2"
   }
 }

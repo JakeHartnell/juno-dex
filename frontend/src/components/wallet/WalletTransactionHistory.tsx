@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import type { DataAccessState } from "../../lib/data-access/indexerFallback";
-import { dataSourceLabel } from "../../lib/data-access/indexerFallback";
 import type { IndexerAssetAmount, IndexerWalletTransaction } from "../../lib/indexer/types";
-import { ExplorerLink, EmptyState, Skeleton } from "../common";
+import { EmptyState, Skeleton } from "../common";
 
 export type WalletTransactionTypeFilter = "all" | "swap" | "provide_liquidity" | "withdraw_liquidity" | "claim_rewards";
 
@@ -24,7 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
 type WalletTransactionHistoryProps = {
   history: readonly IndexerWalletTransaction[];
   access?: DataAccessState;
-  explorerBaseUrl: string;
+  explorerBaseUrl?: string;
   walletConnected: boolean;
   isLoading?: boolean;
   pairAddress?: string;
@@ -35,7 +34,6 @@ type WalletTransactionHistoryProps = {
 export function WalletTransactionHistory({
   history,
   access,
-  explorerBaseUrl,
   walletConnected,
   isLoading = false,
   pairAddress,
@@ -54,12 +52,7 @@ export function WalletTransactionHistory({
         <div>
           <p className="eyebrow">Activity</p>
           <h3 id="wallet-history-title">{title}</h3>
-          <p className="pool-metrics-copy">Source: {dataSourceLabel(access)}. Indexed swaps, add/remove liquidity, and reward claims are shown only when the configured indexer returns real wallet activity.</p>
-        </div>
-        <div className="wallet-history-source" aria-label="Wallet history source markers">
-          {access?.source ? <span className="status-pill status-ok">{access.source}</span> : null}
-          {access?.isMock ? <span className="status-pill status-warn">mock</span> : null}
-          {access?.isStale ? <span className="status-pill status-warn">stale</span> : null}
+          <p className="pool-metrics-copy">Recent swaps, add/remove liquidity, and reward claims appear here when wallet activity is available.</p>
         </div>
       </div>
 
@@ -78,7 +71,7 @@ export function WalletTransactionHistory({
       </div>
 
       {!walletConnected ? (
-        <EmptyState title="Connect wallet to view transaction history">Wallet activity is fetched per address from the configured indexer. No mock transactions are displayed.</EmptyState>
+        <EmptyState title="Connect wallet to view transaction history">Wallet activity is shown per connected address.</EmptyState>
       ) : isLoading ? (
         <div className="wallet-history-list" aria-label="Loading wallet transaction history">
           <Skeleton width="100%" height="3.5rem" />
@@ -86,7 +79,7 @@ export function WalletTransactionHistory({
           <Skeleton width="100%" height="3.5rem" />
         </div>
       ) : hasIndexerFailure ? (
-        <EmptyState title="Wallet history unavailable">{access?.error ? `Indexer wallet history unavailable (${access.error.message}).` : "Indexer wallet history is unavailable."} No fallback fabricates transaction rows; use Mintscan for live wallet activity.</EmptyState>
+        <EmptyState title="Wallet history unavailable">{access?.error ? `Wallet history is unavailable (${access.error.message}).` : "Wallet history is unavailable."}</EmptyState>
       ) : filtered.length === 0 ? (
         <EmptyState title={emptyTitle ?? "No indexed wallet transactions"}>No {typeFilter === "all" ? "swap, add, withdraw, or claim" : TYPE_OPTIONS.find((option) => option.value === typeFilter)?.label.toLowerCase()} activity was returned for this {pairAddress ? "pool" : "wallet"}. No fake rows are shown.</EmptyState>
       ) : (
@@ -105,12 +98,7 @@ export function WalletTransactionHistory({
               <div role="cell"><strong>{formatAssetFlow(tx)}</strong><code>{tx.pairAddress ?? tx.poolId ?? "Pool unavailable"}</code></div>
               <div role="cell"><strong>{formatUsd(tx.amountUsd) ?? "USD unavailable"}</strong><small>Fee {formatUsd(tx.feeUsd) ?? "unavailable"}</small></div>
               <div role="cell" className="wallet-history-tx-cell">
-                <ExplorerLink href={`${explorerBaseUrl}/tx/${tx.txHash}`}>{shortHash(tx.txHash)}</ExplorerLink>
-                <div className="wallet-history-source">
-                  <span className="risk-badge risk-badge-info">{tx.dataSource || access?.source || "indexer"}</span>
-                  {tx.isMock ? <span className="risk-badge risk-badge-warning">mock</span> : null}
-                  {access?.isStale ? <span className="risk-badge risk-badge-warning">stale</span> : null}
-                </div>
+                <code>{shortHash(tx.txHash)}</code>
               </div>
             </article>
           ))}

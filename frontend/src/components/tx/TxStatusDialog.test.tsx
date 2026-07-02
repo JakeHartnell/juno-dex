@@ -15,12 +15,11 @@ describe("TxStatusDialog", () => {
     expect(screen.getByText("Confirm in wallet")).toBeTruthy();
   });
 
-  it("renders success with tx hash and Mintscan link", () => {
+  it("renders success with tx hash", () => {
     render(<TxStatusDialog state={{ status: "success", label: "Transaction succeeded", result }} />);
     expect(screen.getByText("Transaction succeeded")).toBeTruthy();
     expect(screen.getByText("ABC123DEF456")).toBeTruthy();
-    const link = screen.getByRole("link", { name: /view on mintscan/i });
-    expect(link.getAttribute("href")).toContain("/tx/ABC123DEF456");
+    expect(screen.queryByRole("link", { name: /view/i })).toBeNull();
   });
 
   it("renders failure copy with retry affordance", () => {

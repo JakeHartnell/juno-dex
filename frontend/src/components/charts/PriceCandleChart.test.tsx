@@ -49,7 +49,7 @@ describe("PriceCandleChart", () => {
 
     expect(screen.getByRole("heading", { name: "Price chart" })).toBeTruthy();
     expect(screen.getByTestId("price-candle-svg")).toBeTruthy();
-    expect(screen.getAllByText(/Indexer data/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Live data/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("1.3")).toBeTruthy();
   });
 
@@ -67,7 +67,7 @@ describe("PriceCandleChart", () => {
     expect(screen.getByText(/no fake chart is displayed/i)).toBeTruthy();
   });
 
-  it("labels mock and stale candles", () => {
+  it("uses neutral copy for preview candles", () => {
     mocks.usePoolCandles.mockReturnValueOnce({
       data: candles.map((candle) => ({ ...candle, dataSource: "mock", isMock: true })),
       access: { source: "mock", isFallback: false, isMock: true, isStale: true, updatedAt: candles[1].bucketStart },
@@ -77,9 +77,9 @@ describe("PriceCandleChart", () => {
     });
     render(<PriceCandleChart pool={pool} />);
 
-    expect(screen.getByText(/mock candles/i)).toBeTruthy();
-    expect(screen.getByText(/^stale$/i)).toBeTruthy();
-    expect(screen.getAllByText(/Mock indexer data/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/mock candles/i)).toBeNull();
+    expect(screen.queryByText(/^stale$/i)).toBeNull();
+    expect(screen.getAllByText(/Preview data/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it("passes selected interval and range to the candle query", () => {

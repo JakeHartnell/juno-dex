@@ -15,7 +15,7 @@ describe("slippage math", () => {
     expect(calculateMinimumReceived("1", 50)).toBe("0");
   });
 
-  it("converts selected slippage to Astroport max_spread decimals", () => {
+  it("converts selected slippage to max_spread decimals", () => {
     expect(slippageBpsToMaxSpread(10)).toBe("0.001");
     expect(slippageBpsToMaxSpread(50)).toBe("0.005");
     expect(slippageBpsToMaxSpread(100)).toBe("0.01");

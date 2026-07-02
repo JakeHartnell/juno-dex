@@ -69,7 +69,7 @@ export function IncentivesPanel({ pool, metrics }: { pool: RegistryPool; metrics
   return (
     <section className="action-card incentives-panel" id="incentives" aria-label="LP incentives">
       <h3>Incentives</h3>
-      <p>Stake LP shares in the configured Astroport incentives contract to accrue internal and external pool rewards. Rewards and APR are shown only when contract or indexer data is available.</p>
+      <p>Stake LP shares in the configured incentives contract to accrue internal and external pool rewards. Rewards and APR appear when reward data is available.</p>
 
       {!configured ? (
         <p className="empty-state">No incentives contract is configured for this deployment. LP staking, reward APR, and claiming are hidden rather than estimated.</p>

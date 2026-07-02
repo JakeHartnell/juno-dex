@@ -72,7 +72,7 @@ test.describe("Juno DEX mocked wallet E2E", () => {
     await page.goto("/portfolio");
     await expectConnected(page);
     await expect(page.getByRole("heading", { name: "Wallet portfolio" })).toBeVisible();
-    await expect(page.getByText(/Portfolio data source: Mock indexer data/)).toBeVisible();
+    await expect(page.getByText("Position found")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Playwright Wallet balances" })).toBeVisible();
 
     await page.goto(`/pools/${PAIR_ADDRESS}`);
@@ -93,7 +93,7 @@ test.describe("Juno DEX mocked wallet E2E", () => {
   test("enforces create-pool duplicate guardrails and submits a custom pool", async ({ page }) => {
     await page.goto("/create");
     await expectConnected(page);
-    await expect(page.getByRole("heading", { name: "Permissionless Astroport pool" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Permissionless pool" })).toBeVisible();
     await page.getByLabel("Add a custom unverified asset").check();
     await page.getByLabel("Denom or contract").fill("factory/juno1e2etestwallet0000000000000000000000000000000000/e2easset");
     await page.getByLabel("Symbol").fill("E2E");
