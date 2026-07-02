@@ -30,7 +30,14 @@ code { color: var(--juno-color-cyan); overflow-wrap: anywhere; }
 .mobile-nav-toggle { display: none; }
 .settings-panel { position: absolute; right: 16px; top: calc(100% - 10px); width: min(420px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--juno-color-border-strong); border-radius: var(--juno-radius-lg); background: rgba(11, 17, 32, 0.98); box-shadow: var(--juno-shadow-panel); }
 .settings-panel p { color: var(--juno-color-text-muted); line-height: 1.55; }
-.settings-header { margin-bottom: 10px; }
+.settings-header { margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.settings-title { font-weight: 800; color: var(--juno-color-text); }
+.slippage-settings-group { display: grid; gap: 12px; margin: 12px 0 14px; padding: 12px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); }
+.slippage-settings-group legend { color: var(--juno-color-coral); font-weight: 800; padding: 0 6px; }
+.slippage-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.slippage-preset { border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-pill); padding: 9px 10px; background: var(--juno-color-panel-glass); color: var(--juno-color-text); cursor: pointer; }
+.slippage-preset.active { border-color: var(--juno-color-cyan); background: var(--juno-color-cyan-soft); color: var(--juno-color-cyan); }
+.custom-slippage-field { margin-top: 4px; }
 .text-button { padding: 6px 10px; }
 .app-main { min-width: 0; }
 
@@ -82,6 +89,10 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .status-pill { border-radius: var(--juno-radius-pill); padding: 10px 12px; font-size: 0.85rem; border: 1px solid currentColor; white-space: nowrap; }
 .status-ok { color: var(--juno-color-cyan); }
 .status-warn, .error-text { color: var(--juno-color-coral); }
+.status-danger { color: #ff6b6b; }
+.price-impact-warning { margin-top: 12px; padding: 12px; border: 1px solid rgba(255, 159, 153, 0.42); border-radius: var(--juno-radius-lg); background: rgba(255, 159, 153, 0.10); color: #ffd7d5; line-height: 1.45; }
+.price-impact-danger { display: flex; gap: 10px; align-items: flex-start; border-color: rgba(255, 107, 107, 0.55); background: rgba(85, 30, 39, 0.24); }
+.price-impact-danger input { width: auto; margin-top: 0.25rem; }
 
 .pool-table { display: grid; gap: 12px; margin-top: 22px; }
 .pool-row, .liquidity-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, auto) auto; gap: 14px; align-items: center; padding: 18px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); background: rgba(255,255,255,0.04); color: var(--juno-color-text); }

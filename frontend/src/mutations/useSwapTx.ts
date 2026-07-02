@@ -15,10 +15,10 @@ async function resolveSigningClient(signerOrClient: OfflineSigner | SigningClien
 
 export function useSwapTx(signerOrClient: OfflineSigner | SigningClientGetter | undefined, sender: string | undefined) {
   return useMutation({
-    mutationFn: async ({ pool, offerAsset, askAsset, amount }: { pool: RegistryPool; offerAsset: RegistryAsset; askAsset: RegistryAsset; amount: string }) => {
+    mutationFn: async ({ pool, offerAsset, askAsset, amount, maxSpread }: { pool: RegistryPool; offerAsset: RegistryAsset; askAsset: RegistryAsset; amount: string; maxSpread: string }) => {
       const client = await resolveSigningClient(signerOrClient);
       if (!client || !sender) throw new Error("Connect a wallet before broadcasting");
-      const { msg, funds } = createSwapMessage(offerAsset, askAsset, amount);
+      const { msg, funds } = createSwapMessage(offerAsset, askAsset, amount, maxSpread);
       return client.execute(sender, pool.pair, msg, "auto", undefined, funds);
     },
   });

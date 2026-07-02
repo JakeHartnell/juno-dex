@@ -14,7 +14,7 @@ describe("QuoteCard layout", () => {
       commission_amount: "12345678901234567890",
     };
 
-    render(<QuoteCard quote={quote} askAsset={askAsset} isLoading={false} pool={pool} slippagePercent={0.5} />);
+    render(<QuoteCard quote={quote} askAsset={askAsset} isLoading={false} pool={pool} slippageBps={50} />);
 
     const details = screen.getByText("Return").closest("dl");
     expect(details?.className).toBe("quote-details");

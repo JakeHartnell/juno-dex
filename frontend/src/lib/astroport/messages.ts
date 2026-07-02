@@ -2,7 +2,7 @@ import type { RegistryAsset } from "../../config/registry";
 import type { ExecuteMsg as PairExecuteMsg } from "../generated/Pair.types";
 import { nativeFunds, toAsset } from "./assetInfo";
 
-export function createSwapMessage(offerAsset: RegistryAsset, askAsset: RegistryAsset, amount: string, maxSpread = "0.01") {
+export function createSwapMessage(offerAsset: RegistryAsset, askAsset: RegistryAsset, amount: string, maxSpread: string) {
   const msg = {
     swap: {
       offer_asset: toAsset(offerAsset, amount),

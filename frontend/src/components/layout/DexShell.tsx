@@ -8,6 +8,8 @@ import { WalletProvider } from "../../wallet/WalletContext";
 import { RiskNotice } from "../common/RiskNotice";
 import { ChainStatusBadge } from "../wallet/ChainStatusBadge";
 import { WalletConnectButton } from "../wallet/WalletConnectButton";
+import { SettingsPanel } from "../settings/SettingsPanel";
+import { SlippageSettingsProvider } from "../../settings/SlippageSettingsContext";
 
 type ContractLink = {
   label: string;
@@ -28,6 +30,7 @@ export function DexShell({ children }: { children: ReactNode }) {
 
   return (
     <WalletProvider>
+      <SlippageSettingsProvider>
       <Box className="dex-shell">
         <Box as="header" className="app-header">
           <Stack className="header-inner" direction="horizontal" align="center" justify="space-between">
@@ -76,19 +79,7 @@ export function DexShell({ children }: { children: ReactNode }) {
             ))}
           </Box>
 
-          {settingsOpen ? (
-            <Box className="settings-panel" role="dialog" aria-label="DEX settings">
-              <Stack direction="horizontal" align="center" justify="space-between" className="settings-header">
-                <Text as="span" fontWeight="bold">Settings</Text>
-                <button className="text-button" type="button" onClick={() => setSettingsOpen(false)}>Close</button>
-              </Stack>
-              <p>Slippage controls and endpoint overrides will mount here when the production transaction settings flow is implemented.</p>
-              <dl>
-                <div><dt>Default slippage</dt><dd>0.5%</dd></div>
-                <div><dt>RPC endpoint</dt><dd><code>{dexRegistry.rpcEndpoint}</code></dd></div>
-              </dl>
-            </Box>
-          ) : null}
+          {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
         </Box>
 
         <Box as="main" className="app-main" tabIndex={-1}>{children}</Box>
@@ -113,6 +104,7 @@ export function DexShell({ children }: { children: ReactNode }) {
           </Stack>
         </Box>
       </Box>
+      </SlippageSettingsProvider>
     </WalletProvider>
   );
 }
