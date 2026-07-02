@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { RegistryPool } from "../../config/registry";
-import { loadPoolMetrics, loadWalletIndexerData, resetIndexerCircuitBreakerForTests, type IndexerRuntimeConfig } from "./indexerFallback";
+import { loadPoolMetrics, loadStatsDashboard, loadWalletIndexerData, resetIndexerCircuitBreakerForTests, type IndexerRuntimeConfig } from "./indexerFallback";
 
 const pool = { id: "juno-usdc", label: "JUNO / USDC", pair: "juno1pool", lpToken: "factory/lp", type: "xyk", feeBps: 30, assets: [], enabled: true, verified: true, source: "registry" } as unknown as RegistryPool;
 
@@ -119,5 +119,51 @@ describe("indexer fallback data access", () => {
     expect(result.data).toEqual({ positions: [], history: [] });
     expect(result.state).toMatchObject({ source: "fallback", isFallback: true });
     expect(result.state.error?.code).toBe("http");
+  });
+
+  it("loads protocol stats and top pools from the indexer", async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/health")) return json({ status: "ok", service: "dex-indexer", dataSource: "indexer", isMock: false });
+      if (url.endsWith("/stats")) return json({ poolCount: 3, tvlUsd: 1234567, volume24hUsd: 45000, fees24hUsd: 135, incentivizedPools: 1, updatedAt: new Date().toISOString(), dataSource: "indexer", isMock: false });
+      return json({ data: [{ id: "juno-usdc", pair: pool.pair, tvlUsd: 1234567, volume24hUsd: 45000, totalApr: 12.5, fees24hUsd: 135, updatedAt: new Date().toISOString(), dataSource: "indexer", isMock: false }], pagination: { limit: 10, nextCursor: null } });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await loadStatsDashboard([pool], config());
+
+    expect(result.state).toMatchObject({ source: "indexer", isFallback: false });
+    expect(result.data.stats).toMatchObject({ poolCount: 3, tvlUsd: 1234567, fees24hUsd: 135 });
+    expect(result.data.topPools[0]).toMatchObject({ label: "JUNO / USDC", pair: pool.pair, totalApr: 12.5 });
+  });
+
+  it("keeps stats empty when the indexer has no protocol or pool metrics", async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/health")) return json({ status: "ok", service: "dex-indexer", dataSource: "indexer", isMock: false });
+      if (url.endsWith("/stats")) return json({ updatedAt: new Date().toISOString(), dataSource: "indexer", isMock: false });
+      return json({ data: [], pagination: { limit: 10, nextCursor: null } });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await loadStatsDashboard([pool], config());
+
+    expect(result.data).toEqual({ topPools: [] });
+    expect(result.state).toMatchObject({ source: "fallback", isFallback: true });
+    expect(result.state.error?.code).toBe("empty");
+  });
+
+  it("labels mock and stale stats dashboard data", async () => {
+    const staleDate = new Date(Date.now() - 10_000).toISOString();
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/health")) return json({ status: "ok", service: "dex-indexer", dataSource: "mock", isMock: true });
+      if (url.endsWith("/stats")) return json({ poolCount: 1, tvlUsd: 10, updatedAt: staleDate, dataSource: "mock", isMock: true });
+      return json({ data: [{ pair: pool.pair, tvlUsd: 10, updatedAt: staleDate, dataSource: "mock", isMock: true }], pagination: { limit: 10, nextCursor: null } });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await loadStatsDashboard([pool], config({ staleAfterMs: 1 }));
+
+    expect(result.state).toMatchObject({ source: "mock", isMock: true, isStale: true });
+    expect(result.data.stats).toMatchObject({ source: "mock", isMock: true, isStale: true });
+    expect(result.data.topPools[0]).toMatchObject({ source: "mock", isMock: true, isStale: true });
   });
 });
