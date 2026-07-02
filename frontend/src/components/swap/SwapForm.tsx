@@ -6,13 +6,14 @@ import { formatBpsPercent, getPriceImpact } from "../../lib/swap/slippage";
 import { useSwapQuote } from "../../queries/useSwapQuote";
 import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
-import { useWallet } from "../../wallet/WalletContext";
+import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
 import { TokenAmountInput } from "../common";
 import { QuoteCard } from "./QuoteCard";
 import { TokenSelect } from "./TokenSelect";
 
 export function SwapForm({ pool }: { pool: RegistryPool }) {
   const { wallet } = useWallet();
+  const { network } = useNetworkGuard();
   const [offerId, setOfferId] = useState(pool.assets[0].id);
   const [amount, setAmount] = useState("1");
   const [highImpactConfirmed, setHighImpactConfirmed] = useState(false);
@@ -29,17 +30,21 @@ export function SwapForm({ pool }: { pool: RegistryPool }) {
   const priceImpact = quote.data ? getPriceImpact({ spreadAmount: quote.data.spread_amount, returnAmount: quote.data.return_amount }) : null;
   const requiresHighImpactConfirm = priceImpact?.severity === "high";
   useEffect(() => setHighImpactConfirmed(false), [baseAmount, offerAsset.id, askAsset.id, quote.data?.return_amount, quote.data?.spread_amount]);
-  const actionCopy = !hasAmount
-    ? "Enter amount"
-    : quote.isError
-      ? "Quote unavailable"
-      : quote.isFetching
-        ? "Refreshing quote…"
-        : requiresHighImpactConfirm && !highImpactConfirmed
-          ? "Confirm high price impact"
-        : quote.data
-          ? "Swap disabled: preview mode"
-          : "Connect wallet to review swap";
+  const actionCopy = network.isWrongNetwork
+    ? "Switch to Juno to swap"
+    : wallet.status === "connected" && !network.isJunoReady
+      ? "Juno network required"
+      : !hasAmount
+        ? "Enter amount"
+        : quote.isError
+          ? "Quote unavailable"
+          : quote.isFetching
+            ? "Refreshing quote…"
+            : requiresHighImpactConfirm && !highImpactConfirmed
+              ? "Confirm high price impact"
+              : quote.data
+                ? "Swap disabled: preview mode"
+                : wallet.status === "connected" ? "Review swap" : "Connect wallet to review swap";
 
   return (
     <Stack className="swap-card" direction="vertical" space="6">
@@ -86,6 +91,7 @@ export function SwapForm({ pool }: { pool: RegistryPool }) {
           I understand this quote has high price impact ({formatBpsPercent(priceImpact.bps)}).
         </label>
       ) : null}
+      {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
       <Button intent="primary" className="primary-action" disabled fluidWidth domAttributes={{ type: "button" }}>{actionCopy}</Button>
     </Stack>
   );

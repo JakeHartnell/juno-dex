@@ -3,6 +3,7 @@ import { wallets as keplrWallets } from "@cosmos-kit/keplr";
 import { wallets as leapWallets } from "@cosmos-kit/leap";
 import { GasPrice } from "@cosmjs/stargate";
 import type { ReactNode } from "react";
+import { JUNO_CHAIN_INFO } from "../config/chains";
 import { junoAssetList, junoChain } from "../config/cosmosKit";
 import { dexRegistry } from "../config/registry";
 
@@ -21,7 +22,7 @@ export function CosmosKitProvider({ children }: { children: ReactNode }) {
       endpointOptions={{
         endpoints: {
           juno: {
-            rpc: [dexRegistry.rpcEndpoint],
+            rpc: [dexRegistry.rpcEndpoint, ...JUNO_CHAIN_INFO.fallbackRpcs],
             rest: [junoChain.apis.rest[0].address],
           },
         },
