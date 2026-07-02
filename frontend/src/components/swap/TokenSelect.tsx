@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { RegistryAsset } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
 import { assessAssetRisk } from "../../lib/risk";
@@ -55,11 +55,13 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
   const [favorites, setFavorites] = useState<string[]>(() => readStoredIds(FAVORITES_STORAGE_KEY));
   const [recents, setRecents] = useState<string[]>(() => readStoredIds(RECENTS_STORAGE_KEY));
   const searchRef = useRef<HTMLInputElement>(null);
+  const helpId = useId();
+  const resultsId = useId();
   const selected = assets.find((asset) => asset.id === value) ?? assets[0];
   const disabled = new Set(disabledIds);
 
   useEffect(() => {
-    if (isOpen) window.setTimeout(() => searchRef.current?.focus(), 0);
+    if (isOpen) searchRef.current?.focus();
   }, [isOpen]);
 
   const visibleAssets = useMemo(() => {
@@ -95,7 +97,7 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
   return (
     <div className="token-selector field">
       <span>{label}</span>
-      <button className="token-selector-trigger" type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" disabled={!selected}>
+      <button className="token-selector-trigger" type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-expanded={isOpen} aria-label={`${label}: ${selected?.symbol ?? "Select token"}`} disabled={!selected}>
         {selected ? <TokenLogo asset={selected} /> : null}
         <span className="token-selector-trigger-copy">
           <strong>{selected?.symbol ?? "Select"}</strong>
@@ -105,9 +107,9 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
       </button>
       <Modal open={isOpen} title={`Select ${label.toLowerCase()} token`} onClose={() => setIsOpen(false)}>
         <div className="token-selector-modal">
-          <input ref={searchRef} className="token-search-input" aria-label="Search tokens" placeholder="Search symbol, name, denom, or address" value={query} onChange={(event) => setQuery(event.target.value)} />
-          <div className="token-selector-help">Favorites are saved on this device. Unknown factory tokens are marked unverified.</div>
-          <div className="token-list" role="listbox" aria-label="Token results">
+          <input ref={searchRef} className="token-search-input" aria-label="Search tokens" aria-describedby={helpId} aria-controls={resultsId} placeholder="Search symbol, name, denom, or address" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <div id={helpId} className="token-selector-help">Favorites are saved on this device. Unknown factory tokens are marked unverified.</div>
+          <div id={resultsId} className="token-list" role="list" aria-label={`${label} token results`}>
             {visibleAssets.length === 0 ? <p className="empty-token-results">No tokens match “{query}”.</p> : null}
             {visibleAssets.map((asset) => {
               const balance = assetBalance(asset, balances);
@@ -115,9 +117,9 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
               const isDisabled = disabled.has(asset.id);
               const assessment = assessAssetRisk(asset, { inheritedVerified: asset.verified });
               return (
-                <div className={`token-row${asset.id === value ? " selected" : ""}${isDisabled ? " disabled" : ""}`} key={asset.id} role="option" aria-selected={asset.id === value}>
+                <div className={`token-row${asset.id === value ? " selected" : ""}${isDisabled ? " disabled" : ""}`} key={asset.id} role="listitem">
                   <button className="favorite-button" type="button" aria-label={`${isFavorite ? "Remove" : "Add"} ${asset.symbol} favorite`} aria-pressed={isFavorite} onClick={() => persistFavorite(asset.id)}>{isFavorite ? "★" : "☆"}</button>
-                  <button className="token-row-main" type="button" disabled={isDisabled} onClick={() => selectAsset(asset.id)}>
+                  <button className="token-row-main" type="button" disabled={isDisabled} aria-current={asset.id === value ? "true" : undefined} aria-label={`Select ${asset.symbol}${asset.name ? `, ${asset.name}` : ""}${isDisabled ? ", unavailable" : ""}`} onClick={() => selectAsset(asset.id)}>
                     <TokenLogo asset={asset} />
                     <span className="token-row-copy">
                       <strong>{asset.symbol} <RiskBadgeList assessment={assessment} max={2} /></strong>

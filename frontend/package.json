@@ -11,6 +11,7 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:e2e": "npm run build:e2e && playwright test",
+    "test:a11y": "npm run build:e2e && playwright test e2e/a11y.spec.ts",
     "lint": "npm run typecheck",
     "codegen": "node scripts/codegen.mjs",
     "update:chain-registry-assets": "node scripts/update-chain-registry-assets.mjs"
@@ -31,6 +32,7 @@
     "react-router-dom": "^7.6.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@cosmwasm/ts-codegen": "^1.14.1",
     "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.6.3",

@@ -45,8 +45,24 @@ describe("TokenSelect", () => {
     fireEvent.click(screen.getByLabelText(/close modal/i));
 
     fireEvent.click(screen.getByRole("button", { name: /juno/i }));
-    const rows = screen.getAllByRole("option");
+    const rows = screen.getAllByRole("listitem");
     expect(within(rows[0]).getAllByRole("button", { name: /atom/i }).length).toBeGreaterThan(0);
+  });
+
+  it("focuses the search field, closes with Escape, and returns focus to the trigger", () => {
+    render(<TokenSelect assets={assets} value="ujuno" onChange={vi.fn()} label="Asset" balances={balances} />);
+
+    const trigger = screen.getByRole("button", { name: /asset: juno/i });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole("dialog", { name: /select asset token/i })).toBeTruthy();
+    const search = screen.getByLabelText(/search tokens/i);
+    expect(document.activeElement).toBe(search);
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("displays formatted wallet balances and unverified risk badges", () => {

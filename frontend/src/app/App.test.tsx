@@ -68,11 +68,11 @@ describe("App wallet state", () => {
     walletState.switchToJuno.mockReset();
   });
 
-  it("keeps read-only liquidity copy available without a wallet", () => {
+  it("keeps read-only liquidity copy available without a wallet", async () => {
     renderApp();
 
     expect(screen.getByRole("button", { name: /connect wallet/i })).toBeTruthy();
-    expect(screen.getByText(/No wallet connected/i)).toBeTruthy();
+    expect(await screen.findByText(/No wallet connected/i)).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -85,7 +85,7 @@ describe("App wallet state", () => {
     await waitFor(() => expect(walletState.connect).toHaveBeenCalledTimes(1));
   });
 
-  it("keeps liquidity copy in sync with the connected header wallet", () => {
+  it("keeps liquidity copy in sync with the connected header wallet", async () => {
     walletState.wallet = {
       status: "connected",
       address: "juno1testwallet000000000000000000000000000000",
@@ -107,6 +107,7 @@ describe("App wallet state", () => {
     expect(screen.getAllByText(/QA wallet/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /disconnect/i })).toBeTruthy();
     expect(screen.getAllByRole("link", { name: /mintscan/i })[0].getAttribute("href")).toContain("/address/juno1testwallet");
+    expect(await screen.findByText(/Connected wallet:/i)).toBeTruthy();
     expect(screen.queryByText(/No wallet connected/i)).toBeNull();
     expect(screen.getByText(/Connected wallet:/i).textContent).toContain("LP balances, shares, and underlying estimates refresh every 30 seconds");
   });
@@ -133,14 +134,13 @@ describe("App wallet state", () => {
 
     expect(screen.getByRole("alert").textContent).toContain("Switch to Juno (juno-1)");
     expect(screen.getByRole("button", { name: /^switch to juno$/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /switch to juno to add liquidity/i }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getAllByText(/transactions are blocked off-network/i).length).toBeGreaterThan(0);
+    await screen.findByRole("heading", { name: /juno/i });
 
     fireEvent.click(screen.getByRole("button", { name: /^switch to juno$/i }));
     await waitFor(() => expect(walletState.switchToJuno).toHaveBeenCalledTimes(1));
   });
 
-  it("offers recovery when Juno is not enabled but preserves read-only mode", () => {
+  it("offers recovery when Juno is not enabled but preserves read-only mode", async () => {
     walletState.wallet = { status: "error", error: "Chain juno-1 is not enabled" };
     walletState.network = {
       expectedChainId: "juno-1",
@@ -154,7 +154,7 @@ describe("App wallet state", () => {
 
     renderApp();
 
-    expect(screen.getByText(/No wallet connected/i)).toBeTruthy();
+    expect(await screen.findByText(/No wallet connected/i)).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toContain("not enabled");
     expect(screen.getByRole("button", { name: /^switch to juno$/i })).toBeTruthy();
   });

@@ -1,11 +1,13 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { CreatePoolPage } from "../components/create/CreatePoolPage";
-import { LiquidityPage } from "../components/liquidity/LiquidityPage";
-import { PoolDetailPage } from "../components/pools/PoolDetailPage";
-import { PoolsPage } from "../components/pools/PoolsPage";
-import { PortfolioPage } from "../components/portfolio/PortfolioPage";
-import { StatsDashboardPage } from "../components/stats/StatsDashboardPage";
-import { SwapPage } from "../components/swap/SwapPage";
+
+const CreatePoolPage = lazy(() => import("../components/create/CreatePoolPage").then((module) => ({ default: module.CreatePoolPage })));
+const LiquidityPage = lazy(() => import("../components/liquidity/LiquidityPage").then((module) => ({ default: module.LiquidityPage })));
+const PoolDetailPage = lazy(() => import("../components/pools/PoolDetailPage").then((module) => ({ default: module.PoolDetailPage })));
+const PoolsPage = lazy(() => import("../components/pools/PoolsPage").then((module) => ({ default: module.PoolsPage })));
+const PortfolioPage = lazy(() => import("../components/portfolio/PortfolioPage").then((module) => ({ default: module.PortfolioPage })));
+const StatsDashboardPage = lazy(() => import("../components/stats/StatsDashboardPage").then((module) => ({ default: module.StatsDashboardPage })));
+const SwapPage = lazy(() => import("../components/swap/SwapPage").then((module) => ({ default: module.SwapPage })));
 
 export const navigationItems = [
   { to: "/stats", label: "Stats" },
@@ -21,16 +23,18 @@ function LegacyLiquidityPage() {
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/swap" replace />} />
-      <Route path="/stats" element={<StatsDashboardPage />} />
-      <Route path="/swap" element={<SwapPage />} />
-      <Route path="/pools" element={<PoolsPage />} />
-      <Route path="/pools/:pairAddress" element={<PoolDetailPage />} />
-      <Route path="/portfolio" element={<PortfolioPage />} />
-      <Route path="/liquidity" element={<LegacyLiquidityPage />} />
-      <Route path="/create" element={<CreatePoolPage />} />
-      <Route path="*" element={<Navigate to="/swap" replace />} />
-    </Routes>
+    <Suspense fallback={<main className="app-main" aria-busy="true"><div className="state-card"><strong>Loading route…</strong><p>Preparing the Juno DEX experience.</p></div></main>}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/swap" replace />} />
+        <Route path="/stats" element={<StatsDashboardPage />} />
+        <Route path="/swap" element={<SwapPage />} />
+        <Route path="/pools" element={<PoolsPage />} />
+        <Route path="/pools/:pairAddress" element={<PoolDetailPage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/liquidity" element={<LegacyLiquidityPage />} />
+        <Route path="/create" element={<CreatePoolPage />} />
+        <Route path="*" element={<Navigate to="/swap" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
