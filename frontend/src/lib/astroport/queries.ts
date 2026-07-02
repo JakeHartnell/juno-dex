@@ -1,10 +1,10 @@
 import type { RegistryAsset, RegistryPool } from "../../config/registry";
+import type { PoolResponse, QueryMsg as PairQueryMsg, SimulationResponse } from "../generated/Pair.types";
 import { dexRegistry } from "../../config/registry";
 import { toAsset } from "./assetInfo";
 
 export type PoolAssetResponse = { info: unknown; amount: string };
-export type PoolResponse = { assets: PoolAssetResponse[]; total_share: string };
-export type SimulationResponse = { return_amount: string; spread_amount: string; commission_amount: string };
+export type { PoolResponse, SimulationResponse } from "../generated/Pair.types";
 
 function encodeSmartQuery(message: unknown): string {
   const json = JSON.stringify(message);
@@ -23,7 +23,7 @@ async function queryContractSmart<T>(contractAddress: string, message: unknown):
 }
 
 export async function queryPairPool(pairAddress: string): Promise<PoolResponse> {
-  return queryContractSmart(pairAddress, { pool: {} });
+  return queryContractSmart(pairAddress, { pool: {} } satisfies PairQueryMsg);
 }
 
 export async function querySwapSimulation(
@@ -39,7 +39,7 @@ export async function querySwapSimulation(
         ? { token: { contract_addr: askAsset.id } }
         : { native_token: { denom: askAsset.id } },
     },
-  });
+  } satisfies PairQueryMsg);
 }
 
 export function findOppositeAsset(pool: RegistryPool, offerId: string): RegistryAsset {

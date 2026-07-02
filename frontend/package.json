@@ -8,18 +8,21 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
-    "lint": "npm run typecheck"
+    "lint": "npm run typecheck",
+    "codegen": "node scripts/codegen.mjs"
   },
   "dependencies": {
     "@cosmjs/cosmwasm-stargate": "^0.34.0",
     "@cosmjs/proto-signing": "^0.34.0",
     "@cosmjs/stargate": "^0.34.0",
+    "@interchainjs/types": "^1.21.0",
     "@tanstack/react-query": "^5.81.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3"
   },
   "devDependencies": {
+    "@cosmwasm/ts-codegen": "^1.14.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/react": "^19.1.8",
