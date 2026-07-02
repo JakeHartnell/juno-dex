@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { RegistryPool } from "../config/registry";
 import { queryPairPool } from "../lib/astroport/queries";
+import { createIndexerClient, getConfiguredIndexerBaseUrl } from "../lib/indexer/client";
 import type { PoolMetrics, PoolMetricsByPair } from "../lib/pools/poolList";
 
 export function usePoolReserves(pool: RegistryPool | undefined) {
@@ -27,8 +28,6 @@ type IndexerPoolMetrics = Partial<PoolMetrics> & {
   total_apr?: number | string | null;
 };
 
-type IndexerMetricsPayload = IndexerPoolMetrics[] | { pools?: IndexerPoolMetrics[]; data?: IndexerPoolMetrics[] };
-
 function optionalNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() !== "") {
@@ -54,9 +53,7 @@ function normalizeMetrics(row: IndexerPoolMetrics): [string, PoolMetrics] | unde
 }
 
 function metricsEndpoint() {
-  const baseUrl = (import.meta.env.VITE_DEX_INDEXER_URL as string | undefined)?.replace(/\/$/, "");
-  if (!baseUrl) return undefined;
-  return `${baseUrl}/pools`;
+  return getConfiguredIndexerBaseUrl();
 }
 
 export function usePoolMetrics(pools: RegistryPool[]) {
@@ -68,10 +65,8 @@ export function usePoolMetrics(pools: RegistryPool[]) {
     retry: 1,
     queryFn: async (): Promise<PoolMetricsByPair> => {
       if (!endpoint) return {};
-      const response = await fetch(endpoint);
-      if (!response.ok) throw new Error(`Indexer metrics unavailable: ${response.status}`);
-      const payload = await response.json() as IndexerMetricsPayload;
-      const rows = Array.isArray(payload) ? payload : payload.pools ?? payload.data ?? [];
+      const payload = await createIndexerClient({ baseUrl: endpoint }).pools();
+      const rows = payload.data;
       return Object.fromEntries(rows.map(normalizeMetrics).filter((entry): entry is [string, PoolMetrics] => Boolean(entry)));
     },
   });
