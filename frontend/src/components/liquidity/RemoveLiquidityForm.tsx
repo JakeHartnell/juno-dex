@@ -4,6 +4,7 @@ import type { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount, isBaseAmountGreaterThan, parseTokenAmount } from "../../lib/format/amounts";
 import { applySlippageToAssets, calculatePercentageFill, estimateWithdrawAssets } from "../../lib/liquidity/withdraw";
+import { getPoolTypeMetadata } from "../../lib/pools/poolTypes";
 import { assessPoolRisk } from "../../lib/risk";
 import { formatBpsPercent } from "../../lib/swap/slippage";
 import { useWithdrawLiquidityTx } from "../../mutations/useWithdrawLiquidityTx";
@@ -45,6 +46,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
   const expectedAssets = useMemo(() => estimateWithdrawAssets(reserves.data, lpBaseAmount), [lpBaseAmount, reserves.data]);
   const minAssetsToReceive = useMemo(() => applySlippageToAssets(expectedAssets, slippageBps), [expectedAssets, slippageBps]);
   const risk = assessPoolRisk(pool, reserves.data);
+  const poolType = getPoolTypeMetadata(pool.type);
   const signerOrClient = wallet.status === "connected"
     ? (wallet.getSigningCosmWasmClient as SigningClientGetter | undefined) ?? (wallet.signer as OfflineSigner | undefined)
     : undefined;
@@ -102,7 +104,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
   return (
     <section className="action-card">
       <h3>Remove liquidity</h3>
-      <p>Burn TokenFactory LP shares to receive the pool assets proportionally. Funds use the LP denom below.</p>
+      <p>{poolType.withdrawCopy}</p>
       <RiskBadgeList assessment={risk} max={4} />
       <TokenAmountInput
         label="LP amount"
@@ -143,6 +145,9 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
           );
         })}
       </dl>
+      {!poolType.supportsWithdrawSimulation ? (
+        <p className="price-impact-warning" role="status">{poolType.shortLabel} withdraw simulation is not implemented locally. The amounts above are proportional estimates from live reserves; verify final outputs in the wallet before signing.</p>
+      ) : null}
       {balances.isError ? <p className="error-text">Wallet balance query failed: {balances.error instanceof Error ? balances.error.message : String(balances.error)}</p> : null}
       {reserves.isError ? <p className="error-text">Pool reserve query failed: {reserves.error instanceof Error ? reserves.error.message : String(reserves.error)}</p> : null}
       {network.isWrongNetwork ? <p className="error-text">Switch to Juno to withdraw liquidity. Transactions are blocked off-network.</p> : null}

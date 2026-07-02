@@ -1,5 +1,6 @@
 import type { RegistryAsset, RegistryPool } from "../config/registry";
 import type { SwapRoute } from "./astroport/routes";
+import { getPoolTypeMetadata } from "./pools/poolTypes";
 
 export type RiskSeverity = "ok" | "info" | "warning" | "danger";
 
@@ -94,10 +95,28 @@ function isThinReserve(amount: string | undefined, decimals: number): boolean {
 export function assessPoolRisk(pool: RegistryPool, reserves?: { assets?: Array<{ amount?: string }> }): RiskAssessment {
   const verified = pool.verified !== false && pool.source !== "factory";
   const badges: RiskBadge[] = [];
+  const poolType = getPoolTypeMetadata(pool.type);
 
   badges.push(verified
     ? { id: "verified-pool", label: "Verified pool", severity: "ok", description: "Pool is in the curated verified pool list." }
     : { id: "unverified-pool", label: "Unverified pool", severity: "warning", description: "Factory-discovered or uncurated pool. Verify pair and denoms before transacting.", requiresAcknowledgement: true });
+
+  badges.push({
+    id: `pool-type-${pool.type}`,
+    label: poolType.shortLabel,
+    severity: pool.type === "xyk" ? "info" : "warning",
+    description: poolType.description,
+    requiresAcknowledgement: pool.type === "concentrated" && !verified,
+  });
+
+  if (!poolType.supportsProvideSimulation || !poolType.supportsWithdrawSimulation) {
+    badges.push({
+      id: "caveated-liquidity-math",
+      label: "Caveated liquidity math",
+      severity: "warning",
+      description: "The UI does not locally model this pool type's provide/withdraw invariant; unsupported actions are disabled or marked as estimates.",
+    });
+  }
 
   for (const asset of pool.assets) {
     badges.push(...assessAssetRisk(asset, { inheritedVerified: verified, factoryDiscovered: pool.source === "factory" }).badges.filter((badge) => badge.id !== "verified"));
@@ -120,11 +139,14 @@ export function assessRouteRisk(route: SwapRoute | undefined, reservesByPair?: R
   if (route.hops.length > 1) {
     badges.push({ id: "multi-hop", label: "Multi-hop", severity: "info", description: "Route touches multiple pools; review each hop." });
   }
+  if (route.hops.some((hop) => !getPoolTypeMetadata(hop.pool.type).supportsLocalPriceImpact)) {
+    badges.push({ id: "contract-simulated-impact", label: "Contract-simulated impact", severity: "info", description: "Stable/PCL routes rely on contract simulation for pricing; the UI does not recompute those invariants locally." });
+  }
   return withRequiresAcknowledgement(badges, verified);
 }
 
 export function riskSummary(assessment: RiskAssessment): string {
-  const actionable = assessment.badges.filter((badge) => badge.severity !== "ok");
+  const actionable = assessment.badges.filter((badge) => badge.severity === "warning" || badge.severity === "danger");
   if (actionable.length === 0) return "Verified curated pool and assets.";
   return actionable.map((badge) => badge.label).join(" · ");
 }

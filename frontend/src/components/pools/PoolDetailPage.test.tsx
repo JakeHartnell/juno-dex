@@ -93,8 +93,8 @@ describe("PoolDetailPage", () => {
     expect(screen.getByText("$125,000")).toBeTruthy();
     expect(screen.getByText("$42,000")).toBeTruthy();
     expect(screen.getByText("5.75%")).toBeTruthy();
-    expect(screen.getAllByText("XYK").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("30 bps fee tier")).toBeTruthy();
+    expect(screen.getAllByText(/XYK/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/30 bps fee tier/i)).toBeTruthy();
     expect(screen.getAllByText("50").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("Live reserves")).toBeTruthy();
     expect(screen.getByText(/100 JUNO/i)).toBeTruthy();

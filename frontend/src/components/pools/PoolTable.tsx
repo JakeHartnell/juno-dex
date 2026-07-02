@@ -14,6 +14,7 @@ import {
   type PoolVerifiedFilter,
 } from "../../lib/pools/poolList";
 import type { PoolMetrics } from "../../lib/pools/poolList";
+import { getPoolTypeMetadata } from "../../lib/pools/poolTypes";
 import { assessPoolRisk } from "../../lib/risk";
 import { usePoolMetrics, usePoolReserves } from "../../queries/usePools";
 import { getWalletBalanceAmount, useWalletBalances, type WalletBalance } from "../../queries/useWalletBalances";
@@ -128,12 +129,14 @@ function PoolRow({ pool, metrics, balances }: { pool: RegistryPool; metrics?: Po
   const reserves = usePoolReserves(pool);
   const risk = assessPoolRisk(pool, reserves.data);
   const lpBalance = getWalletBalanceAmount(balances, pool.lpToken);
+  const poolType = getPoolTypeMetadata(pool.type);
   return (
     <article className="pool-row" role="row">
       <div className="pool-main" role="cell">
         <div className="pool-title-line">
           <strong>{pool.label}</strong>
           <RiskBadgeList assessment={risk} max={4} />
+          <span className={`status-pill ${poolType.badgeClass}`}>{poolType.shortLabel}</span>
           {metrics?.incentivized || (metrics?.incentivesApr ?? 0) > 0 ? <span className="status-pill status-ok">incentivized</span> : null}
         </div>
         <p>{pool.notes}</p>
@@ -155,7 +158,8 @@ function PoolRow({ pool, metrics, balances }: { pool: RegistryPool; metrics?: Po
       <MetricCell label="APR" value={formatApr(getPoolTotalApr(metrics))} />
       <div className="pool-meta" role="cell">
         <span>Type</span>
-        <strong>{pool.type.toUpperCase()}</strong>
+        <strong>{poolType.label}</strong>
+        <small>{poolType.description}</small>
         <span>Fee tier</span>
         <strong>{pool.feeBps} bps</strong>
         <code>{truncateAddress(pool.pair)}</code>

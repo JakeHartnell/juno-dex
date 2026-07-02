@@ -3,6 +3,7 @@ import { LiquidityPage } from "../components/liquidity/LiquidityPage";
 import { PoolDetailPage } from "../components/pools/PoolDetailPage";
 import { PoolsPage } from "../components/pools/PoolsPage";
 import { SwapPage } from "../components/swap/SwapPage";
+import { getPoolTypeMetadata, type PoolType } from "../lib/pools/poolTypes";
 
 export const navigationItems = [
   { to: "/swap", label: "Swap" },
@@ -16,6 +17,7 @@ function PortfolioPage() {
 }
 
 function CreatePoolPage() {
+  const poolTypes: PoolType[] = ["xyk", "stable", "concentrated"];
   return (
     <section className="panel-page scaffold-page" aria-labelledby="create-pool-title">
       <p className="eyebrow">Create pool</p>
@@ -25,6 +27,19 @@ function CreatePoolPage() {
       </p>
       <div className="empty-state">
         Pool creation is intentionally scaffolded in the app shell scope. No transaction builder is exposed until the wallet internals and production forms are ready.
+      </div>
+      <div className="metrics-grid">
+        {poolTypes.map((type) => {
+          const metadata = getPoolTypeMetadata(type);
+          return (
+            <div className="metric-card" key={type}>
+              <span>Pool type</span>
+              <strong>{metadata.label}</strong>
+              <code>{type}</code>
+              <small>{metadata.createCopy}</small>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

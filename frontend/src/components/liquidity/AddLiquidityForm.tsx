@@ -3,6 +3,7 @@ import { Box, Button, Stack, Text } from "@interchain-ui/react";
 import type { RegistryPool } from "../../config/registry";
 import { displayBaseAmount, calculateProvideLiquidityQuote, formatLpShareBps, ratioAmount } from "../../lib/liquidity/provide";
 import { formatAmount, isBaseAmountGreaterThan, parseTokenAmount, toBaseAmount } from "../../lib/format/amounts";
+import { getPoolTypeMetadata } from "../../lib/pools/poolTypes";
 import { assessPoolRisk } from "../../lib/risk";
 import { slippageBpsToMaxSpread } from "../../lib/swap/slippage";
 import { useProvideLiquidityTx } from "../../mutations/useProvideLiquidityTx";
@@ -32,6 +33,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
   const balances = useWalletBalances(walletAddress, [pool]);
   const reserves = usePoolReserves(pool);
   const provideTx = useProvideLiquidityTx(wallet.status === "connected" ? wallet.getSigningCosmWasmClient : undefined, walletAddress);
+  const poolType = getPoolTypeMetadata(pool.type);
 
   const reserveAmounts = useMemo<[string, string] | undefined>(() => {
     const poolAssets = reserves.data?.assets;
@@ -70,6 +72,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
   const validationError = useMemo(() => {
     const parsed0 = parseTokenAmount(amounts[0], pool.assets[0].decimals);
     const parsed1 = parseTokenAmount(amounts[1], pool.assets[1].decimals);
+    if (!poolType.supportsProvideLiquidity) return `${poolType.shortLabel} add liquidity is not supported in the UI yet`;
     if (!parsed0.isValid) return `${pool.assets[0].symbol}: ${parsed0.error}`;
     if (!parsed1.isValid) return `${pool.assets[1].symbol}: ${parsed1.error}`;
     if (!hasPositiveBaseAmount(baseAmounts[0]) || !hasPositiveBaseAmount(baseAmounts[1])) return "Enter both token amounts";
@@ -82,7 +85,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
     if (!quote.isProportional) return "Amounts must match the current pool ratio";
     if (risk.requiresAcknowledgement && !riskAcknowledged) return "Acknowledge unverified pool";
     return undefined;
-  }, [amounts, balances.data, baseAmounts, pool.assets, quote, reserveAmounts, risk.requiresAcknowledgement, riskAcknowledged]);
+  }, [amounts, balances.data, baseAmounts, pool.assets, poolType.shortLabel, poolType.supportsProvideLiquidity, quote, reserveAmounts, risk.requiresAcknowledgement, riskAcknowledged]);
 
   const submitDisabled = Boolean(validationError)
     || wallet.status !== "connected"
@@ -112,7 +115,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
       <Stack direction="horizontal" justify="space-between" align="center" flexWrap="wrap">
         <Box>
           <Text as="h3">Add liquidity</Text>
-          <Text as="p">Two-sided deposits are balanced to the live pool ratio. Single-sided add liquidity is not enabled for this pair yet.</Text>
+          <Text as="p">{poolType.provideCopy}</Text>
           <RiskBadgeList assessment={risk} max={4} />
         </Box>
         <Button variant="outlined" intent="secondary" size="sm" className="slippage-pill" domAttributes={{ type: "button", title: `provide_liquidity slippage_tolerance ${maxSpread}` }}>Slippage {formattedSlippagePercent}%</Button>
@@ -129,7 +132,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
           onChange={(nextAmount) => updateAmount(index as 0 | 1, nextAmount)}
           onMax={() => undefined}
           onHalf={() => undefined}
-          disabled={provideTx.isPending}
+          disabled={provideTx.isPending || !poolType.supportsProvideLiquidity}
           fiatHint={<span>Reserve: {reserveAmounts ? `${formatAmount(reserveAmounts[index], asset.decimals)} ${asset.symbol}` : "loading…"}</span>}
         />
       ))}
@@ -142,8 +145,8 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
       </Box>
 
       <Box className="empty-state compact">
-        <strong>Single-sided deposits unavailable</strong>
-        <p>This pool currently exposes proportional provide liquidity only in the app. Enter either side and the other side will be calculated from current reserves.</p>
+        <strong>{poolType.supportsProvideLiquidity ? "Single-sided deposits unavailable" : `${poolType.shortLabel} deposits disabled`}</strong>
+        <p>{poolType.supportsProvideLiquidity ? "This pool currently exposes proportional provide liquidity only in the app. Enter either side and the other side will be calculated from current reserves." : poolType.provideCopy}</p>
       </Box>
 
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}

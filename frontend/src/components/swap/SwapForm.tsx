@@ -214,6 +214,9 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
       {quote.data?.source === "router" ? (
         <div className="price-impact-warning" role="status">Multi-hop routes touch multiple pools and may have higher execution risk. The router quote includes per-hop fees, but aggregate price impact is not exposed by this contract query.</div>
       ) : null}
+      {selectedRoute?.hops.some((hop) => hop.pool.type !== "xyk") ? (
+        <div className="price-impact-warning" role="status">Stable and PCL swaps rely on on-chain simulation for invariant math. The app displays contract-returned pricing and disables unsupported local liquidity math.</div>
+      ) : null}
       {priceImpact?.severity === "warning" ? (
         <div className="price-impact-warning" role="status">Price impact is elevated at {formatBpsPercent(priceImpact.bps)}. Review size and pool liquidity before swapping.</div>
       ) : null}

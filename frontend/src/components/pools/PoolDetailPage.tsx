@@ -4,6 +4,7 @@ import type { PoolResponse } from "../../lib/astroport/queries";
 import { formatAmount } from "../../lib/format/amounts";
 import { getPoolTotalApr } from "../../lib/pools/poolList";
 import type { PoolMetrics } from "../../lib/pools/poolList";
+import { getPoolTypeMetadata } from "../../lib/pools/poolTypes";
 import { assessPoolRisk } from "../../lib/risk";
 import { useDexRegistry } from "../../queries/useDexRegistry";
 import { usePoolMetrics, usePoolReserves } from "../../queries/usePools";
@@ -20,6 +21,7 @@ export function PoolDetailPage() {
   const reserves = usePoolReserves(pool);
   const risk = pool ? assessPoolRisk(pool, reserves.data) : undefined;
   const metrics = pool ? poolMetrics.data?.[pool.pair] : undefined;
+  const poolType = pool ? getPoolTypeMetadata(pool.type) : undefined;
 
   if (!pool) {
     return <section className="panel-page"><h2>Pool not found</h2><p className="empty-state">This pair was not found in factory discovery or the curated Juno registry.{discovery.isError ? " Factory discovery is currently degraded." : ""}</p><Link to="/pools">Back to pools</Link></section>;
@@ -35,7 +37,7 @@ export function PoolDetailPage() {
         <div>
           <p className="eyebrow">Pool detail</p>
           <h2>{pool.label}</h2>
-          <p className="risk-copy">{pool.assets.map((asset) => asset.symbol).join(" / ")} analytics use live pair contract reserves plus indexer metrics when configured. Verify every denom and pair address before providing or removing liquidity.</p>
+          <p className="risk-copy">{pool.assets.map((asset) => asset.symbol).join(" / ")} analytics use live pair contract reserves plus indexer metrics when configured. Verify every denom and pair address before providing or removing liquidity. {poolType?.detailCopy}</p>
           {risk ? <RiskBadgeList assessment={risk} max={6} /> : null}
         </div>
         <div className="pool-actions pool-detail-actions" aria-label="Pool actions">
@@ -54,7 +56,7 @@ export function PoolDetailPage() {
         <MetricCard label="TVL" value={formatUsd(metrics?.tvlUsd) ?? "Metrics unavailable"} hint={metrics?.tvlUsd ? "From configured indexer/pricing service" : "Requires indexer/pricing service"} />
         <MetricCard label="24h volume" value={formatUsd(metrics?.volume24hUsd) ?? "Metrics unavailable"} hint={metrics?.volume24hUsd ? "From configured indexer" : "Requires indexer volume feed"} />
         <MetricCard label="APR" value={formatApr(getPoolTotalApr(metrics)) ?? "Metrics unavailable"} hint={metrics ? aprHint(metrics) : "Requires fee and incentives indexing"} />
-        <MetricCard label="Pool type" value={pool.type.toUpperCase()} hint={`${pool.feeBps} bps fee tier`} />
+        <MetricCard label="Pool type" value={poolType?.label ?? pool.type.toUpperCase()} hint={`${pool.feeBps} bps fee tier · ${poolType?.feeCopy ?? "pool fee"}`} />
         <MetricCard label="Total share" value={reserves.data ? formatAmount(reserves.data.total_share, 6) : "—"} hint={pool.lpToken} />
         <MetricCard label="Query status" value={poolStatus} hint={reserves.data ? "Pair contract queried through RPC" : "RPC degraded or not queried"} />
       </div>
@@ -69,7 +71,7 @@ export function PoolDetailPage() {
           {pool.assets.map((asset, index) => (
             <ReserveCard key={asset.id} asset={asset} index={index} pool={pool} reserves={reserves.data} />
           ))}
-          <MetricCard label="Current price" value={formatCurrentPrice(pool, reserves.data)} hint={`Spot ratio from ${pool.assets[0].symbol} and ${pool.assets[1].symbol} reserves`} />
+          <MetricCard label="Current price" value={formatCurrentPrice(pool, reserves.data)} hint={`${poolType?.swapCopy ?? "Spot ratio from reserves"} Spot ratio from ${pool.assets[0].symbol} and ${pool.assets[1].symbol} reserves`} />
         </div>
       </section>
 
@@ -78,15 +80,15 @@ export function PoolDetailPage() {
         <dl className="quote-details lp-underlying-list">
           <div><dt>Total LP shares</dt><dd className="quote-detail-value">{reserves.data ? formatAmount(reserves.data.total_share, 6) : "Unavailable until reserve query succeeds"}</dd></div>
           <div><dt>LP accounting</dt><dd className="quote-detail-value">Your pool share = wallet LP balance ÷ total LP shares. Underlying estimates in the position panel multiply that share by each reserve.</dd></div>
-          <div><dt>Pricing caveat</dt><dd className="quote-detail-value">USD value, volume, and APR require external pricing/indexer data and are never inferred from reserves alone.</dd></div>
+          <div><dt>Pricing caveat</dt><dd className="quote-detail-value">USD value, volume, and APR require external pricing/indexer data and are never inferred from reserves alone. {poolType?.withdrawCopy}</dd></div>
         </dl>
       </section>
 
       <section className="pool-detail-section" aria-labelledby="params-title">
         <h3 id="params-title">Type-specific parameters</h3>
         <dl className="quote-details lp-underlying-list">
-          <div><dt>Pair type</dt><dd className="quote-detail-value">{pool.type.toUpperCase()}</dd></div>
-          <div><dt>Fee tier</dt><dd className="quote-detail-value">{pool.feeBps} bps</dd></div>
+          <div><dt>Pair type</dt><dd className="quote-detail-value">{poolType?.label ?? pool.type.toUpperCase()}</dd></div>
+          <div><dt>Fee tier</dt><dd className="quote-detail-value">{pool.feeBps} bps · {poolType?.feeCopy}</dd></div>
           <div><dt>{pool.type === "stable" ? "Stable amp" : pool.type === "concentrated" ? "PCL parameters" : "XYK parameters"}</dt><dd className="quote-detail-value">{typeSpecificCopy(pool)}</dd></div>
         </dl>
       </section>
@@ -135,9 +137,10 @@ function ReserveCard({ asset, index, pool, reserves }: { asset: RegistryAsset; i
 }
 
 function typeSpecificCopy(pool: RegistryPool) {
-  if (pool.type === "stable") return "Amp is not exposed by the current registry/discovery query; contract config wiring is required before showing it.";
-  if (pool.type === "concentrated") return "PCL parameters are not exposed by the current registry/discovery query; contract config wiring is required before showing them.";
-  return "Constant product XYK pool; no extra amp/PCL parameters are required.";
+  const metadata = getPoolTypeMetadata(pool.type);
+  if (pool.type === "stable") return `${metadata.detailCopy} Amp is not exposed by the current registry/discovery query; contract config wiring is required before showing it.`;
+  if (pool.type === "concentrated") return `${metadata.detailCopy} PCL parameters are not exposed by the current registry/discovery query; contract config wiring is required before showing them.`;
+  return metadata.detailCopy;
 }
 
 function reserveCompositionPercent(pool: RegistryPool, reserves: PoolResponse | undefined, index: number) {

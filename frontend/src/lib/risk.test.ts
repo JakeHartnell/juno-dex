@@ -62,6 +62,16 @@ describe("risk classification", () => {
     expect(risk.badges.map((badge) => badge.id)).toContain("thin-liquidity");
   });
 
+  it("adds pool-type caveat badges for stable and concentrated pools", () => {
+    const stableRisk = assessPoolRisk({ ...verifiedPool, type: "stable" });
+    const pclRisk = assessPoolRisk({ ...factoryPool, type: "concentrated" });
+
+    expect(stableRisk.badges.map((badge) => badge.id)).toEqual(expect.arrayContaining(["pool-type-stable", "caveated-liquidity-math"]));
+    expect(stableRisk.requiresAcknowledgement).toBe(false);
+    expect(pclRisk.badges.map((badge) => badge.id)).toEqual(expect.arrayContaining(["pool-type-concentrated", "caveated-liquidity-math"]));
+    expect(pclRisk.requiresAcknowledgement).toBe(true);
+  });
+
   it("requires route acknowledgement when any hop is unverified", () => {
     const risk = assessRouteRisk({
       id: "route",
