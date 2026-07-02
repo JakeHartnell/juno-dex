@@ -125,6 +125,25 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .pool-metric small { color: var(--juno-color-coral); }
 .pool-actions { justify-content: flex-end; flex-wrap: wrap; }
 .pool-actions a { border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-pill); padding: 9px 12px; background: var(--juno-color-cyan-soft); }
+.stats-dashboard-page { display: grid; gap: 22px; }
+.stats-hero { display: grid; gap: 14px; }
+.stats-source-line, .hero-actions, .stats-section-header { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.hero-actions { justify-content: flex-start; }
+.primary-link, .secondary-link { border-radius: var(--juno-radius-pill); padding: 11px 16px; font-weight: 800; border: 1px solid var(--juno-color-border); }
+.primary-link { background: linear-gradient(135deg, var(--juno-color-primary), var(--juno-color-indigo)); color: var(--juno-color-text); }
+.secondary-link { background: var(--juno-color-cyan-soft); color: var(--juno-color-cyan); }
+.stats-unavailable { margin: 0; }
+.stats-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.stats-metric-card { margin: 0; min-width: 0; }
+.stats-metric-card small { color: var(--juno-color-coral); }
+.stats-chart-panel, .stats-top-pools { padding: 18px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-xl); background: rgba(255,255,255,0.04); }
+.stats-chart-panel h3, .stats-top-pools h3 { margin: 0; font-size: 1.45rem; }
+.stats-chart-panel p:not(.eyebrow) { margin: 10px 0 0; color: var(--juno-color-text-muted); line-height: 1.55; }
+.stats-top-pool-table { display: grid; gap: 10px; margin-top: 14px; }
+.stats-top-pool-row { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(110px, 0.7fr)) minmax(170px, 0.9fr); gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); background: rgba(5, 7, 13, 0.36); }
+.stats-top-pool-row div { display: grid; gap: 4px; min-width: 0; }
+.stats-top-pool-row small { color: var(--juno-color-text-muted); }
+.stats-top-pool-head { padding-top: 0; padding-bottom: 0; border: 0; background: transparent; color: var(--juno-color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.78rem; }
 .liquidity-row { grid-template-columns: minmax(0, 1fr); }
 .metrics-grid, .liquidity-grid { margin-top: 22px; flex-wrap: wrap; }
 .lp-position-panel { display: grid; gap: 16px; margin-top: 22px; padding: 18px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-xl); background: rgba(255,255,255,0.04); }
