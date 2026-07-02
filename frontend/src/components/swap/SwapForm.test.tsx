@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   },
   balances: [{ denom: "ujuno", amount: "2000000" }],
   quote: {
-    data: { return_amount: "990000", spread_amount: "1000", commission_amount: "3000" } as { return_amount: string; spread_amount: string; commission_amount: string } | undefined,
+    data: undefined as { return_amount: string; spread_amount: string; commission_amount: string; source: "pair" | "router"; route: unknown } | undefined,
     isSuccess: true,
     isFetching: false,
     isError: false,
@@ -84,8 +84,26 @@ const atomPool: RegistryPool = {
   ],
 };
 
-function swapButton() {
-  return screen.getByRole("button", { name: /swap|connect wallet|switch to juno|quote unavailable|refreshing quote|insufficient|confirm high price impact|no direct pool route|choose two different tokens/i });
+function directRoute() {
+  return {
+    id: "direct",
+    hops: [{ pool, offerAsset: pool.assets[0], askAsset: pool.assets[1] }],
+    operations: [{ astro_swap: { offer_asset_info: { native_token: { denom: "ujuno" } }, ask_asset_info: { native_token: { denom: "ibc/test" } } } }],
+  };
+}
+
+function routerRoute() {
+  return {
+    id: "router",
+    hops: [
+      { pool, offerAsset: pool.assets[0], askAsset: pool.assets[1] },
+      { pool: atomPool, offerAsset: atomPool.assets[0], askAsset: atomPool.assets[1] },
+    ],
+    operations: [
+      { astro_swap: { offer_asset_info: { native_token: { denom: "ujuno" } }, ask_asset_info: { native_token: { denom: "ibc/test" } } } },
+      { astro_swap: { offer_asset_info: { native_token: { denom: "ibc/test" } }, ask_asset_info: { native_token: { denom: "ibc/atom" } } } },
+    ],
+  };
 }
 
 describe("SwapForm", () => {
@@ -102,7 +120,7 @@ describe("SwapForm", () => {
     };
     mocks.balances = [{ denom: "ujuno", amount: "2000000" }];
     mocks.quote = {
-      data: { return_amount: "990000", spread_amount: "1000", commission_amount: "3000" },
+      data: { return_amount: "990000", spread_amount: "1000", commission_amount: "3000", source: "pair", route: directRoute() },
       isSuccess: true,
       isFetching: false,
       isError: false,
@@ -120,48 +138,57 @@ describe("SwapForm", () => {
 
     expect(mocks.mutate).toHaveBeenCalledWith({
       pool,
+      route: directRoute(),
       offerAsset: expect.objectContaining(pool.assets[0]),
       askAsset: expect.objectContaining(pool.assets[1]),
       amount: "1000000",
       maxSpread: "0.005",
+      minimumReceive: "985050",
+      source: "pair",
     });
+  });
+
+  it("submits a router swap when the best quote is a router route", () => {
+    mocks.quote.data = { return_amount: "970000", spread_amount: "0", commission_amount: "0", source: "router", route: routerRoute() };
+    render(<SwapForm pool={pool} pools={[pool, atomPool]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^swap$/i }));
+
+    expect(mocks.mutate).toHaveBeenCalledWith(expect.objectContaining({
+      route: routerRoute(),
+      source: "router",
+      minimumReceive: "965150",
+    }));
+    expect(screen.getByText(/multi-hop routes touch multiple pools/i)).toBeTruthy();
   });
 
   it("disables swap without a connected wallet", () => {
     mocks.wallet.wallet = { status: "idle" };
-
     render(<SwapForm pool={pool} />);
-
     expect(screen.getByRole("button", { name: /connect wallet to swap/i }).hasAttribute("disabled")).toBe(true);
   });
 
   it("disables swap on the wrong network", () => {
     mocks.network.network = { ...mocks.network.network, connectedChainId: "osmosis-1", isWrongNetwork: true, isJunoReady: false };
-
     render(<SwapForm pool={pool} />);
-
     expect(screen.getByRole("button", { name: /switch to juno to swap/i }).hasAttribute("disabled")).toBe(true);
   });
 
   it("disables swap for insufficient balance", () => {
     mocks.balances = [{ denom: "ujuno", amount: "999999" }];
-
     render(<SwapForm pool={pool} />);
-
     expect(screen.getByRole("button", { name: /insufficient juno balance/i }).hasAttribute("disabled")).toBe(true);
   });
 
-  it("disables swap while the current quote is unavailable", () => {
+  it("disables swap while the current route preview is unavailable", () => {
     mocks.quote = { data: undefined, isSuccess: false, isFetching: false, isError: true, error: new Error("quote failed") };
-
     render(<SwapForm pool={pool} />);
-
-    expect(screen.getByRole("button", { name: /quote unavailable/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /route preview unavailable/i }).hasAttribute("disabled")).toBe(true);
   });
 
-  it("requires explicit confirmation for high-impact quotes", () => {
+  it("requires explicit confirmation for high-impact direct quotes", () => {
     mocks.quote = {
-      data: { return_amount: "1000", spread_amount: "1000", commission_amount: "3" },
+      data: { return_amount: "1000", spread_amount: "1000", commission_amount: "3", source: "pair", route: directRoute() },
       isSuccess: true,
       isFetching: false,
       isError: false,
@@ -169,20 +196,8 @@ describe("SwapForm", () => {
     };
 
     render(<SwapForm pool={pool} />);
-
     expect(screen.getByRole("button", { name: /confirm high price impact/i }).hasAttribute("disabled")).toBe(true);
     fireEvent.click(screen.getByLabelText(/i understand this quote has high price impact/i));
-    const button = screen.getByRole("button", { name: /^swap$/i });
-    expect(button.hasAttribute("disabled")).toBe(false);
-  });
-
-  it("disables swaps when the selected tokens do not have a direct supported route", () => {
-    render(<SwapForm pool={pool} pools={[pool, atomPool]} />);
-
-    fireEvent.click(screen.getByRole("button", { name: /test ibc\/test/i }));
-    fireEvent.click(screen.getAllByRole("button", { name: /atom/i }).at(-1)!);
-
-    expect(screen.getByText(/no supported direct pool route/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /no direct pool route for juno → atom/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /^swap$/i }).hasAttribute("disabled")).toBe(false);
   });
 });

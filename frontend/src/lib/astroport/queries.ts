@@ -1,11 +1,13 @@
 import type { RegistryAsset, RegistryPool } from "../../config/registry";
 import type { PairsResponse, QueryMsg as FactoryQueryMsg } from "../generated/Factory.types";
 import type { PoolResponse, QueryMsg as PairQueryMsg, SimulationResponse } from "../generated/Pair.types";
+import type { QueryMsg as RouterQueryMsg, SimulateSwapOperationsResponse, SwapOperation } from "../generated/Router.types";
 import { dexRegistry } from "../../config/registry";
 import { toAsset } from "./assetInfo";
 
 export type PoolAssetResponse = { info: unknown; amount: string };
 export type { PoolResponse, SimulationResponse } from "../generated/Pair.types";
+export type { SimulateSwapOperationsResponse } from "../generated/Router.types";
 
 function encodeSmartQuery(message: unknown): string {
   const json = JSON.stringify(message);
@@ -45,6 +47,16 @@ export async function querySwapSimulation(
         : { native_token: { denom: askAsset.id } },
     },
   } satisfies PairQueryMsg);
+}
+
+export async function queryRouterSimulation(operations: SwapOperation[], offerAmount: string): Promise<SimulateSwapOperationsResponse> {
+  if (!dexRegistry.router) throw new Error("Router contract is not configured");
+  return queryContractSmart(dexRegistry.router, {
+    simulate_swap_operations: {
+      offer_amount: offerAmount,
+      operations,
+    },
+  } satisfies RouterQueryMsg);
 }
 
 export function findOppositeAsset(pool: RegistryPool, offerId: string): RegistryAsset {

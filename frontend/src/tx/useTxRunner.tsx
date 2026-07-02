@@ -55,7 +55,7 @@ function statusFromError(error: DecodedTxError): TxLifecycleStatus {
 export function invalidateDexTxQueries(queryClient: QueryClient, sender: string | undefined, pool?: RegistryPool) {
   const invalidations: Promise<unknown>[] = [];
   if (sender) invalidations.push(queryClient.invalidateQueries({ queryKey: walletBalancesQueryKey(sender) }));
-  invalidations.push(queryClient.invalidateQueries({ queryKey: ["swap-quote"] }));
+  invalidations.push(queryClient.invalidateQueries({ queryKey: ["swap-route-quote"] }));
   invalidations.push(queryClient.invalidateQueries({ queryKey: pool ? ["pool", pool.pair] : ["pool"] }));
   return Promise.all(invalidations);
 }

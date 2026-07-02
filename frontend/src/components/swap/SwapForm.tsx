@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { OfflineSigner } from "@cosmjs/proto-signing";
 import type { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { Box, Button, Stack, Text } from "@interchain-ui/react";
-import type { RegistryAsset, RegistryPool } from "../../config/registry";
+import { dexRegistry, type RegistryAsset, type RegistryPool } from "../../config/registry";
 import { formatAmount, isBaseAmountGreaterThan, parseTokenAmount } from "../../lib/format/amounts";
-import { formatBpsPercent, getPriceImpact, slippageBpsToMaxSpread } from "../../lib/swap/slippage";
+import { calculateMinimumReceived, formatBpsPercent, getPriceImpact, slippageBpsToMaxSpread } from "../../lib/swap/slippage";
 import { useSwapTx } from "../../mutations/useSwapTx";
 import { useSwapQuote } from "../../queries/useSwapQuote";
 import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
@@ -24,15 +24,6 @@ type SwapFormProps = {
 
 function isPositiveBaseAmount(amount: string) {
   return /^\d+$/.test(amount) && BigInt(amount) > 0n;
-}
-
-function sameAsset(left: RegistryAsset, right: RegistryAsset) {
-  return left.id === right.id;
-}
-
-function directPoolFor(pools: RegistryPool[], offerId: string, askId: string): RegistryPool | undefined {
-  if (offerId === askId) return undefined;
-  return pools.find((candidate) => candidate.assets.some((asset) => asset.id === offerId) && candidate.assets.some((asset) => asset.id === askId));
 }
 
 function buildSelectableAssets(pools: RegistryPool[]) {
@@ -63,43 +54,45 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
   const [highImpactConfirmed, setHighImpactConfirmed] = useState(false);
   const { slippageBps, formattedSlippagePercent, maxSpread } = useSlippageSettings();
   const offerAsset = selectableAssets.find((asset) => asset.id === offerId) ?? pool.assets[0];
-  const askAsset = selectableAssets.find((asset) => asset.id === askId) ?? pool.assets[1];
-  const selectedPool = directPoolFor(allPools, offerAsset.id, askAsset.id);
+  const askAsset = selectableAssets.find((asset) => asset.id === askId && asset.id !== offerAsset.id) ?? selectableAssets.find((asset) => asset.id !== offerAsset.id) ?? pool.assets[1];
   const parsedAmount = parseTokenAmount(amount, offerAsset.decimals);
   const baseAmount = parsedAmount.baseAmount;
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, allPools);
   const offerBalance = getWalletBalanceAmount(balances.data, offerAsset.id);
-  const quote = useSwapQuote(selectedPool, offerAsset, askAsset, baseAmount);
+  const quote = useSwapQuote(allPools, offerAsset, askAsset, baseAmount);
   const signerOrClient = wallet.status === "connected"
     ? (wallet.getSigningCosmWasmClient as SigningClientGetter | undefined) ?? (wallet.signer as OfflineSigner | undefined)
     : undefined;
   const swapTx = useSwapTx(signerOrClient, walletAddress);
   const hasAmount = parsedAmount.isValid && isPositiveBaseAmount(baseAmount);
+  const sameToken = offerAsset.id === askAsset.id;
   const exceedsBalance = Boolean(offerBalance && parsedAmount.isValid && isBaseAmountGreaterThan(baseAmount, offerBalance));
-  const quoteReady = Boolean(selectedPool) && quote.isSuccess && Boolean(quote.data) && !quote.isFetching && !quote.isError;
+  const quoteReady = quote.isSuccess && Boolean(quote.data) && !quote.isFetching && !quote.isError;
   const receiveAmount = quote.data ? `${formatAmount(quote.data.return_amount, askAsset.decimals)} ${askAsset.symbol}` : "—";
-  const priceImpact = quote.data ? getPriceImpact({ spreadAmount: quote.data.spread_amount, returnAmount: quote.data.return_amount }) : null;
+  const priceImpact = quote.data && quote.data.source === "pair" ? getPriceImpact({ spreadAmount: quote.data.spread_amount, returnAmount: quote.data.return_amount }) : null;
   const requiresHighImpactConfirm = priceImpact?.severity === "high";
+  const selectedRoute = quote.data?.route;
+  const minimumReceive = quote.data ? calculateMinimumReceived(quote.data.return_amount, slippageBps) : "0";
   useEffect(() => setHighImpactConfirmed(false), [baseAmount, offerAsset.id, askAsset.id, quote.data?.return_amount, quote.data?.spread_amount]);
 
-  const validationError = !selectedPool
-    ? sameAsset(offerAsset, askAsset)
+  const validationError = !parsedAmount.isValid
+    ? parsedAmount.error
+    : sameToken
       ? "Choose two different tokens"
-      : `No direct pool route for ${offerAsset.symbol} → ${askAsset.symbol}`
-    : !parsedAmount.isValid
-      ? parsedAmount.error
       : !hasAmount
         ? "Enter amount"
         : exceedsBalance
           ? `Insufficient ${offerAsset.symbol} balance`
           : quote.isError
-            ? "Quote unavailable"
+            ? "Route preview unavailable"
             : quote.isFetching || (hasAmount && !quoteReady)
-              ? "Refreshing quote…"
-              : requiresHighImpactConfirm && !highImpactConfirmed
-                ? "Confirm high price impact"
-                : undefined;
+              ? "Refreshing route…"
+              : !selectedRoute
+                ? "No route found"
+                : requiresHighImpactConfirm && !highImpactConfirmed
+                  ? "Confirm high price impact"
+                  : undefined;
   const submitDisabled = wallet.status !== "connected"
     || !network.isJunoReady
     || network.isWrongNetwork
@@ -115,23 +108,37 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
           ? "Swapping…"
           : validationError ?? "Swap";
 
+  const handleOfferChange = (next: string) => {
+    setOfferId(next);
+    if (next === askId) setAskId(selectableAssets.find((asset) => asset.id !== next)?.id ?? askId);
+  };
+
   const handleSwap = () => {
-    if (submitDisabled || !selectedPool) return;
-    swapTx.mutate({ pool: selectedPool, offerAsset, askAsset, amount: baseAmount, maxSpread: maxSpread || slippageBpsToMaxSpread(slippageBps) });
+    if (submitDisabled || !selectedRoute || !quote.data) return;
+    swapTx.mutate({
+      pool: selectedRoute.hops[0]?.pool,
+      route: selectedRoute,
+      offerAsset,
+      askAsset,
+      amount: baseAmount,
+      maxSpread: maxSpread || slippageBpsToMaxSpread(slippageBps),
+      minimumReceive,
+      source: quote.data.source,
+    });
   };
 
   return (
     <Stack className="swap-card" direction="vertical" space="6">
       <Stack className="swap-card-header" direction="horizontal" align="center" justify="space-between" flexWrap="wrap">
         <Box>
-          <Text as="p" className="eyebrow">Direct swap</Text>
-          <Text as="h2" variant="heading">{pool.assets[0].symbol} ↔ {pool.assets[1].symbol}</Text>
+          <Text as="p" className="eyebrow">Smart swap</Text>
+          <Text as="h2" variant="heading">Best direct or router route</Text>
         </Box>
         <Button variant="outlined" intent="secondary" size="sm" className="slippage-pill" domAttributes={{ type: "button", title: `Swap max_spread ${maxSpread}` }}>Slippage {formattedSlippagePercent}%</Button>
       </Stack>
       <Box className="mode-tabs" aria-label="Trade mode">
-        <span className="mode-tab active">Direct pair</span>
-        <span className="mode-tab disabled" title="Router execution is not enabled for direct-pair v1">Router later</span>
+        <span className={`mode-tab ${quote.data?.source === "pair" ? "active" : ""}`}>Direct pair</span>
+        <span className={`mode-tab ${quote.data?.source === "router" ? "active" : dexRegistry.router ? "" : "disabled"}`} title={dexRegistry.router ? "Router is used when it returns the best route" : "Router contract is not configured"}>Router</span>
       </Box>
       <Stack className="asset-amount-card" direction="vertical" space="4">
         <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>From</span><strong>{offerAsset.symbol}</strong></Stack>
@@ -145,19 +152,21 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
             onChange={(nextAmount) => setAmount(nextAmount)}
             fiatHint={<span>USD hint pending oracle wiring</span>}
           />
-          <TokenSelect assets={selectableAssets} value={offerId} onChange={setOfferId} label="From asset" balances={balances.data} />
+          <TokenSelect assets={selectableAssets} value={offerId} onChange={handleOfferChange} label="From asset" balances={balances.data} />
         </Stack>
         <code>{offerAsset.id}</code>
       </Stack>
       <Box className="swap-direction">↓</Box>
       <Stack className="asset-amount-card receive-card" direction="vertical" space="4">
         <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>To · estimated receive</span><strong>{askAsset.symbol}</strong></Stack>
-        <TokenSelect assets={selectableAssets} value={askId} onChange={setAskId} label="To asset" balances={balances.data} />
+        <TokenSelect assets={selectableAssets.filter((asset) => asset.id !== offerAsset.id)} value={askAsset.id} onChange={setAskId} label="To asset" balances={balances.data} />
         <Text as="div" className="estimated-receive">{receiveAmount}</Text>
         <code>{askAsset.id}</code>
       </Stack>
-      {!selectedPool ? <div className="error-text" role="status">No supported direct pool route is available for this token pair. Choose a listed pool pair to continue.</div> : null}
-      <QuoteCard quote={quote.data} askAsset={askAsset} isLoading={Boolean(selectedPool) && quote.isFetching} error={quote.error} pool={selectedPool ?? pool} slippageBps={slippageBps} />
+      <QuoteCard quote={quote.data} askAsset={askAsset} isLoading={quote.isFetching} error={quote.error} slippageBps={slippageBps} />
+      {quote.data?.source === "router" ? (
+        <div className="price-impact-warning" role="status">Multi-hop routes touch multiple pools and may have higher execution risk. The router quote includes per-hop fees, but aggregate price impact is not exposed by this contract query.</div>
+      ) : null}
       {priceImpact?.severity === "warning" ? (
         <div className="price-impact-warning" role="status">Price impact is elevated at {formatBpsPercent(priceImpact.bps)}. Review size and pool liquidity before swapping.</div>
       ) : null}
@@ -170,10 +179,10 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
       {validationError && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validationError}</Text> : null}
       {swapTx.isError ? <Text as="p" className="error-text">{swapTx.error instanceof Error ? swapTx.error.message : "Swap failed"}</Text> : null}
-      {swapTx.isSuccess ? <Text as="p" className="success-text">Swap transaction broadcast. Balances, quote, and pool reserves are refreshing.</Text> : null}
+      {swapTx.isSuccess ? <Text as="p" className="success-text">Swap transaction broadcast. Balances, route quote, and pool reserves are refreshing.</Text> : null}
       <Box className="empty-state compact">
-        <strong>Experimental thin-liquidity pool</strong>
-        <p>Direct swaps execute against the live pair. Review price impact, fees, and slippage before signing; this test market can move sharply.</p>
+        <strong>Experimental thin-liquidity routing</strong>
+        <p>Swaps execute against live Astroport pairs or the router. Review route hops, fees, price impact, and slippage before signing; test markets can move sharply.</p>
       </Box>
       <TxStatusDialog state={swapTx.txState} />
       <Button intent="primary" className="primary-action" disabled={submitDisabled} fluidWidth onClick={handleSwap} domAttributes={{ type: "button" }}>{actionCopy}</Button>
