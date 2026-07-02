@@ -2,12 +2,11 @@ import type { OfflineSigner } from "@cosmjs/proto-signing";
 import type { Coin } from "@cosmjs/stargate";
 import type { ExecuteResult } from "@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient.js";
 import type { StargateClient as ReadonlyStargateClient } from "@cosmjs/stargate/build/stargateclient.js";
-// CosmJS publishes these browser-consumed packages as CommonJS build files.
-// Import the concrete modules as defaults so Vite receives the CJS namespace object.
-import signingCosmWasmClientModule from "@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient.js";
-import stargateClientModule from "@cosmjs/stargate/build/stargateclient.js";
-import stargateFeeModule from "@cosmjs/stargate/build/fee.js";
 import { dexRegistry } from "../../config/registry";
+
+type SigningCosmWasmClientModule = typeof import("@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient.js");
+type StargateClientModule = typeof import("@cosmjs/stargate/build/stargateclient.js");
+type StargateFeeModule = typeof import("@cosmjs/stargate/build/fee.js");
 
 export type ExecuteClient = {
   execute: (
@@ -23,13 +22,35 @@ export type ExecuteClient = {
 export type SigningClientGetter = () => Promise<ExecuteClient>;
 export type SigningClientSource = OfflineSigner | SigningClientGetter | undefined;
 
-const { SigningCosmWasmClient } = signingCosmWasmClientModule;
-const { StargateClient } = stargateClientModule;
-const { GasPrice } = stargateFeeModule;
-
 let readonlyStargateClientPromise: Promise<ReadonlyStargateClient> | undefined;
 
-export function getReadonlyStargateClient() {
+function cjsExport<T>(module: unknown, key: string): T | undefined {
+  if (!module || typeof module !== "object") return undefined;
+  const namespace = module as Record<string, unknown>;
+  const defaultExport = namespace.default && typeof namespace.default === "object"
+    ? namespace.default as Record<string, unknown>
+    : undefined;
+  return (namespace[key] ?? defaultExport?.[key]) as T | undefined;
+}
+
+async function loadReadonlyStargateClient() {
+  const module = await import("@cosmjs/stargate/build/stargateclient.js");
+  return cjsExport<StargateClientModule["StargateClient"]>(module, "StargateClient");
+}
+
+async function loadSigningDependencies() {
+  const [signingModule, feeModule] = await Promise.all([
+    import("@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient.js"),
+    import("@cosmjs/stargate/build/fee.js"),
+  ]);
+  return {
+    SigningCosmWasmClient: cjsExport<SigningCosmWasmClientModule["SigningCosmWasmClient"]>(signingModule, "SigningCosmWasmClient"),
+    GasPrice: cjsExport<StargateFeeModule["GasPrice"]>(feeModule, "GasPrice"),
+  };
+}
+
+export async function getReadonlyStargateClient() {
+  const StargateClient = await loadReadonlyStargateClient();
   if (!StargateClient?.connect) {
     throw new Error("CosmJS readonly client failed to initialize");
   }
@@ -38,6 +59,7 @@ export function getReadonlyStargateClient() {
 }
 
 export async function getSigningClient(signer: OfflineSigner) {
+  const { SigningCosmWasmClient, GasPrice } = await loadSigningDependencies();
   if (!SigningCosmWasmClient?.connectWithSigner || !GasPrice?.fromString) {
     throw new Error("CosmJS signing client failed to initialize");
   }
