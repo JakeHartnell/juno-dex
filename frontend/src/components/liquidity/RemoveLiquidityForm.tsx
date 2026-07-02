@@ -4,13 +4,14 @@ import type { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount, isBaseAmountGreaterThan, parseTokenAmount } from "../../lib/format/amounts";
 import { applySlippageToAssets, calculatePercentageFill, estimateWithdrawAssets } from "../../lib/liquidity/withdraw";
+import { assessPoolRisk } from "../../lib/risk";
 import { formatBpsPercent } from "../../lib/swap/slippage";
 import { useWithdrawLiquidityTx } from "../../mutations/useWithdrawLiquidityTx";
 import { usePoolReserves } from "../../queries/usePools";
 import { getWalletBalanceAmount, resolveDenom, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
-import { TokenAmountInput, useToast } from "../common";
+import { RiskAcknowledgement, RiskBadgeList, TokenAmountInput, useToast } from "../common";
 
 type SigningClientGetter = () => Promise<SigningCosmWasmClient>;
 const QUICK_FILL_PERCENTAGES = [25, 50, 75, 100] as const;
@@ -32,6 +33,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
   const { network } = useNetworkGuard();
   const toast = useToast();
   const [amount, setAmount] = useState("");
+  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, [pool]);
   const reserves = usePoolReserves(pool);
@@ -42,6 +44,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
   const lpBaseAmount = parsedAmount.baseAmount;
   const expectedAssets = useMemo(() => estimateWithdrawAssets(reserves.data, lpBaseAmount), [lpBaseAmount, reserves.data]);
   const minAssetsToReceive = useMemo(() => applySlippageToAssets(expectedAssets, slippageBps), [expectedAssets, slippageBps]);
+  const risk = assessPoolRisk(pool, reserves.data);
   const signerOrClient = wallet.status === "connected"
     ? (wallet.getSigningCosmWasmClient as SigningClientGetter | undefined) ?? (wallet.signer as OfflineSigner | undefined)
     : undefined;
@@ -56,6 +59,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
     && !exceedsBalance
     && expectedAssets.length > 0
     && !reserves.isError
+    && (!risk.requiresAcknowledgement || riskAcknowledged)
     && !withdraw.isPending;
 
   const actionCopy = network.isWrongNetwork
@@ -70,6 +74,8 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
             ? "Reserve query unavailable"
             : reserves.isFetching && expectedAssets.length === 0
               ? "Estimating withdrawal…"
+              : risk.requiresAcknowledgement && !riskAcknowledged
+                ? "Acknowledge unverified pool"
               : withdraw.isPending
                 ? "Withdrawing…"
                 : "Withdraw liquidity";
@@ -97,6 +103,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
     <section className="action-card">
       <h3>Remove liquidity</h3>
       <p>Burn TokenFactory LP shares to receive the pool assets proportionally. Funds use the LP denom below.</p>
+      <RiskBadgeList assessment={risk} max={4} />
       <TokenAmountInput
         label="LP amount"
         value={amount}
@@ -139,6 +146,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
       {balances.isError ? <p className="error-text">Wallet balance query failed: {balances.error instanceof Error ? balances.error.message : String(balances.error)}</p> : null}
       {reserves.isError ? <p className="error-text">Pool reserve query failed: {reserves.error instanceof Error ? reserves.error.message : String(reserves.error)}</p> : null}
       {network.isWrongNetwork ? <p className="error-text">Switch to Juno to withdraw liquidity. Transactions are blocked off-network.</p> : null}
+      <RiskAcknowledgement assessment={risk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="liquidity withdrawal" />
       {wallet.status !== "connected" ? <p className="empty-state">Connect a wallet to load your LP balance and broadcast withdrawal.</p> : null}
       <button type="button" disabled={!canWithdraw} onClick={handleWithdraw}>{actionCopy}</button>
     </section>

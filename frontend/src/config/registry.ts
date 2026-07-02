@@ -18,6 +18,7 @@ export type RegistryAsset = {
     counterpartyBaseDenom?: string;
     counterpartyChannelId?: string;
   };
+  verified?: boolean;
 };
 
 export type RegistryPool = {
@@ -95,6 +96,7 @@ function parseAsset(value: unknown, label: string): RegistryAsset {
   if (typeof value.denomTrace !== "undefined") assertString(value.denomTrace, `${label}.denomTrace`);
   if (typeof value.coingeckoId !== "undefined") assertString(value.coingeckoId, `${label}.coingeckoId`);
   if (typeof value.trace !== "undefined") assertRecord(value.trace, `${label}.trace`);
+  if (typeof value.verified !== "undefined" && typeof value.verified !== "boolean") throw new Error(`${label}.verified must be boolean`);
   return value as RegistryAsset;
 }
 

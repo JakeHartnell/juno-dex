@@ -1,8 +1,9 @@
 import { Link, useParams } from "react-router-dom";
 import { formatAmount } from "../../lib/format/amounts";
+import { assessPoolRisk } from "../../lib/risk";
 import { useDexRegistry } from "../../queries/useDexRegistry";
 import { usePoolReserves } from "../../queries/usePools";
-import { ExplorerLink, TokenLogo } from "../common";
+import { ExplorerLink, RiskBadgeList, TokenLogo } from "../common";
 import { AddLiquidityForm } from "../liquidity/AddLiquidityForm";
 import { LpPositionPanel } from "../liquidity/LpPositionPanel";
 import { RemoveLiquidityForm } from "../liquidity/RemoveLiquidityForm";
@@ -12,6 +13,7 @@ export function PoolDetailPage() {
   const { pools, discovery } = useDexRegistry();
   const pool = pools.find((candidate) => candidate.pair === pairAddress);
   const reserves = usePoolReserves(pool);
+  const risk = pool ? assessPoolRisk(pool, reserves.data) : undefined;
 
   if (!pool) {
     return <section className="panel-page"><h2>Pool not found</h2><p className="empty-state">This pair was not found in factory discovery or the curated Juno registry.{discovery.isError ? " Factory discovery is currently degraded." : ""}</p><Link to="/pools">Back to pools</Link></section>;
@@ -21,6 +23,7 @@ export function PoolDetailPage() {
     <section className="panel-page">
       <p className="eyebrow">Pool detail</p>
       <h2>{pool.label}</h2>
+      {risk ? <RiskBadgeList assessment={risk} max={6} /> : null}
       <p className="risk-copy">Experimental pool: verify every denom and pair address before providing or removing liquidity.</p>
       <div className="contract-strip"><span>Pair</span><code>{pool.pair}</code><button type="button" onClick={() => navigator.clipboard?.writeText(pool.pair)}>Copy</button><ExplorerLink href={pool.explorer}>Mintscan</ExplorerLink></div>
       <div className="contract-strip"><span>LP denom</span><code>{pool.lpToken}</code><button type="button" onClick={() => navigator.clipboard?.writeText(pool.lpToken)}>Copy</button></div>
