@@ -6,11 +6,22 @@ From-scratch Vite/React/TypeScript frontend for the in-repo Astroport-Juno deplo
 
 ```sh
 npm install
+npm run codegen
 npm run typecheck
 npm test
 npm run build
 npm run dev
 ```
+
+## Contract code generation
+
+Typed Astroport contract clients, message composers, and schema types are generated with `@cosmwasm/ts-codegen` into `src/lib/generated/`. Regenerate them after schema changes with:
+
+```sh
+npm run codegen
+```
+
+The generator reads the committed Astroport schema directories under `../schemas/astroport-*/raw/` and currently emits SDKs for factory, pair, router, incentives, oracle, and native-coin-registry. Pair stable and pair concentrated clients will be emitted automatically once their schema directories are committed.
 
 ## Scope
 
