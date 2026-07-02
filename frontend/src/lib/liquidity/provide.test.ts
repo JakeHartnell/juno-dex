@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateProvideLiquidityQuote, displayBaseAmount, formatLpShareBps, ratioAmount } from "./provide";
+import { calculateInitialLiquidityQuote, calculateProvideLiquidityQuote, displayBaseAmount, formatLpShareBps, isEmptyPoolState, ratioAmount } from "./provide";
 
 describe("provide liquidity math", () => {
   it("balances the opposite side to the pool ratio", () => {
@@ -38,5 +38,21 @@ describe("provide liquidity math", () => {
   it("does not quote empty or uninitialized pools", () => {
     expect(calculateProvideLiquidityQuote({ depositAmounts: ["0", "1"], reserves: ["10", "10"], totalShare: "10" })).toBeNull();
     expect(calculateProvideLiquidityQuote({ depositAmounts: ["1", "1"], reserves: ["0", "10"], totalShare: "10" })).toBeNull();
+  });
+
+  it("detects empty first-provider pools and previews the initial price", () => {
+    expect(isEmptyPoolState(["0", "0"], "0")).toBe(true);
+    expect(isEmptyPoolState(["100", "200"], "50")).toBe(false);
+
+    expect(calculateInitialLiquidityQuote({
+      depositAmounts: ["100000", "500000"],
+      decimals: [6, 6],
+      reserves: ["0", "0"],
+      totalShare: "0",
+    })).toEqual({
+      isFirstProvider: true,
+      price0In1: "5",
+      price1In0: "0.2",
+    });
   });
 });

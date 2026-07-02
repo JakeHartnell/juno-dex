@@ -124,7 +124,7 @@ export function CreatePoolPage() {
             <Text as="p" className="eyebrow">1 · Assets</Text>
             <Text as="h2" variant="heading">Select pair assets</Text>
           </Box>
-          <span className="status-pill status-warn">No initial liquidity is added by this transaction</span>
+          <span className="status-pill status-warn">No initial liquidity is added by this transaction · seed on the pool page next</span>
         </Stack>
         <Stack className="form-grid" direction="horizontal" align="flex-end">
           <TokenSelect assets={selectableAssets} value={assetA?.id ?? ""} onChange={setAssetAId} label="First asset" disabledIds={assetB ? [assetB.id] : []} />

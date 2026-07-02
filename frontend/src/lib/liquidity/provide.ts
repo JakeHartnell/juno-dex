@@ -9,6 +9,12 @@ export type ProvideLiquidityQuote = {
   isProportional: boolean;
 };
 
+export type InitialLiquidityQuote = {
+  isFirstProvider: boolean;
+  price0In1: string | null;
+  price1In0: string | null;
+};
+
 function normalizeBaseAmount(amount: string | number | bigint | undefined): bigint {
   if (amount === undefined || amount === null) return 0n;
   const raw = String(amount).trim();
@@ -56,6 +62,45 @@ export function calculateProvideLiquidityQuote({
     poolShareBps,
     imbalanceBps,
     isProportional: imbalanceBps <= 1,
+  };
+}
+
+export function isEmptyPoolState(reserves: [string, string] | undefined, totalShare: string | undefined): boolean {
+  if (!reserves) return false;
+  const reserve0 = normalizeBaseAmount(reserves[0]);
+  const reserve1 = normalizeBaseAmount(reserves[1]);
+  const share = normalizeBaseAmount(totalShare);
+  return share <= 0n || (reserve0 <= 0n && reserve1 <= 0n);
+}
+
+function decimalRatio(numerator: bigint, denominator: bigint, precision = 8): string | null {
+  if (numerator <= 0n || denominator <= 0n) return null;
+  const scale = 10n ** BigInt(precision);
+  const scaled = (numerator * scale) / denominator;
+  const whole = scaled / scale;
+  const fraction = (scaled % scale).toString().padStart(precision, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+export function calculateInitialLiquidityQuote({
+  depositAmounts,
+  decimals,
+  reserves,
+  totalShare,
+}: {
+  depositAmounts: [string, string];
+  decimals: [number, number];
+  reserves: [string, string] | undefined;
+  totalShare: string | undefined;
+}): InitialLiquidityQuote {
+  const amount0 = normalizeBaseAmount(depositAmounts[0]);
+  const amount1 = normalizeBaseAmount(depositAmounts[1]);
+  const decimalAdjusted0 = amount0 * 10n ** BigInt(decimals[1]);
+  const decimalAdjusted1 = amount1 * 10n ** BigInt(decimals[0]);
+  return {
+    isFirstProvider: isEmptyPoolState(reserves, totalShare),
+    price0In1: decimalRatio(decimalAdjusted1, decimalAdjusted0),
+    price1In0: decimalRatio(decimalAdjusted0, decimalAdjusted1),
   };
 }
 

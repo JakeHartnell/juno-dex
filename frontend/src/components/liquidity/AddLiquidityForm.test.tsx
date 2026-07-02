@@ -70,6 +70,10 @@ const pool: RegistryPool = {
 describe("AddLiquidityForm", () => {
   beforeEach(() => {
     mocks.mutate.mockReset();
+    mocks.poolData = {
+      assets: [{ amount: "1000000" }, { amount: "2000000" }],
+      total_share: "1000000",
+    };
     mocks.wallet.wallet = { status: "connected", address: "juno1wallet", getSigningCosmWasmClient: vi.fn() };
     mocks.network.network = {
       expectedChainId: "juno-1",
@@ -113,5 +117,47 @@ describe("AddLiquidityForm", () => {
     expect(screen.getByText(/PCL deposits disabled/i)).toBeTruthy();
     expect(screen.getAllByText(/PCL provide rules depend on concentration parameters/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: /PCL add liquidity is not supported in the UI yet/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("detects an empty XYK pool and shows first-provider guardrails", () => {
+    mocks.poolData = { assets: [{ amount: "0" }, { amount: "0" }], total_share: "0" };
+
+    render(<AddLiquidityForm pool={pool} />);
+
+    expect(screen.getByText("Seed initial liquidity")).toBeTruthy();
+    expect(screen.getByText("First-provider warning")).toBeTruthy();
+    expect(screen.getByPlaceholderText("SEED")).toBeTruthy();
+    expect(screen.getByText(/Initial seeding requires both sides/i)).toBeTruthy();
+  });
+
+  it("requires typed acknowledgement before first deposit", () => {
+    mocks.poolData = { assets: [{ amount: "0" }, { amount: "0" }], total_share: "0" };
+    render(<AddLiquidityForm pool={pool} />);
+
+    fireEvent.change(screen.getByLabelText("JUNO initial amount amount"), { target: { value: "0.1" } });
+    fireEvent.change(screen.getByLabelText("TEST initial amount amount"), { target: { value: "0.5" } });
+
+    expect(screen.getByText(/1 JUNO = 5 TEST/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /type seed to acknowledge/i }).hasAttribute("disabled")).toBe(true);
+
+    fireEvent.change(screen.getByPlaceholderText("SEED"), { target: { value: "SEED" } });
+    fireEvent.click(screen.getByRole("button", { name: /^seed initial liquidity$/i }));
+
+    expect(mocks.mutate).toHaveBeenCalledWith({
+      pool,
+      amounts: ["100000", "500000"],
+      slippageTolerance: "0.005",
+      minLpToReceive: undefined,
+    });
+  });
+
+  it("keeps proportional add-liquidity behavior for non-empty pools", () => {
+    render(<AddLiquidityForm pool={pool} />);
+
+    expect(screen.queryByText("First-provider warning")).toBeNull();
+    fireEvent.change(screen.getByLabelText("JUNO amount · driving ratio amount"), { target: { value: "0.1" } });
+
+    expect((screen.getByLabelText("TEST amount · auto-balanced amount") as HTMLInputElement).value).toBe("0.2");
+    expect(screen.getByRole("button", { name: /^add liquidity$/i }).hasAttribute("disabled")).toBe(false);
   });
 });
