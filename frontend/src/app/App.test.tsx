@@ -1,38 +1,72 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
-const signer = {} as ReturnType<NonNullable<Window["keplr"]>["getOfflineSigner"]>;
+const walletState = vi.hoisted(() => ({
+  wallet: { status: "idle" } as {
+    status: "idle" | "connecting" | "connected" | "error";
+    address?: string;
+    name?: string;
+    error?: string;
+  },
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+  openView: vi.fn(),
+}));
+
+vi.mock("../wallet/WalletContext", () => ({
+  WalletProvider: ({ children }: { children: React.ReactNode }) => children,
+  useWallet: () => walletState,
+}));
+
+function renderApp(route = "/liquidity") {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[route]}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 describe("App wallet state", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-    delete window.keplr;
+  beforeEach(() => {
+    walletState.wallet = { status: "idle" };
+    walletState.connect.mockReset();
+    walletState.disconnect.mockReset();
+    walletState.openView.mockReset();
   });
 
-  it("keeps liquidity copy in sync with the connected header wallet", async () => {
-    window.keplr = {
-      enable: vi.fn().mockResolvedValue(undefined),
-      experimentalSuggestChain: vi.fn().mockResolvedValue(undefined),
-      getKey: vi.fn().mockResolvedValue({ bech32Address: "juno1testwallet000000000000000000000000000000", name: "QA wallet" }),
-      getOfflineSigner: vi.fn().mockReturnValue(signer),
+  it("keeps read-only liquidity copy available without a wallet", () => {
+    renderApp();
+
+    expect(screen.getByRole("button", { name: /connect wallet/i })).toBeTruthy();
+    expect(screen.getByText(/No wallet connected/i)).toBeTruthy();
+  });
+
+  it("opens the cosmos-kit wallet modal from the header", async () => {
+    walletState.connect.mockResolvedValue(undefined);
+    renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: /connect wallet/i }));
+
+    await waitFor(() => expect(walletState.connect).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps liquidity copy in sync with the connected header wallet", () => {
+    walletState.wallet = {
+      status: "connected",
+      address: "juno1testwallet000000000000000000000000000000",
+      name: "QA wallet",
     };
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={["/liquidity"]}>
-          <App />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    renderApp();
 
-    fireEvent.click(screen.getByRole("button", { name: /connect keplr/i }));
-
-    await waitFor(() => expect(screen.getByRole("button", { name: /qa wallet/i })).toBeTruthy());
-
+    expect(screen.getByRole("button", { name: /qa wallet/i })).toBeTruthy();
     expect(screen.queryByText(/No wallet connected/i)).toBeNull();
     expect(screen.getByText(/Connected wallet:/i).textContent).toContain("LP balances are unknown until queried from verified pool denoms.");
   });

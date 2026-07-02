@@ -26,7 +26,7 @@ export function SwapForm({ pool }: { pool: RegistryPool }) {
         ? "Refreshing quote…"
         : quote.data
           ? "Swap disabled: preview mode"
-          : "Connect Keplr to review swap";
+          : "Connect wallet to review swap";
 
   return (
     <Stack className="swap-card" direction="vertical" space="6">

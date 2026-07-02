@@ -1,25 +1,59 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { connectKeplr } from "./keplr";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { useChain } from "@cosmos-kit/react";
+import { COSMOS_KIT_CHAIN_NAME } from "../config/cosmosKit";
 import type { WalletState } from "./types";
 
 type WalletContextValue = {
   wallet: WalletState;
   connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  openView: () => void;
 };
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [wallet, setWallet] = useState<WalletState>({ status: "idle" });
+  const cosmosWallet = useCosmosKitWallet();
+  return <WalletContext.Provider value={cosmosWallet}>{children}</WalletContext.Provider>;
+}
 
-  async function connect() {
-    setWallet({ status: "connecting" });
-    setWallet(await connectKeplr());
-  }
+export function useCosmosKitWallet(): WalletContextValue {
+  const chain = useChain(COSMOS_KIT_CHAIN_NAME);
 
-  const value = useMemo(() => ({ wallet, connect }), [wallet]);
+  const wallet = useMemo<WalletState>(() => {
+    if (chain.isWalletConnected && chain.address) {
+      return {
+        status: "connected",
+        address: chain.address,
+        name: chain.username ?? chain.wallet?.prettyName,
+        signer: chain.getOfflineSigner(),
+        getSigningCosmWasmClient: chain.getSigningCosmWasmClient,
+      };
+    }
 
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+    if (chain.isWalletConnecting) return { status: "connecting" };
+
+    if (chain.isWalletRejected || chain.isWalletNotExist || chain.isWalletError) {
+      return {
+        status: "error",
+        error: chain.message ?? "Wallet connection failed. Read-only mode remains available.",
+      };
+    }
+
+    return { status: "idle" };
+  }, [chain]);
+
+  const value = useMemo(
+    () => ({
+      wallet,
+      connect: async () => chain.openView(),
+      disconnect: async () => chain.disconnect(),
+      openView: chain.openView,
+    }),
+    [chain, wallet],
+  );
+
+  return value;
 }
 
 export function useWallet() {

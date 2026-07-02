@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./app/App";
 import { ToastProvider } from "./components/common";
 import { interchainThemeProps, junoCssVars } from "./theme/junoTheme";
+import { CosmosKitProvider } from "./wallet/CosmosKitProvider";
 import "@interchain-ui/react/styles";
 import "./styles/theme.css";
 
@@ -24,11 +25,13 @@ createRoot(document.getElementById("root")!).render(
     <ThemeProvider {...interchainThemeProps}>
       <div style={junoCssVars}>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
-          </BrowserRouter>
+          <CosmosKitProvider>
+            <BrowserRouter>
+              <ToastProvider>
+                <App />
+              </ToastProvider>
+            </BrowserRouter>
+          </CosmosKitProvider>
         </QueryClientProvider>
         <OverlaysManager />
       </div>

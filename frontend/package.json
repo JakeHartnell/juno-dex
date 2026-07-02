@@ -15,9 +15,13 @@
     "@cosmjs/cosmwasm-stargate": "^0.34.0",
     "@cosmjs/proto-signing": "^0.34.0",
     "@cosmjs/stargate": "^0.34.0",
+    "@cosmos-kit/keplr": "^2.17.1",
+    "@cosmos-kit/leap": "^2.17.1",
+    "@cosmos-kit/react": "^2.24.1",
     "@interchain-ui/react": "^1.26.3",
     "@interchainjs/types": "^1.21.0",
     "@tanstack/react-query": "^5.81.5",
+    "axios": "^1.18.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3"
