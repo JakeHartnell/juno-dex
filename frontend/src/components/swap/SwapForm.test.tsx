@@ -72,8 +72,20 @@ const pool: RegistryPool = {
   enabled: true,
 };
 
+const atomPool: RegistryPool = {
+  ...pool,
+  id: "atom",
+  label: "TEST / ATOM",
+  pair: "juno1pairatom",
+  lpToken: "factory/juno1pairatom/lp",
+  assets: [
+    { kind: "ibc", id: "ibc/test", symbol: "TEST", decimals: 6 },
+    { kind: "ibc", id: "ibc/atom", symbol: "ATOM", decimals: 6 },
+  ],
+};
+
 function swapButton() {
-  return screen.getByRole("button", { name: /swap|connect wallet|switch to juno|quote unavailable|refreshing quote|insufficient|confirm high price impact/i });
+  return screen.getByRole("button", { name: /swap|connect wallet|switch to juno|quote unavailable|refreshing quote|insufficient|confirm high price impact|no direct pool route|choose two different tokens/i });
 }
 
 describe("SwapForm", () => {
@@ -108,8 +120,8 @@ describe("SwapForm", () => {
 
     expect(mocks.mutate).toHaveBeenCalledWith({
       pool,
-      offerAsset: pool.assets[0],
-      askAsset: pool.assets[1],
+      offerAsset: expect.objectContaining(pool.assets[0]),
+      askAsset: expect.objectContaining(pool.assets[1]),
       amount: "1000000",
       maxSpread: "0.005",
     });
@@ -162,5 +174,15 @@ describe("SwapForm", () => {
     fireEvent.click(screen.getByLabelText(/i understand this quote has high price impact/i));
     const button = screen.getByRole("button", { name: /^swap$/i });
     expect(button.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("disables swaps when the selected tokens do not have a direct supported route", () => {
+    render(<SwapForm pool={pool} pools={[pool, atomPool]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /test ibc\/test/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /atom/i }).at(-1)!);
+
+    expect(screen.getByText(/no supported direct pool route/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /no direct pool route for juno → atom/i }).hasAttribute("disabled")).toBe(true);
   });
 });

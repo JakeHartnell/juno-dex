@@ -11,7 +11,7 @@ export function SwapPage() {
     <Box as="section" className="swap-page-grid">
       <Stack className="swap-primary" direction="vertical" space="6">
         <RiskNotice variant="compact" />
-        {pool ? <SwapForm pool={pool} /> : <EmptyState title="No enabled verified pools">Add a real Juno pair to the strict registry before exposing swaps.</EmptyState>}
+        {pool ? <SwapForm pool={pool} pools={pools} /> : <EmptyState title="No enabled verified pools">Add a real Juno pair to the strict registry before exposing swaps.</EmptyState>}
       </Stack>
       <Stack className="hero-panel context-panel" direction="vertical" space="8">
         <Box>
