@@ -3,6 +3,7 @@ import { Box, Button, Stack, Text } from "@interchain-ui/react";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount, toBaseAmount } from "../../lib/format/amounts";
 import { useSwapQuote } from "../../queries/useSwapQuote";
+import { TokenAmountInput } from "../common";
 import { QuoteCard } from "./QuoteCard";
 import { TokenSelect } from "./TokenSelect";
 
@@ -43,10 +44,14 @@ export function SwapForm({ pool }: { pool: RegistryPool }) {
       <Stack className="asset-amount-card" direction="vertical" space="4">
         <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>From</span><strong>{offerAsset.symbol}</strong></Stack>
         <Stack className="form-grid" direction="horizontal" align="flex-end">
-          <label className="field compact-field">
-            <span>Amount</span>
-            <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
-          </label>
+          <TokenAmountInput
+            label="Amount"
+            value={amount}
+            decimals={offerAsset.decimals}
+            symbol={offerAsset.symbol}
+            onChange={(nextAmount) => setAmount(nextAmount)}
+            fiatHint={<span>USD hint pending oracle wiring</span>}
+          />
           <TokenSelect assets={pool.assets} value={offerId} onChange={setOfferId} label="Asset" />
         </Stack>
         <code>{offerAsset.id}</code>

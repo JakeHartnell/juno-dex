@@ -3,11 +3,11 @@ import type { RegistryPool } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
 import { truncateAddress } from "../../lib/format/addresses";
 import { usePoolReserves } from "../../queries/usePools";
-import { ExplorerLink } from "../common/ExplorerLink";
+import { EmptyState, ErrorState, ExplorerLink, Skeleton } from "../common";
 
 export function PoolTable({ pools }: { pools: RegistryPool[] }) {
   if (pools.length === 0) {
-    return <p className="empty-state">No enabled verified pools. Operators should add a real Juno pair to registry.juno-1.json and keep placeholders rejected by tests.</p>;
+    return <EmptyState title="No enabled verified pools">Operators should add a real Juno pair to registry.juno-1.json and keep placeholders rejected by tests.</EmptyState>;
   }
 
   return (
@@ -32,12 +32,12 @@ function PoolRow({ pool }: { pool: RegistryPool }) {
           {pool.assets.map((asset, index) => (
             <div key={asset.id}>
               <span>{asset.symbol}</span>
-              <strong>{reserves.data ? formatAmount(reserves.data.assets[index]?.amount, asset.decimals) : "reserve unavailable"}</strong>
+              <strong>{reserves.isLoading ? <Skeleton width="9rem" /> : reserves.data ? formatAmount(reserves.data.assets[index]?.amount, asset.decimals) : "reserve unavailable"}</strong>
               <code>{asset.id}</code>
             </div>
           ))}
         </div>
-        {reserves.isError ? <p className="error-text">RPC degraded: reserves unavailable; registry metadata remains visible.</p> : null}
+        {reserves.isError ? <ErrorState title="RPC degraded" error="Reserves unavailable; registry metadata remains visible." onRetry={() => void reserves.refetch()} /> : null}
       </div>
       <div className="pool-meta">
         <span>{pool.type.toUpperCase()} · {pool.feeBps} bps</span>

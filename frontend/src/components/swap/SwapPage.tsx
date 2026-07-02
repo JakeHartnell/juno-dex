@@ -1,7 +1,6 @@
 import { Box, Stack, Text } from "@interchain-ui/react";
 import { useDexRegistry } from "../../queries/useDexRegistry";
-import { ExplorerLink } from "../common/ExplorerLink";
-import { RiskNotice } from "../common/RiskNotice";
+import { EmptyState, ExplorerLink, RiskNotice } from "../common";
 import { SwapForm } from "./SwapForm";
 
 export function SwapPage() {
@@ -12,7 +11,7 @@ export function SwapPage() {
     <Box as="section" className="swap-page-grid">
       <Stack className="swap-primary" direction="vertical" space="6">
         <RiskNotice variant="compact" />
-        {pool ? <SwapForm pool={pool} /> : <p className="empty-state">No enabled verified pools. Add a real Juno pair to the strict registry before exposing swaps.</p>}
+        {pool ? <SwapForm pool={pool} /> : <EmptyState title="No enabled verified pools">Add a real Juno pair to the strict registry before exposing swaps.</EmptyState>}
       </Stack>
       <Stack className="hero-panel context-panel" direction="vertical" space="8">
         <Box>
