@@ -3,6 +3,7 @@ import type { ConfigResponse, PairInfo, PairsResponse, QueryMsg as FactoryQueryM
 import type { PoolResponse, QueryMsg as PairQueryMsg, ReverseSimulationResponse, SimulationResponse } from "../generated/Pair.types";
 import type { QueryMsg as RouterQueryMsg, SimulateSwapOperationsResponse, SwapOperation } from "../generated/Router.types";
 import { dexRegistry } from "../../config/registry";
+import { e2ePoolResponse, e2eReverseSwapSimulation, e2eRouterSimulation, e2eSwapSimulation, isE2EMode } from "../../e2e/mocks";
 import { toAsset } from "./assetInfo";
 
 export type PoolAssetResponse = { info: unknown; amount: string };
@@ -27,18 +28,31 @@ export async function queryContractSmart<T>(contractAddress: string, message: un
 }
 
 export async function queryPairPool(pairAddress: string): Promise<PoolResponse> {
+  if (isE2EMode()) {
+    const pool = dexRegistry.pools.find((candidate) => candidate.pair === pairAddress) ?? dexRegistry.pools[0];
+    return e2ePoolResponse(pool);
+  }
   return queryContractSmart(pairAddress, { pool: {} } satisfies PairQueryMsg);
 }
 
 export async function queryFactoryPairs(message: Extract<FactoryQueryMsg, { pairs: unknown }>): Promise<PairsResponse> {
+  if (isE2EMode()) return { pairs: [] } as PairsResponse;
   return queryContractSmart(dexRegistry.factory, message);
 }
 
 export async function queryFactoryConfig(): Promise<ConfigResponse> {
+  if (isE2EMode()) {
+    return {
+      owner: "juno1e2eowner000000000000000000000000000000000000",
+      token_code_id: 1,
+      pair_configs: [{ code_id: 1, pair_type: { xyk: {} }, total_fee_bps: 30, maker_fee_bps: 10, is_disabled: false, is_generator_disabled: false }],
+    } as ConfigResponse;
+  }
   return queryContractSmart(dexRegistry.factory, { config: {} } satisfies FactoryQueryMsg);
 }
 
 export async function queryFactoryPair(assetInfos: Extract<FactoryQueryMsg, { pair: unknown }>["pair"]["asset_infos"]): Promise<PairInfo> {
+  if (isE2EMode()) throw new Error("Pair was not found");
   return queryContractSmart(dexRegistry.factory, { pair: { asset_infos: assetInfos } } satisfies FactoryQueryMsg);
 }
 
@@ -48,6 +62,7 @@ export async function querySwapSimulation(
   askAsset: RegistryAsset,
   amount: string,
 ): Promise<SimulationResponse> {
+  if (isE2EMode()) return e2eSwapSimulation(amount);
   return queryContractSmart(pairAddress, {
     simulation: {
       offer_asset: toAsset(offerAsset, amount),
@@ -64,6 +79,7 @@ export async function queryReverseSwapSimulation(
   askAsset: RegistryAsset,
   askAmount: string,
 ): Promise<ReverseSimulationResponse> {
+  if (isE2EMode()) return e2eReverseSwapSimulation(askAmount);
   return queryContractSmart(pairAddress, {
     reverse_simulation: {
       ask_asset: toAsset(askAsset, askAmount),
@@ -75,6 +91,7 @@ export async function queryReverseSwapSimulation(
 }
 
 export async function queryRouterSimulation(operations: SwapOperation[], offerAmount: string): Promise<SimulateSwapOperationsResponse> {
+  if (isE2EMode()) return e2eRouterSimulation(offerAmount);
   if (!dexRegistry.router) throw new Error("Router contract is not configured");
   return queryContractSmart(dexRegistry.router, {
     simulate_swap_operations: {
@@ -85,6 +102,7 @@ export async function queryRouterSimulation(operations: SwapOperation[], offerAm
 }
 
 export async function queryRouterReverseSimulation(operations: SwapOperation[], askAmount: string): Promise<SimulateSwapOperationsResponse> {
+  if (isE2EMode()) return e2eRouterSimulation(askAmount);
   if (!dexRegistry.router) throw new Error("Router contract is not configured");
   return queryContractSmart(dexRegistry.router, {
     reverse_simulate_swap_operations: {

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { StargateClient, type Coin } from "@cosmjs/stargate";
 import { useQuery } from "@tanstack/react-query";
 import { dexRegistry, enabledPools, type RegistryAsset, type RegistryPool } from "../config/registry";
+import { e2eBalances, isE2EMode } from "../e2e/mocks";
 import { DEFAULT_DECIMALS, resolveAssetMetadata } from "../lib/assets/assetMetadata";
 
 export const walletBalancesQueryKey = (address: string | undefined) => ["balances", address] as const;
@@ -100,6 +101,7 @@ export function useWalletBalances(address: string | undefined, pools: RegistryPo
     enabled: Boolean(address),
     queryFn: async () => {
       if (!address) return [];
+      if (isE2EMode()) return e2eBalances(pools);
       const client = await StargateClient.connect(dexRegistry.rpcEndpoint);
       const coins = await client.getAllBalances(address);
       return mergeKnownDenoms(coins, pools);

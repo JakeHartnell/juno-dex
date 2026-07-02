@@ -1,4 +1,5 @@
 import type { RegistryPool } from "../../config/registry";
+import { isE2EMode } from "../../e2e/mocks";
 import { createIndexerClient, getConfiguredIndexerBaseUrl, IndexerRequestError } from "../indexer/client";
 import type { IndexerCandleInterval, IndexerPoolCandle, IndexerPoolMetrics, IndexerPoolPosition, IndexerProtocolStats, IndexerWalletTransaction } from "../indexer/types";
 import type { PoolMetrics, PoolMetricsByPair } from "../pools/poolList";
@@ -223,6 +224,12 @@ function openCircuit(config: IndexerRuntimeConfig, error: DataAccessState["error
 }
 
 export async function loadPoolMetrics(pools: RegistryPool[], config = getIndexerRuntimeConfig()): Promise<DataAccessResult<PoolMetricsByPair>> {
+  if (isE2EMode()) {
+    return {
+      data: Object.fromEntries(pools.map((pool) => [pool.pair, { tvlUsd: 125000, volume24hUsd: 42000, feeApr: 8.5, incentivesApr: 12.25, totalApr: 20.75, incentivized: true, source: "mock", isMock: true, isStale: false, updatedAt: new Date(0).toISOString() }])),
+      state: { source: "mock", isFallback: false, isMock: true, isStale: false, updatedAt: new Date(0).toISOString() },
+    };
+  }
   const earlyFallback = shouldUseFallback(config);
   if (earlyFallback) return { data: {}, state: earlyFallback };
   try {
@@ -322,6 +329,30 @@ export async function loadPoolCandles(pool: RegistryPool | undefined, options: P
 export async function loadWalletIndexerData(address: string | undefined, config = getIndexerRuntimeConfig()): Promise<DataAccessResult<{ positions: IndexerPoolPosition[]; history: IndexerWalletTransaction[] }>> {
   const empty = { positions: [], history: [] };
   if (!address) return { data: empty, state: fallbackState({ code: "disabled", message: "Wallet is not connected" }, "disabled") };
+  if (isE2EMode()) {
+    return {
+      data: {
+        positions: [],
+        history: [{
+          txHash: "E2E_MOCK_TX_SWAP_000",
+          walletAddress: address,
+          poolId: "juno-agent-preview-xyk-1",
+          pairAddress: "juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv",
+          type: "swap",
+          height: 123456,
+          timestamp: new Date(0).toISOString(),
+          offerAsset: { denom: "ujuno", symbol: "JUNO", amount: "1000000" },
+          askAsset: { denom: "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/junoagenttest202607010323", symbol: "JUNOAGENT-TEST", amount: "1970000" },
+          amountUsd: 1.23,
+          feeUsd: 0.01,
+          success: true,
+          dataSource: "mock",
+          isMock: true,
+        }],
+      },
+      state: { source: "mock", isFallback: false, isMock: true, isStale: false, updatedAt: new Date(0).toISOString() },
+    };
+  }
   const earlyFallback = shouldUseFallback(config);
   if (earlyFallback) return { data: empty, state: earlyFallback };
   try {

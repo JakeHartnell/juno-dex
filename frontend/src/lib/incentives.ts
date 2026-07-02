@@ -1,5 +1,6 @@
 import type { Coin } from "@cosmjs/stargate";
 import { dexRegistry, type RegistryPool } from "../config/registry";
+import { isE2EMode } from "../e2e/mocks";
 import type { Asset, ExecuteMsg, PoolInfoResponse, RewardInfo } from "./generated/Incentives.types";
 import { queryContractSmart } from "./astroport/queries";
 
@@ -21,6 +22,17 @@ export function getIncentivesContractAddress(): string | undefined {
 export async function queryIncentivesPoolState(pool: RegistryPool, user?: string, incentivesAddress = getIncentivesContractAddress()): Promise<IncentivesPoolState> {
   if (!incentivesAddress) {
     return { configured: false, lpToken: pool.lpToken, pendingRewards: [], rewardInfo: [] };
+  }
+
+  if (isE2EMode()) {
+    return {
+      configured: true,
+      contractAddress: incentivesAddress,
+      lpToken: pool.lpToken,
+      stakedAmount: user ? "5000000000" : undefined,
+      pendingRewards: [{ info: { native_token: { denom: pool.assets[0].id } }, amount: "1230000" }],
+      rewardInfo: [{ reward: { int: { native_token: { denom: pool.assets[0].id } } }, rps: "42", index: "0", orphaned: "0" } as RewardInfo],
+    };
   }
 
   const [poolInfoResult, rewardInfoResult, depositResult, pendingResult] = await Promise.allSettled([

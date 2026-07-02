@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { useChain } from "@cosmos-kit/react";
 import { JUNO_CHAIN_INFO } from "../config/chains";
 import { COSMOS_KIT_CHAIN_NAME } from "../config/cosmosKit";
+import { createE2ESigningClient, E2E_WALLET_ADDRESS, isE2EMode } from "../e2e/mocks";
 import type { NetworkGuardState, WalletState } from "./types";
 
 type WalletContextValue = {
@@ -16,8 +17,36 @@ type WalletContextValue = {
 const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
+  if (isE2EMode()) {
+    return <WalletContext.Provider value={createE2EWalletContext()}>{children}</WalletContext.Provider>;
+  }
   const cosmosWallet = useCosmosKitWallet();
   return <WalletContext.Provider value={cosmosWallet}>{children}</WalletContext.Provider>;
+}
+
+function createE2EWalletContext(): WalletContextValue {
+  const wallet: WalletState = {
+    status: "connected",
+    address: E2E_WALLET_ADDRESS,
+    name: "Playwright Wallet",
+    chainId: JUNO_CHAIN_INFO.chainId,
+    getSigningCosmWasmClient: async () => createE2ESigningClient() as never,
+  };
+  return {
+    wallet,
+    network: {
+      expectedChainId: JUNO_CHAIN_INFO.chainId,
+      connectedChainId: JUNO_CHAIN_INFO.chainId,
+      isWalletConnected: true,
+      isRecovering: false,
+      isWrongNetwork: false,
+      isJunoReady: true,
+    },
+    connect: async () => undefined,
+    disconnect: async () => undefined,
+    openView: () => undefined,
+    switchToJuno: async () => undefined,
+  };
 }
 
 export function useCosmosKitWallet(): WalletContextValue {
