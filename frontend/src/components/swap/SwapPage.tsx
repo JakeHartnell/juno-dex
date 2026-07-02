@@ -8,19 +8,25 @@ export function SwapPage() {
   const pool = pools[0];
 
   return (
-    <section className="page-grid">
-      <div className="hero-panel">
+    <section className="swap-page-grid">
+      <div className="swap-primary">
+        <RiskNotice variant="compact" />
+        {pool ? <SwapForm pool={pool} /> : <p className="empty-state">No enabled verified pools. Add a real Juno pair to the strict registry before exposing swaps.</p>}
+      </div>
+      <div className="hero-panel context-panel">
         <p className="eyebrow">Juno utility terminal</p>
-        <h2>Swap verified Astroport-Juno XYK pools.</h2>
-        <p>Strict registry, live pair simulation, visible denoms, visible contracts. No charts, no yield cosplay, no hidden launch assumptions.</p>
+        <h2>Verified Juno deployment</h2>
+        <p>Strict registry, live pair simulation, visible denoms, visible contracts. This is an experimental thin-liquidity tool, not a launch-market dashboard.</p>
         <div className="contract-strip">
           <span>Factory</span><code>{registry.factory}</code>
           <ExplorerLink href={`${registry.explorerBaseUrl}/wasm/contract/${registry.factory}`}>Mintscan</ExplorerLink>
         </div>
-      </div>
-      <div>
-        <RiskNotice />
-        {pool ? <SwapForm pool={pool} /> : <p>No enabled pools in registry.</p>}
+        {pool ? (
+          <div className="contract-strip">
+            <span>Direct pair</span><code>{pool.pair}</code>
+            <ExplorerLink href={pool.explorer}>Mintscan</ExplorerLink>
+          </div>
+        ) : null}
       </div>
     </section>
   );

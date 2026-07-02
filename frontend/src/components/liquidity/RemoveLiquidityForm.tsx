@@ -9,6 +9,9 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
         <span>LP amount</span>
         <input placeholder="0" disabled />
       </label>
+      <div className="quick-fill-row" aria-label="LP withdrawal percentages">
+        {[25, 50, 75, 100].map((percent) => <button type="button" disabled key={percent}>{percent}%</button>)}
+      </div>
       <code>{pool.lpToken}</code>
       <button type="button" disabled>Preview withdraw</button>
     </section>
