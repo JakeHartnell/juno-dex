@@ -40,6 +40,7 @@ jobs:
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_frontend_example.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_frontend_handoff_sync.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_frontend_release_checklist.py
+          python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_frontend_release_bundle.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_ci_wiring.py
 
       - uses: actions/cache@v4

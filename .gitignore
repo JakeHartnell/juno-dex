@@ -23,3 +23,4 @@ target/
 /deployment/tx/
 /deployment/juno-v1-testnet.json
 /deployment/juno-v1-mainnet.json
+/deployment/juno-v1-frontend-release.zip

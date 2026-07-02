@@ -70,6 +70,7 @@ def main() -> None:
     frontend_example_line = tests.first("scripts/check_juno_v1_frontend_example.py")
     frontend_handoff_sync_line = tests.first("scripts/check_juno_v1_frontend_handoff_sync.py")
     frontend_release_checklist_line = tests.first("scripts/check_juno_v1_frontend_release_checklist.py")
+    frontend_release_bundle_line = tests.first("scripts/check_juno_v1_frontend_release_bundle.py")
     ci_wiring_line = tests.first("scripts/check_juno_v1_ci_wiring.py")
     rust_line = tests.first("dtolnay/rust-toolchain@stable")
     build_schemas_line = tests.first("scripts/build_schemas.sh")
@@ -91,6 +92,7 @@ def main() -> None:
         ("frontend TypeScript example guard", frontend_example_line),
         ("frontend handoff sync guard", frontend_handoff_sync_line),
         ("frontend release checklist guard", frontend_release_checklist_line),
+        ("frontend release bundle guard", frontend_release_bundle_line),
         ("CI wiring guard", ci_wiring_line),
     ):
         assert_before(label, line, rust_line)
@@ -111,9 +113,10 @@ def main() -> None:
         < frontend_example_line
         < frontend_handoff_sync_line
         < frontend_release_checklist_line
+        < frontend_release_bundle_line
         < ci_wiring_line
     ):
-        fail("tests workflow must run launch guards in scope/schema/template/tx-extractor/deployment-command/secret-scan/operator-checklist/dry-run-txs/deployment-gitignore/deployment-readme/frontend-config/frontend-types/frontend-example/frontend-handoff-sync/frontend-release-checklist/ci-wiring order")
+        fail("tests workflow must run launch guards in scope/schema/template/tx-extractor/deployment-command/secret-scan/operator-checklist/dry-run-txs/deployment-gitignore/deployment-readme/frontend-config/frontend-types/frontend-example/frontend-handoff-sync/frontend-release-checklist/frontend-release-bundle/ci-wiring order")
 
     if len(schema_lines) < 2:
         fail("tests workflow must run schema guard both before Rust work and after schema generation")
@@ -145,7 +148,7 @@ def main() -> None:
     print("OK: GitHub Actions wiring enforces Astroport-Juno v1 guards")
     print(
         "tests_guards=scope/schema/template/tx-extractor/deployment-command/secret-scan/operator-checklist pre_rust=true "
-        "dry_run_txs=true deployment_gitignore=true deployment_readme=true frontend_config=true frontend_types=true frontend_example=true frontend_handoff_sync=true frontend_release_checklist=true schema_post_generation=true artifact_guard_after_size=true artifact_handoff=upload-download release_artifacts_no_cache=true"
+        "dry_run_txs=true deployment_gitignore=true deployment_readme=true frontend_config=true frontend_types=true frontend_example=true frontend_handoff_sync=true frontend_release_checklist=true frontend_release_bundle=true schema_post_generation=true artifact_guard_after_size=true artifact_handoff=upload-download release_artifacts_no_cache=true"
     )
 
 

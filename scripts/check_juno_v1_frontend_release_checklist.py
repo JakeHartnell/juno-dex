@@ -31,6 +31,9 @@ REQUIRED_COMMANDS = (
     "python3 scripts/generate_juno_v1_frontend_types.py --check",
     "python3 scripts/check_juno_v1_frontend_example.py",
     "python3 scripts/check_juno_v1_frontend_handoff_sync.py",
+    "python3 scripts/build_juno_v1_frontend_release_bundle.py",
+    "--config deployment/juno-v1-testnet.json",
+    "--output deployment/juno-v1-frontend-release.zip",
 )
 SCOPE_GUARDRAILS = (
     "v1 is XYK-only and permissionless.",
@@ -97,6 +100,8 @@ def main() -> None:
             fail(f"checklist must contain verification command exactly once: {command}")
     if "python3 scripts/check_juno_v1_dry_run_txs.py" not in text:
         fail("checklist must mention the dry-run rehearsal for no-chain-output testing")
+    if "MANIFEST.json` hashes" not in text:
+        fail("checklist must describe the release bundle manifest hashes")
 
     frontend = template.get("frontend")
     if not isinstance(frontend, dict):
@@ -123,7 +128,7 @@ def main() -> None:
 
     print("OK: Juno v1 frontend release checklist matches the deployment handoff")
     print(
-        f"release_files={len(RELEASE_FILES)} commands={len(REQUIRED_COMMANDS)} "
+        f"release_files={len(RELEASE_FILES)} commands={len(REQUIRED_COMMANDS)} bundle_helper=true "
         f"required={len(required)} optional={len(optional)} pair_discovery=factory"
     )
 

@@ -103,6 +103,7 @@ Three diffs to the AI audit; one mechanical (A), two functional (B, C). See
 | `35-deployment-readme-guard-2026-06-29.md` | Deployment README guard that keeps operator/frontend handoff docs aligned with helper scripts. |
 | `36-frontend-handoff-sync-guard-2026-06-29.md` | Frontend address key sync guard across template, TypeScript, example, README, and CI. |
 | `37-frontend-release-checklist-guard-2026-06-29.md` | Frontend release checklist and guard for copying rendered deployment files into the UI repo. |
+| `38-frontend-release-bundle-ci-2026-07-02.md` | Frontend release bundle helper wired into CI with ignored zip output guardrails. |
 
 Files marked "(P*)" are stubs until that phase begins.
 

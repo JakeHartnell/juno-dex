@@ -22,9 +22,13 @@ python3 scripts/check_juno_v1_frontend_config.py deployment/juno-v1-testnet.json
 python3 scripts/generate_juno_v1_frontend_types.py --check
 python3 scripts/check_juno_v1_frontend_example.py
 python3 scripts/check_juno_v1_frontend_handoff_sync.py
+python3 scripts/build_juno_v1_frontend_release_bundle.py \
+  --config deployment/juno-v1-testnet.json \
+  --output deployment/juno-v1-frontend-release.zip
 ```
 
 The first two commands require the rendered `deployment/juno-v1-testnet.json`; rehearse without chain output via `python3 scripts/check_juno_v1_dry_run_txs.py`.
+The bundle helper reruns the same template/frontend/type/example/sync checks, rejects placeholder config, and writes an ignored zip containing only the rendered config, generated declaration, optional example, and `MANIFEST.json` hashes.
 
 ## Frontend address surface
 
