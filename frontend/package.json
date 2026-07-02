@@ -9,7 +9,8 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "lint": "npm run typecheck",
-    "codegen": "node scripts/codegen.mjs"
+    "codegen": "node scripts/codegen.mjs",
+    "update:chain-registry-assets": "node scripts/update-chain-registry-assets.mjs"
   },
   "dependencies": {
     "@cosmjs/cosmwasm-stargate": "^0.34.0",

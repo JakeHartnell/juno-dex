@@ -11,7 +11,7 @@ import { useSwapQuote } from "../../queries/useSwapQuote";
 import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
-import { TokenAmountInput } from "../common";
+import { TokenAmountInput, TokenLogo } from "../common";
 import { TxStatusDialog } from "../tx/TxStatusDialog";
 import { QuoteCard } from "./QuoteCard";
 import { TokenSelect } from "./TokenSelect";
@@ -175,7 +175,7 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
         <span className={`mode-tab ${quote.data?.source === "router" ? "active" : dexRegistry.router ? "" : "disabled"}`} title={dexRegistry.router ? "Router is used when it returns the best route" : "Router contract is not configured"}>Router</span>
       </Box>
       <Stack className="asset-amount-card" direction="vertical" space="4">
-        <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>From {quoteMode === "exact-out" ? "· required input" : ""}</span><strong>{offerAsset.symbol}</strong></Stack>
+        <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>From {quoteMode === "exact-out" ? "· required input" : ""}</span><strong className="asset-card-token"><TokenLogo asset={offerAsset} size="sm" /> {offerAsset.name ?? offerAsset.symbol}</strong></Stack>
         <Stack className="form-grid" direction="horizontal" align="flex-end">
           <TokenAmountInput
             label={quoteMode === "exact-out" ? "Required amount" : "Amount"}
@@ -192,7 +192,7 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
       </Stack>
       <Button variant="outlined" intent="secondary" size="sm" className="swap-direction" onClick={handleFlip} domAttributes={{ type: "button", title: "Flip swap direction" }}>↓</Button>
       <Stack className="asset-amount-card receive-card" direction="vertical" space="4">
-        <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>To {quoteMode === "exact-out" ? "· exact receive" : "· estimated receive"}</span><strong>{askAsset.symbol}</strong></Stack>
+        <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>To {quoteMode === "exact-out" ? "· exact receive" : "· estimated receive"}</span><strong className="asset-card-token"><TokenLogo asset={askAsset} size="sm" /> {askAsset.name ?? askAsset.symbol}</strong></Stack>
         <TokenSelect assets={selectableAssets.filter((asset) => asset.id !== offerAsset.id)} value={askAsset.id} onChange={(next) => { setAskId(next); setQuoteMode("exact-in"); }} label="To asset" balances={balances.data} />
         <TokenAmountInput
           label={quoteMode === "exact-out" ? "Exact receive" : "Estimated receive"}

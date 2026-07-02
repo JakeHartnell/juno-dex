@@ -3,7 +3,7 @@ import type { RegistryPool } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
 import { truncateAddress } from "../../lib/format/addresses";
 import { usePoolReserves } from "../../queries/usePools";
-import { EmptyState, ErrorState, ExplorerLink, Skeleton } from "../common";
+import { EmptyState, ErrorState, ExplorerLink, Skeleton, TokenLogo } from "../common";
 
 export function PoolTable({ pools }: { pools: RegistryPool[] }) {
   if (pools.length === 0) {
@@ -32,8 +32,10 @@ function PoolRow({ pool }: { pool: RegistryPool }) {
         <div className="pool-assets">
           {pool.assets.map((asset, index) => (
             <div key={asset.id}>
-              <span>{asset.symbol}</span>
+              <span className="pool-asset-heading"><TokenLogo asset={asset} size="sm" /> {asset.symbol}</span>
+              {asset.name ? <small>{asset.name}</small> : null}
               <strong>{reserves.isLoading ? <Skeleton width="9rem" /> : reserves.data ? formatAmount(reserves.data.assets[index]?.amount, asset.decimals) : "reserve unavailable"}</strong>
+              {asset.denomTrace ? <small title={asset.denomTrace}>{asset.denomTrace}</small> : null}
               <code>{asset.id}</code>
             </div>
           ))}

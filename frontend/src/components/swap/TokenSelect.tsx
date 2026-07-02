@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { RegistryAsset } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
 import type { WalletBalance } from "../../queries/useWalletBalances";
-import { Modal } from "../common";
+import { Modal, TokenLogo } from "../common";
 
 const FAVORITES_STORAGE_KEY = "juno-dex.token-selector.favorites";
 const RECENTS_STORAGE_KEY = "juno-dex.token-selector.recents";
@@ -42,13 +42,6 @@ export function matchesTokenSearch(asset: TokenSelectorAsset, query: string): bo
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
   return [asset.symbol, asset.name, asset.id, asset.denomTrace].filter(Boolean).some((value) => String(value).toLowerCase().includes(normalized));
-}
-
-function TokenLogo({ asset }: { asset: TokenSelectorAsset }) {
-  if (asset.logoURI) {
-    return <img className="token-logo-img" src={asset.logoURI} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} />;
-  }
-  return <span className="token-logo-fallback">{asset.symbol.slice(0, 2)}</span>;
 }
 
 function assetBalance(asset: TokenSelectorAsset, balances?: readonly WalletBalance[]) {

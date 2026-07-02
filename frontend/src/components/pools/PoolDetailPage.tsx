@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { formatAmount } from "../../lib/format/amounts";
 import { useDexRegistry } from "../../queries/useDexRegistry";
 import { usePoolReserves } from "../../queries/usePools";
-import { ExplorerLink } from "../common/ExplorerLink";
+import { ExplorerLink, TokenLogo } from "../common";
 import { AddLiquidityForm } from "../liquidity/AddLiquidityForm";
 import { LpPositionPanel } from "../liquidity/LpPositionPanel";
 import { RemoveLiquidityForm } from "../liquidity/RemoveLiquidityForm";
@@ -29,8 +29,9 @@ export function PoolDetailPage() {
         <div className="metric-card"><span>Pool type</span><strong>{pool.type.toUpperCase()}</strong><code>{pool.feeBps} bps fee</code></div>
         {pool.assets.map((asset, index) => (
           <div className="metric-card" key={asset.id}>
-            <span>{asset.symbol} reserve</span>
+            <span className="pool-asset-heading"><TokenLogo asset={asset} size="sm" /> {asset.name ?? asset.symbol}</span>
             <strong>{reserves.data ? formatAmount(reserves.data.assets[index]?.amount, asset.decimals) : "—"}</strong>
+            {asset.denomTrace ? <small>{asset.denomTrace}</small> : null}
             <code>{asset.id}</code>
           </div>
         ))}

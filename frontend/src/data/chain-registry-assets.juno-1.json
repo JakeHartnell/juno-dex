@@ -1,0 +1,1003 @@
+{
+  "$schema": "./chain-registry-assets.schema.json",
+  "chainId": "juno-1",
+  "source": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/assetlist.json",
+  "generatedAt": "2026-07-02T15:19:15.138Z",
+  "assets": [
+    {
+      "denom": "factory/juno16uprl38e4ljj5ctuha9ehpvp2l93z3d5jmwj2cttt6jkhlrhscpqgglalk/wind.ash",
+      "kind": "factory",
+      "symbol": "ashWIND",
+      "name": "ashWIND",
+      "display": "ashWIND",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/wind.ash.png"
+    },
+    {
+      "denom": "factory/juno1h6y8tkceau4d8zyv5aa0fwdj2pa2y0gz2hx0tq/uwind",
+      "kind": "factory",
+      "symbol": "WIND",
+      "name": "Wind Token",
+      "display": "wind",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/wind.png"
+    },
+    {
+      "denom": "factory/juno1qly4zcmzr2gyxtze5yt9chv2srczwwunppxjfh/NEXX",
+      "kind": "factory",
+      "symbol": "NEXX",
+      "name": "NEXX GEN AI",
+      "display": "nexx",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/nexx.png"
+    },
+    {
+      "denom": "factory/juno1u805lv20qc6jy7c3ttre7nct6uyl20pfky5r7e/DGL",
+      "kind": "factory",
+      "symbol": "DGL",
+      "name": "Licorice",
+      "display": "dgl",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/dgl.png"
+    },
+    {
+      "denom": "factory/juno1vwmnqk0vyxc96qgffrure4nqxupjrql0zut8s02hadgp0n79r8xq5xdsxy/ARENA",
+      "kind": "factory",
+      "symbol": "ARENA",
+      "name": "Arena Token",
+      "display": "arena",
+      "decimals": 6
+    },
+    {
+      "denom": "factory/juno1zjqsel42pj5e6wvxxw7hjs9gn06yqz4m3ffyua3x2v44m4l8trjsr92q9s/empr",
+      "kind": "factory",
+      "symbol": "EMPR",
+      "name": "EMPR",
+      "display": "EMPR",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/empr.png"
+    },
+    {
+      "denom": "ibc/3A6ADE78FB8169C034C29C4F2E1A61CE596EC8235366F22381D981A98F1F5A5C",
+      "kind": "ibc",
+      "symbol": "WHALE",
+      "name": "Migaloo",
+      "display": "whale",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/migaloo/images/white-whale.svg",
+      "denomTrace": "transfer/channel-210/uwhale",
+      "trace": {
+        "path": "transfer/channel-210/uwhale",
+        "channelId": "channel-210",
+        "counterpartyChainName": "migaloo",
+        "counterpartyBaseDenom": "uwhale",
+        "counterpartyChannelId": "channel-1"
+      }
+    },
+    {
+      "denom": "ibc/4A482FA914A4B9B05801ED81C33713899F322B24F76A06F4B8FE872485EA22FF",
+      "kind": "ibc",
+      "symbol": "USDC",
+      "name": "USD Coin",
+      "display": "usdc",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/ethereum/images/usdc.svg",
+      "coingeckoId": "usd-coin",
+      "denomTrace": "transfer/channel-224/uusdc",
+      "trace": {
+        "path": "transfer/channel-224/uusdc",
+        "channelId": "channel-224",
+        "counterpartyChainName": "noble",
+        "counterpartyBaseDenom": "uusdc",
+        "counterpartyChannelId": "channel-3"
+      }
+    },
+    {
+      "denom": "ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9",
+      "kind": "ibc",
+      "symbol": "ATOM",
+      "name": "ATOM on Juno",
+      "display": "atom",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.svg",
+      "coingeckoId": "cosmos",
+      "denomTrace": "transfer/channel-1/uatom",
+      "trace": {
+        "path": "transfer/channel-1/uatom",
+        "channelId": "channel-1",
+        "counterpartyChainName": "cosmoshub",
+        "counterpartyBaseDenom": "uatom",
+        "counterpartyChannelId": "channel-207"
+      }
+    },
+    {
+      "denom": "ibc/F0C440C8040E2FCCAC621D32D3A00D9B347C989D52CE869A91CB34D07B0021D2",
+      "kind": "ibc",
+      "symbol": "RSTK",
+      "name": "Restake DAO Token",
+      "display": "rstk",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/migaloo/images/rstk.svg",
+      "denomTrace": "transfer/channel-210/factory/migaloo1d0uma9qzcts4fzt7ml39xp44aut5k6qyjfzz4asalnecppppr3rsl52vvv/rstk",
+      "trace": {
+        "path": "transfer/channel-210/factory/migaloo1d0uma9qzcts4fzt7ml39xp44aut5k6qyjfzz4asalnecppppr3rsl52vvv/rstk",
+        "channelId": "channel-210",
+        "counterpartyChainName": "migaloo",
+        "counterpartyBaseDenom": "factory/migaloo1d0uma9qzcts4fzt7ml39xp44aut5k6qyjfzz4asalnecppppr3rsl52vvv/rstk",
+        "counterpartyChannelId": "channel-1"
+      }
+    },
+    {
+      "denom": "juno10gthz5ufgrpuk5cscve2f0hjp56wgp90psqxcrqlg4m9mcu9dh8q4864xy",
+      "aliases": [
+        "cw20:juno10gthz5ufgrpuk5cscve2f0hjp56wgp90psqxcrqlg4m9mcu9dh8q4864xy"
+      ],
+      "kind": "cw20",
+      "symbol": "KLEO",
+      "name": "Kleomedes",
+      "display": "kleo",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/kleomedes.png"
+    },
+    {
+      "denom": "juno10vgf2u03ufcf25tspgn05l7j3tfg0j63ljgpffy98t697m5r5hmqaw95ux",
+      "aliases": [
+        "cw20:juno10vgf2u03ufcf25tspgn05l7j3tfg0j63ljgpffy98t697m5r5hmqaw95ux"
+      ],
+      "kind": "cw20",
+      "symbol": "SLCA",
+      "name": "Silica",
+      "display": "silica",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/silica.png"
+    },
+    {
+      "denom": "juno12etxwkxvms0uy9ak8g3pyq6a53myukufdnx82pakzmjmpm77a0ksr9gs5v",
+      "aliases": [
+        "cw20:juno12etxwkxvms0uy9ak8g3pyq6a53myukufdnx82pakzmjmpm77a0ksr9gs5v"
+      ],
+      "kind": "cw20",
+      "symbol": "EMPWR",
+      "name": "EMPWR",
+      "display": "empwr",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/empwr.png"
+    },
+    {
+      "denom": "juno12mcwmd6wqhledkjsurlfqtc8j0pedvxlcxw3gs4kh2qf808ehehsen8nmw",
+      "aliases": [
+        "cw20:juno12mcwmd6wqhledkjsurlfqtc8j0pedvxlcxw3gs4kh2qf808ehehsen8nmw"
+      ],
+      "kind": "cw20",
+      "symbol": "YFD",
+      "name": "Y-Foundry DAO",
+      "display": "yfd",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/yfd.svg"
+    },
+    {
+      "denom": "juno12wxyvtqe76x2a5jj6ckp2hfq8v32m6rvyyxwwufl2tksqvkt7whqczv6pa",
+      "aliases": [
+        "cw20:juno12wxyvtqe76x2a5jj6ckp2hfq8v32m6rvyyxwwufl2tksqvkt7whqczv6pa"
+      ],
+      "kind": "cw20",
+      "symbol": "CATOM",
+      "name": "Catom",
+      "display": "catom",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/catom.png"
+    },
+    {
+      "denom": "juno13c57ssxvlzefsj4v5spdz4m9r6c6s2far5npvmc9en7nz02xqjyqne40gk",
+      "aliases": [
+        "cw20:juno13c57ssxvlzefsj4v5spdz4m9r6c6s2far5npvmc9en7nz02xqjyqne40gk"
+      ],
+      "kind": "cw20",
+      "symbol": "LUNO",
+      "name": "LUNO",
+      "display": "luno",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/luno.png"
+    },
+    {
+      "denom": "juno13ca2g36ng6etcfhr9qxx352uw2n5e92np54thfkm3w3nzlhsgvwsjaqlyq",
+      "aliases": [
+        "cw20:juno13ca2g36ng6etcfhr9qxx352uw2n5e92np54thfkm3w3nzlhsgvwsjaqlyq"
+      ],
+      "kind": "cw20",
+      "symbol": "MANNA",
+      "name": "Manna",
+      "display": "manna",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/manna.png"
+    },
+    {
+      "denom": "juno13epyeat7ef0k7q6kllmyvc8zpfd9xm7cqjrgtk0qkgrk7n5mjfmq8979jw",
+      "aliases": [
+        "cw20:juno13epyeat7ef0k7q6kllmyvc8zpfd9xm7cqjrgtk0qkgrk7n5mjfmq8979jw"
+      ],
+      "kind": "cw20",
+      "symbol": "POIL",
+      "name": "POIL",
+      "display": "poil",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/poil.png"
+    },
+    {
+      "denom": "juno14fz92ehqt37e096xr95kmy8nc0kz803uezxtg4fwx7agjjma86sqm8mg3h",
+      "aliases": [
+        "cw20:juno14fz92ehqt37e096xr95kmy8nc0kz803uezxtg4fwx7agjjma86sqm8mg3h"
+      ],
+      "kind": "cw20",
+      "symbol": "BITS",
+      "name": "BITS",
+      "display": "bits",
+      "decimals": 8,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/bits.png"
+    },
+    {
+      "denom": "juno14lycavan8gvpjn97aapzvwmsj8kyrvf644p05r0hu79namyj3ens87650k",
+      "aliases": [
+        "cw20:juno14lycavan8gvpjn97aapzvwmsj8kyrvf644p05r0hu79namyj3ens87650k"
+      ],
+      "kind": "cw20",
+      "symbol": "SGNL",
+      "name": "Signal",
+      "display": "sgnl",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/sgnl.png"
+    },
+    {
+      "denom": "juno14q8kk464fafql2fwmlsgvgcdl6h2csqpzv4hr025fmcvgjahpess32k0j7",
+      "aliases": [
+        "cw20:juno14q8kk464fafql2fwmlsgvgcdl6h2csqpzv4hr025fmcvgjahpess32k0j7"
+      ],
+      "kind": "cw20",
+      "symbol": "BLUE",
+      "name": "Blue",
+      "display": "blue",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/blue.png"
+    },
+    {
+      "denom": "juno1525fuspletvzykpgr2atxpymu9le4mghd7qq4a4u23uwqzc2f3fq7fmafd",
+      "aliases": [
+        "cw20:juno1525fuspletvzykpgr2atxpymu9le4mghd7qq4a4u23uwqzc2f3fq7fmafd"
+      ],
+      "kind": "cw20",
+      "symbol": "MIDDLE",
+      "name": "Middle",
+      "display": "middle",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/middle.png"
+    },
+    {
+      "denom": "juno159q8t5g02744lxq8lfmcn6f78qqulq9wn3y9w7lxjgkz4e0a6kvsfvapse",
+      "aliases": [
+        "cw20:juno159q8t5g02744lxq8lfmcn6f78qqulq9wn3y9w7lxjgkz4e0a6kvsfvapse"
+      ],
+      "kind": "cw20",
+      "symbol": "SOLAR",
+      "name": "Solarbank DAO",
+      "display": "solar",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/solar.svg"
+    },
+    {
+      "denom": "juno15au4k2jgwd0jnchy0fkg3lm00fpt7jt0j2duuzradn2q7sega2dszyn5pp",
+      "aliases": [
+        "cw20:juno15au4k2jgwd0jnchy0fkg3lm00fpt7jt0j2duuzradn2q7sega2dszyn5pp"
+      ],
+      "kind": "cw20",
+      "symbol": "PLTN",
+      "name": "Palantin",
+      "display": "pltn",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/pltn.png"
+    },
+    {
+      "denom": "juno15u3dt79t6sxxa3x3kpkhzsy56edaa5a66wvt3kxmukqjz2sx0hes5sn38g",
+      "aliases": [
+        "cw20:juno15u3dt79t6sxxa3x3kpkhzsy56edaa5a66wvt3kxmukqjz2sx0hes5sn38g"
+      ],
+      "kind": "cw20",
+      "symbol": "RAW",
+      "name": "JunoSwap",
+      "display": "raw",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/raw.svg"
+    },
+    {
+      "denom": "juno166heaxlyntd33a5euh4rrz26svhean4klzw594esmd02l4atan6sazy2my",
+      "aliases": [
+        "cw20:juno166heaxlyntd33a5euh4rrz26svhean4klzw594esmd02l4atan6sazy2my"
+      ],
+      "kind": "cw20",
+      "symbol": "MNPU",
+      "name": "Mini Punks",
+      "display": "mnpu",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/mnpu.svg"
+    },
+    {
+      "denom": "juno168ctmpyppk90d34p3jjy658zf5a5l3w8wk35wht6ccqj4mr0yv8s4j5awr",
+      "aliases": [
+        "cw20:juno168ctmpyppk90d34p3jjy658zf5a5l3w8wk35wht6ccqj4mr0yv8s4j5awr"
+      ],
+      "kind": "cw20",
+      "symbol": "NETA",
+      "name": "Neta",
+      "display": "neta",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/neta.svg",
+      "coingeckoId": "neta"
+    },
+    {
+      "denom": "juno17703kcxtsg37hryxnestejyyycuv5yyvnghp2e7w0kqvafnnyetsgzq62w",
+      "aliases": [
+        "cw20:juno17703kcxtsg37hryxnestejyyycuv5yyvnghp2e7w0kqvafnnyetsgzq62w"
+      ],
+      "kind": "cw20",
+      "symbol": "SUNSET",
+      "name": "Sunset",
+      "display": "sunset",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/sunset.png"
+    },
+    {
+      "denom": "juno17wzaxtfdw5em7lc94yed4ylgjme63eh73lm3lutp2rhcxttyvpwsypjm4w",
+      "aliases": [
+        "cw20:juno17wzaxtfdw5em7lc94yed4ylgjme63eh73lm3lutp2rhcxttyvpwsypjm4w"
+      ],
+      "kind": "cw20",
+      "symbol": "ASVT",
+      "name": "Another.Software Validator Token",
+      "display": "asvt",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/asvt.png"
+    },
+    {
+      "denom": "juno19rqljkh95gh40s7qdx40ksx3zq5tm4qsmsrdz9smw668x9zdr3lqtg33mf",
+      "aliases": [
+        "cw20:juno19rqljkh95gh40s7qdx40ksx3zq5tm4qsmsrdz9smw668x9zdr3lqtg33mf"
+      ],
+      "kind": "cw20",
+      "symbol": "SEASY",
+      "name": "StakeEasy SEASY",
+      "display": "seasy",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/seasy.svg"
+    },
+    {
+      "denom": "juno1a0khag6cfzu5lrwazmyndjgvlsuk7g4vn9jd8ceym8f4jf6v2l9q6d348a",
+      "aliases": [
+        "cw20:juno1a0khag6cfzu5lrwazmyndjgvlsuk7g4vn9jd8ceym8f4jf6v2l9q6d348a"
+      ],
+      "kind": "cw20",
+      "symbol": "ampJUNO",
+      "name": "ERIS Amplified JUNO",
+      "display": "ampJUNO",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/ampjuno.svg"
+    },
+    {
+      "denom": "juno1cltgm8v842gu54srmejewghnd6uqa26lzkpa635wzra9m9xuudkqa2gtcz",
+      "aliases": [
+        "cw20:juno1cltgm8v842gu54srmejewghnd6uqa26lzkpa635wzra9m9xuudkqa2gtcz"
+      ],
+      "kind": "cw20",
+      "symbol": "FURY.legacy",
+      "name": "FURY.legacy",
+      "display": "fury",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/fanfury.png",
+      "trace": {
+        "counterpartyChainName": "furya",
+        "counterpartyBaseDenom": "ufury"
+      }
+    },
+    {
+      "denom": "juno1dd0k0um5rqncfueza62w9sentdfh3ec4nw4aq4lk5hkjl63vljqscth9gv",
+      "aliases": [
+        "cw20:juno1dd0k0um5rqncfueza62w9sentdfh3ec4nw4aq4lk5hkjl63vljqscth9gv"
+      ],
+      "kind": "cw20",
+      "symbol": "SEJUNO",
+      "name": "StakeEasy seJUNO",
+      "display": "sejuno",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/sejuno.svg"
+    },
+    {
+      "denom": "juno1dpany8c0lj526lsa02sldv7shzvnw5dt5ues72rk35hd69rrydxqeraz8l",
+      "aliases": [
+        "cw20:juno1dpany8c0lj526lsa02sldv7shzvnw5dt5ues72rk35hd69rrydxqeraz8l"
+      ],
+      "kind": "cw20",
+      "symbol": "LIGHT",
+      "name": "LIGHT",
+      "display": "light",
+      "decimals": 9,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/light.png"
+    },
+    {
+      "denom": "juno1dtd45vxvv080v9x7hffysnmvrqm6ysecjdnvafqul28646hm04xs9gheh0",
+      "aliases": [
+        "cw20:juno1dtd45vxvv080v9x7hffysnmvrqm6ysecjdnvafqul28646hm04xs9gheh0"
+      ],
+      "kind": "cw20",
+      "symbol": "HERA",
+      "name": "HERA",
+      "display": "hera",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/hera.png"
+    },
+    {
+      "denom": "juno1dyyf7pxeassxvftf570krv7fdf5r8e4r04mp99h0mllsqzp3rs4q7y8yqg",
+      "aliases": [
+        "cw20:juno1dyyf7pxeassxvftf570krv7fdf5r8e4r04mp99h0mllsqzp3rs4q7y8yqg"
+      ],
+      "kind": "cw20",
+      "symbol": "SPACER",
+      "name": "Spacer",
+      "display": "spacer",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/spacer.png"
+    },
+    {
+      "denom": "juno1elpg96tju8a32vzn25u6asvscajjm4000589z0zthhvks28ajypqzurl7r",
+      "aliases": [
+        "cw20:juno1elpg96tju8a32vzn25u6asvscajjm4000589z0zthhvks28ajypqzurl7r"
+      ],
+      "kind": "cw20",
+      "symbol": "ATEN",
+      "name": "ATEN",
+      "display": "aten",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/aten.png"
+    },
+    {
+      "denom": "juno1epxnvge53c4hkcmqzlxryw5fp7eae2utyk6ehjcfpwajwp48km3sgxsh9k",
+      "aliases": [
+        "cw20:juno1epxnvge53c4hkcmqzlxryw5fp7eae2utyk6ehjcfpwajwp48km3sgxsh9k"
+      ],
+      "kind": "cw20",
+      "symbol": "PEPEC",
+      "name": "Pepec",
+      "display": "pepec",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/pepec.png"
+    },
+    {
+      "denom": "juno1f5datjdse3mdgrapwuzs3prl7pvxxht48ns6calnn0t77v2s9l8s0qu488",
+      "aliases": [
+        "cw20:juno1f5datjdse3mdgrapwuzs3prl7pvxxht48ns6calnn0t77v2s9l8s0qu488"
+      ],
+      "kind": "cw20",
+      "symbol": "CATMOS",
+      "name": "Catmos",
+      "display": "catmos",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/catmos.png"
+    },
+    {
+      "denom": "juno1g0wuyu2f49ncf94r65278puxzclf5arse9f3kvffxyv4se4vgdmsk4dvqz",
+      "aliases": [
+        "cw20:juno1g0wuyu2f49ncf94r65278puxzclf5arse9f3kvffxyv4se4vgdmsk4dvqz"
+      ],
+      "kind": "cw20",
+      "symbol": "HOWL",
+      "name": "Howl",
+      "display": "howl",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/howl.png"
+    },
+    {
+      "denom": "juno1g2g7ucurum66d42g8k5twk34yegdq8c82858gz0tq2fc75zy7khssgnhjl",
+      "aliases": [
+        "cw20:juno1g2g7ucurum66d42g8k5twk34yegdq8c82858gz0tq2fc75zy7khssgnhjl"
+      ],
+      "kind": "cw20",
+      "symbol": "MARBLE",
+      "name": "Marble",
+      "display": "marble",
+      "decimals": 3,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/marble.svg"
+    },
+    {
+      "denom": "juno1g647t78y2ulqlm3lss8rs3d0spzd0teuwhdvnqn92tr79yltk9dq2h24za",
+      "aliases": [
+        "cw20:juno1g647t78y2ulqlm3lss8rs3d0spzd0teuwhdvnqn92tr79yltk9dq2h24za"
+      ],
+      "kind": "cw20",
+      "symbol": "RED",
+      "name": "Red",
+      "display": "red",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/red.png"
+    },
+    {
+      "denom": "juno1gz8cf86zr4vw9cjcyyv432vgdaecvr9n254d3uwwkx9rermekddsxzageh",
+      "aliases": [
+        "cw20:juno1gz8cf86zr4vw9cjcyyv432vgdaecvr9n254d3uwwkx9rermekddsxzageh"
+      ],
+      "kind": "cw20",
+      "symbol": "GKEY",
+      "name": "GKey",
+      "display": "gkey",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/gkey.svg"
+    },
+    {
+      "denom": "juno1h86ut5aevlxuuxrra6wy3dfq6e39zkzzv9eelz678jr6amxlc4gsx46j82",
+      "aliases": [
+        "cw20:juno1h86ut5aevlxuuxrra6wy3dfq6e39zkzzv9eelz678jr6amxlc4gsx46j82"
+      ],
+      "kind": "cw20",
+      "symbol": "MRVA",
+      "name": "MINERVA",
+      "display": "minerva",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/minerva.png"
+    },
+    {
+      "denom": "juno1j0a9ymgngasfn3l5me8qpd53l5zlm9wurfdk7r65s5mg6tkxal3qpgf5se",
+      "aliases": [
+        "cw20:juno1j0a9ymgngasfn3l5me8qpd53l5zlm9wurfdk7r65s5mg6tkxal3qpgf5se"
+      ],
+      "kind": "cw20",
+      "symbol": "GLTO",
+      "name": "Gelotto",
+      "display": "glto",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/ethereum/images/glto.svg",
+      "trace": {
+        "counterpartyChainName": "ethereum",
+        "counterpartyBaseDenom": "0xd73175f9eb15eee81745d367ae59309Ca2ceb5e2"
+      }
+    },
+    {
+      "denom": "juno1j4ux0f6gt7e82z7jdpm25v4g2gts880ap64rdwa49989wzhd0dfqed6vqm",
+      "aliases": [
+        "cw20:juno1j4ux0f6gt7e82z7jdpm25v4g2gts880ap64rdwa49989wzhd0dfqed6vqm"
+      ],
+      "kind": "cw20",
+      "symbol": "SUMMIT",
+      "name": "Summit",
+      "display": "summit",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/summit.png"
+    },
+    {
+      "denom": "juno1jrr0tuuzxrrwcg6hgeqhw5wqpck2y55734e7zcrp745aardlp0qqg8jz06",
+      "aliases": [
+        "cw20:juno1jrr0tuuzxrrwcg6hgeqhw5wqpck2y55734e7zcrp745aardlp0qqg8jz06"
+      ],
+      "kind": "cw20",
+      "symbol": "APEMOS",
+      "name": "Apemos",
+      "display": "apemos",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/apemos.png"
+    },
+    {
+      "denom": "juno1ju8k8sqwsqu5k6umrypmtyqu2wqcpnrkf4w4mntvl0javt4nma7s8lzgss",
+      "aliases": [
+        "cw20:juno1ju8k8sqwsqu5k6umrypmtyqu2wqcpnrkf4w4mntvl0javt4nma7s8lzgss"
+      ],
+      "kind": "cw20",
+      "symbol": "CASA",
+      "name": "Casa",
+      "display": "casa",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/casa.png"
+    },
+    {
+      "denom": "juno1jwdy7v4egw36pd84aeks3ww6n8k7zhsumd4ac8q5lts83ppxueus4626e8",
+      "aliases": [
+        "cw20:juno1jwdy7v4egw36pd84aeks3ww6n8k7zhsumd4ac8q5lts83ppxueus4626e8"
+      ],
+      "kind": "cw20",
+      "symbol": "INVDRS",
+      "name": "Invaders",
+      "display": "invdrs",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/invdrs.png"
+    },
+    {
+      "denom": "juno1k2ruzzvvwwtwny6gq6kcwyfhkzahaunp685wmz4hafplduekj98q9hgs6d",
+      "aliases": [
+        "cw20:juno1k2ruzzvvwwtwny6gq6kcwyfhkzahaunp685wmz4hafplduekj98q9hgs6d"
+      ],
+      "kind": "cw20",
+      "symbol": "DOGA",
+      "name": "Doge Apr",
+      "display": "doga",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/doga.png"
+    },
+    {
+      "denom": "juno1llg7q2d5dqlrqzh5dxv8c7kzzjszld34s5vktqmlmaaxqjssz43sxyhq0d",
+      "aliases": [
+        "cw20:juno1llg7q2d5dqlrqzh5dxv8c7kzzjszld34s5vktqmlmaaxqjssz43sxyhq0d"
+      ],
+      "kind": "cw20",
+      "symbol": "MILE",
+      "name": "Mille",
+      "display": "mile",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/mille.png"
+    },
+    {
+      "denom": "juno1lpvx3mv2a6ddzfjc7zzz2v2cm5gqgqf0hx67hc5p5qwn7hz4cdjsnznhu8",
+      "aliases": [
+        "cw20:juno1lpvx3mv2a6ddzfjc7zzz2v2cm5gqgqf0hx67hc5p5qwn7hz4cdjsnznhu8"
+      ],
+      "kind": "cw20",
+      "symbol": "VOID",
+      "name": "Void",
+      "display": "void",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/void.png"
+    },
+    {
+      "denom": "juno1m4h8q4p305wgy7vkux0w6e5ylhqll3s6pmadhxkhqtuwd5wlxhxs8xklsw",
+      "aliases": [
+        "cw20:juno1m4h8q4p305wgy7vkux0w6e5ylhqll3s6pmadhxkhqtuwd5wlxhxs8xklsw"
+      ],
+      "kind": "cw20",
+      "symbol": "WATR",
+      "name": "WATR",
+      "display": "watr",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/watr.png"
+    },
+    {
+      "denom": "juno1mkw83sv6c7sjdvsaplrzc8yaes9l42p4mhy0ssuxjnyzl87c9eps7ce3m9",
+      "aliases": [
+        "cw20:juno1mkw83sv6c7sjdvsaplrzc8yaes9l42p4mhy0ssuxjnyzl87c9eps7ce3m9"
+      ],
+      "kind": "cw20",
+      "symbol": "WYND",
+      "name": "Wynd DAO Governance Token",
+      "display": "wynd",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/wynd.svg"
+    },
+    {
+      "denom": "juno1mvkgcr5uce2rnpzr4qrzf50hx4qreuwzlt7fzsjrhjud3xnjmttq5mkh2m",
+      "aliases": [
+        "cw20:juno1mvkgcr5uce2rnpzr4qrzf50hx4qreuwzlt7fzsjrhjud3xnjmttq5mkh2m"
+      ],
+      "kind": "cw20",
+      "symbol": "bJUNO",
+      "name": "BackBone Labs Liquid Staked JUNO",
+      "display": "bJUNO",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/bJUNO-bbl.png",
+      "coingeckoId": "backbone-labs-staked-juno",
+      "trace": {
+        "counterpartyChainName": "juno",
+        "counterpartyBaseDenom": "ujuno"
+      }
+    },
+    {
+      "denom": "juno1n7n7d5088qlzlj37e9mgmkhx6dfgtvt02hqxq66lcap4dxnzdhwqfmgng3",
+      "aliases": [
+        "cw20:juno1n7n7d5088qlzlj37e9mgmkhx6dfgtvt02hqxq66lcap4dxnzdhwqfmgng3"
+      ],
+      "kind": "cw20",
+      "symbol": "JOE",
+      "name": "JoeDAO",
+      "display": "joe",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/joe.png"
+    },
+    {
+      "denom": "juno1ngww7zxak55fql42wmyqrr4rhzpne24hhs4p3w4cwhcdgqgr3hxsmzl9zg",
+      "aliases": [
+        "cw20:juno1ngww7zxak55fql42wmyqrr4rhzpne24hhs4p3w4cwhcdgqgr3hxsmzl9zg"
+      ],
+      "kind": "cw20",
+      "symbol": "CLST",
+      "name": "Celestims",
+      "display": "clst",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/celestims.png"
+    },
+    {
+      "denom": "juno1p8x807f6h222ur0vssqy3qk6mcpa40gw2pchquz5atl935t7kvyq894ne3",
+      "aliases": [
+        "cw20:juno1p8x807f6h222ur0vssqy3qk6mcpa40gw2pchquz5atl935t7kvyq894ne3"
+      ],
+      "kind": "cw20",
+      "symbol": "MUSE",
+      "name": "MuseDAO",
+      "display": "muse",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/muse.png"
+    },
+    {
+      "denom": "juno1qmlchtmjpvu0cr7u0tad2pq8838h6farrrjzp39eqa9xswg7teussrswlq",
+      "aliases": [
+        "cw20:juno1qmlchtmjpvu0cr7u0tad2pq8838h6farrrjzp39eqa9xswg7teussrswlq"
+      ],
+      "kind": "cw20",
+      "symbol": "NRIDE",
+      "name": "nRide Token",
+      "display": "nride",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/nride.svg"
+    },
+    {
+      "denom": "juno1qqwf3lkfjhp77yja7gmg3y95pda0e5xctqrdhf3wvwdd79flagvqfgrgxp",
+      "aliases": [
+        "cw20:juno1qqwf3lkfjhp77yja7gmg3y95pda0e5xctqrdhf3wvwdd79flagvqfgrgxp"
+      ],
+      "kind": "cw20",
+      "symbol": "SKOJ",
+      "name": "Sikoba Token",
+      "display": "sikoba",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/sikoba.svg"
+    },
+    {
+      "denom": "juno1qsrercqegvs4ye0yqg93knv73ye5dc3prqwd6jcdcuj8ggp6w0us66deup",
+      "aliases": [
+        "cw20:juno1qsrercqegvs4ye0yqg93knv73ye5dc3prqwd6jcdcuj8ggp6w0us66deup"
+      ],
+      "kind": "cw20",
+      "symbol": "LOOP",
+      "name": "Loop Finance",
+      "display": "loop",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/loop.png"
+    },
+    {
+      "denom": "juno1r4pzw8f9z0sypct5l9j906d47z998ulwvhvqe5xdwgy8wf84583sxwh0pa",
+      "aliases": [
+        "cw20:juno1r4pzw8f9z0sypct5l9j906d47z998ulwvhvqe5xdwgy8wf84583sxwh0pa"
+      ],
+      "kind": "cw20",
+      "symbol": "RAC",
+      "name": "Racoon",
+      "display": "rac",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/rac.png",
+      "trace": {
+        "counterpartyChainName": "migaloo",
+        "counterpartyBaseDenom": "factory/migaloo1eqntnl6tzcj9h86psg4y4h6hh05g2h9nj8e09l/urac"
+      }
+    },
+    {
+      "denom": "juno1re3x67ppxap48ygndmrc7har2cnc7tcxtm9nplcas4v0gc3wnmvs3s807z",
+      "aliases": [
+        "cw20:juno1re3x67ppxap48ygndmrc7har2cnc7tcxtm9nplcas4v0gc3wnmvs3s807z"
+      ],
+      "kind": "cw20",
+      "symbol": "HOPE",
+      "name": "Hope Galaxy",
+      "display": "hope",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/hope.png"
+    },
+    {
+      "denom": "juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l",
+      "aliases": [
+        "cw20:juno1rws84uz7969aaa7pej303udhlkt3j9ca0l3egpcae98jwak9quzq8szn2l"
+      ],
+      "kind": "cw20",
+      "symbol": "PHMN.legacy",
+      "name": "POSTHUMAN",
+      "display": "phmn",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/phmn.svg",
+      "trace": {
+        "counterpartyChainName": "cosmoshub",
+        "counterpartyBaseDenom": "factory/cosmos146s5j3t7gh2g37ywm47dp8avhesu2htvjjaxq7z55e7xj0rq0k8q5qnjjy/PHMN"
+      }
+    },
+    {
+      "denom": "juno1s2dp05rspeuzzpzyzdchk262szehrtfpz847uvf98cnwh53ulx4qg20qwj",
+      "aliases": [
+        "cw20:juno1s2dp05rspeuzzpzyzdchk262szehrtfpz847uvf98cnwh53ulx4qg20qwj"
+      ],
+      "kind": "cw20",
+      "symbol": "BANANA",
+      "name": "Banana Token",
+      "display": "banana",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/banana.png"
+    },
+    {
+      "denom": "juno1sfwye65qxcfsc837gu5qcprcz7w49gkv3wnat04764ld76hy3arqs779tr",
+      "aliases": [
+        "cw20:juno1sfwye65qxcfsc837gu5qcprcz7w49gkv3wnat04764ld76hy3arqs779tr"
+      ],
+      "kind": "cw20",
+      "symbol": "DLA",
+      "name": "Digital Land Acquisition DAO",
+      "display": "dla",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/dla.png"
+    },
+    {
+      "denom": "juno1spjes0smg5yp40dl7gqyw0h8rn03tnmve06dd2m5acwgh6tlx86swha3xg",
+      "aliases": [
+        "cw20:juno1spjes0smg5yp40dl7gqyw0h8rn03tnmve06dd2m5acwgh6tlx86swha3xg"
+      ],
+      "kind": "cw20",
+      "symbol": "AFA",
+      "name": "Airdrop For All",
+      "display": "cw20:juno1spjes0smg5yp40dl7gqyw0h8rn03tnmve06dd2m5acwgh6tlx86swha3xg",
+      "decimals": 0,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/afa.png"
+    },
+    {
+      "denom": "juno1t46z6hg8vvsena7sue0vg6w85ljar3cundplkre9sz0skeqkap9sxyyy6m",
+      "aliases": [
+        "cw20:juno1t46z6hg8vvsena7sue0vg6w85ljar3cundplkre9sz0skeqkap9sxyyy6m"
+      ],
+      "kind": "cw20",
+      "symbol": "HOLE",
+      "name": "BlackHole",
+      "display": "hole",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/hole.png"
+    },
+    {
+      "denom": "juno1tdjwrqmnztn2j3sj2ln9xnyps5hs48q3ddwjrz7jpv6mskappjys5czd49",
+      "aliases": [
+        "cw20:juno1tdjwrqmnztn2j3sj2ln9xnyps5hs48q3ddwjrz7jpv6mskappjys5czd49"
+      ],
+      "kind": "cw20",
+      "symbol": "DHK",
+      "name": "DHK",
+      "display": "dhk",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/dhk.png"
+    },
+    {
+      "denom": "juno1u45shlp0q4gcckvsj06ss4xuvsu0z24a0d0vr9ce6r24pht4e5xq7q995n",
+      "aliases": [
+        "cw20:juno1u45shlp0q4gcckvsj06ss4xuvsu0z24a0d0vr9ce6r24pht4e5xq7q995n"
+      ],
+      "kind": "cw20",
+      "symbol": "HOPERS",
+      "name": "Hopers",
+      "display": "hopers",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/hopers.svg"
+    },
+    {
+      "denom": "juno1u8cr3hcjvfkzxcaacv9q75uw9hwjmn8pucc93pmy6yvkzz79kh3qncca8x",
+      "aliases": [
+        "cw20:juno1u8cr3hcjvfkzxcaacv9q75uw9hwjmn8pucc93pmy6yvkzz79kh3qncca8x"
+      ],
+      "kind": "cw20",
+      "symbol": "FOX",
+      "name": "Juno Fox",
+      "display": "fox",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/fox.png"
+    },
+    {
+      "denom": "juno1ur4jx0sxchdevahep7fwq28yk4tqsrhshdtylz46yka3uf6kky5qllqp4k",
+      "aliases": [
+        "cw20:juno1ur4jx0sxchdevahep7fwq28yk4tqsrhshdtylz46yka3uf6kky5qllqp4k"
+      ],
+      "kind": "cw20",
+      "symbol": "HNS",
+      "name": "IBC HNS (Handshake)",
+      "display": "hns",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/hns.svg"
+    },
+    {
+      "denom": "juno1uu3rxu7w7fpfj4sl4xpxppgymk57mzdzn6kg7492jdxh5dwk7d2qq9429e",
+      "aliases": [
+        "cw20:juno1uu3rxu7w7fpfj4sl4xpxppgymk57mzdzn6kg7492jdxh5dwk7d2qq9429e"
+      ],
+      "kind": "cw20",
+      "symbol": "TREE",
+      "name": "Living Tree",
+      "display": "tree",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/livingtree.png"
+    },
+    {
+      "denom": "juno1wwnhkagvcd3tjz6f8vsdsw5plqnw8qy2aj3rrhqr2axvktzv9q2qz8jxn3",
+      "aliases": [
+        "cw20:juno1wwnhkagvcd3tjz6f8vsdsw5plqnw8qy2aj3rrhqr2axvktzv9q2qz8jxn3"
+      ],
+      "kind": "cw20",
+      "symbol": "BJUNO",
+      "name": "StakeEasy bJUNO",
+      "display": "bjuno",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/bjuno.svg"
+    },
+    {
+      "denom": "juno1x5qt47rw84c4k6xvvywtrd40p8gxjt8wnmlahlqg07qevah3f8lqwxfs7z",
+      "aliases": [
+        "cw20:juno1x5qt47rw84c4k6xvvywtrd40p8gxjt8wnmlahlqg07qevah3f8lqwxfs7z"
+      ],
+      "kind": "cw20",
+      "symbol": "SHIBAC",
+      "name": "ShibaCosmos",
+      "display": "shibac",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/shibacosmos.png"
+    },
+    {
+      "denom": "juno1xekkh27punj0uxruv3gvuydyt856fax0nu750xns99t2qcxp7xmsqwhfma",
+      "aliases": [
+        "cw20:juno1xekkh27punj0uxruv3gvuydyt856fax0nu750xns99t2qcxp7xmsqwhfma"
+      ],
+      "kind": "cw20",
+      "symbol": "GRDN",
+      "name": "Guardian",
+      "display": "grdn",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/guardian.png"
+    },
+    {
+      "denom": "juno1y9rf7ql6ffwkv02hsgd4yruz23pn4w97p75e2slsnkm0mnamhzysvqnxaq",
+      "aliases": [
+        "cw20:juno1y9rf7ql6ffwkv02hsgd4yruz23pn4w97p75e2slsnkm0mnamhzysvqnxaq"
+      ],
+      "kind": "cw20",
+      "symbol": "BLOCK",
+      "name": "Block",
+      "display": "block",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/block.svg"
+    },
+    {
+      "denom": "juno1ytymtllllsp3hfmndvcp802p2xmy5s8m59ufel8xv9ahyxyfs4hs4kd4je",
+      "aliases": [
+        "cw20:juno1ytymtllllsp3hfmndvcp802p2xmy5s8m59ufel8xv9ahyxyfs4hs4kd4je"
+      ],
+      "kind": "cw20",
+      "symbol": "OSDOGE",
+      "name": "Osmosis Doge",
+      "display": "osdoge",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/osdoge.png"
+    },
+    {
+      "denom": "juno1zkwveux7y6fmsr88atf3cyffx96p0c96qr8tgcsj7vfnhx7sal3s3zu3ps",
+      "aliases": [
+        "cw20:juno1zkwveux7y6fmsr88atf3cyffx96p0c96qr8tgcsj7vfnhx7sal3s3zu3ps"
+      ],
+      "kind": "cw20",
+      "symbol": "JAPE",
+      "name": "Junø Apes",
+      "display": "jape",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/jape.png"
+    },
+    {
+      "denom": "juno1zqrj3ta4u7ylv0wqzd8t8q3jrr9rdmn43zuzp9zemeunecnhy8fss778g7",
+      "aliases": [
+        "cw20:juno1zqrj3ta4u7ylv0wqzd8t8q3jrr9rdmn43zuzp9zemeunecnhy8fss778g7"
+      ],
+      "kind": "cw20",
+      "symbol": "PEPE",
+      "name": "Osmo Pepe",
+      "display": "pepe",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/pepe.png"
+    },
+    {
+      "denom": "ujuno",
+      "kind": "native",
+      "symbol": "JUNO",
+      "name": "Juno",
+      "display": "juno",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg",
+      "coingeckoId": "juno-network"
+    }
+  ]
+}

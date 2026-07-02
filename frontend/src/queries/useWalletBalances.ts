@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { StargateClient, type Coin } from "@cosmjs/stargate";
 import { useQuery } from "@tanstack/react-query";
 import { dexRegistry, enabledPools, type RegistryAsset, type RegistryPool } from "../config/registry";
+import { DEFAULT_DECIMALS, resolveAssetMetadata } from "../lib/assets/assetMetadata";
 
 export const walletBalancesQueryKey = (address: string | undefined) => ["balances", address] as const;
 
@@ -9,8 +10,10 @@ export type ResolvedDenom = {
   denom: string;
   symbol: string;
   decimals: number;
+  name?: string;
+  denomTrace?: string;
   logoURI?: string;
-  source: "registry" | "lp" | "raw";
+  source: "registry" | "lp" | "chain-registry" | "raw";
   poolId?: string;
   poolLabel?: string;
 };
@@ -19,8 +22,6 @@ export type WalletBalance = ResolvedDenom & {
   amount: string;
   isKnownDenom: boolean;
 };
-
-const DEFAULT_DECIMALS = 6;
 
 function denomForAsset(asset: RegistryAsset) {
   return asset.id;
@@ -37,7 +38,9 @@ export function resolveDenom(denom: string, pools: RegistryPool[] = enabledPools
       return {
         denom,
         symbol: asset.symbol,
+        name: asset.name,
         decimals: asset.decimals,
+        denomTrace: asset.denomTrace,
         logoURI: asset.logoURI,
         source: "registry",
         poolId: pool.id,
@@ -57,7 +60,16 @@ export function resolveDenom(denom: string, pools: RegistryPool[] = enabledPools
     }
   }
 
-  return { denom, symbol: denom, decimals: DEFAULT_DECIMALS, source: "raw" };
+  const metadata = resolveAssetMetadata(denom);
+  return {
+    denom,
+    symbol: metadata.symbol,
+    name: metadata.name,
+    decimals: metadata.decimals,
+    denomTrace: metadata.denomTrace,
+    logoURI: metadata.logoURI,
+    source: metadata.source === "chain-registry" ? "chain-registry" : "raw",
+  };
 }
 
 function mergeKnownDenoms(coins: readonly Coin[], pools: RegistryPool[]): WalletBalance[] {
