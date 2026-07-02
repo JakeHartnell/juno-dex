@@ -52,7 +52,7 @@ describe("StatsDashboardView", () => {
     expect(screen.getByText(/top pools unavailable/i)).toBeTruthy();
   });
 
-  it("labels mock and stale sources", () => {
+  it("uses neutral copy for preview sources", () => {
     renderDashboard({
       stats: { poolCount: 1, tvlUsd: 10, source: "mock", isMock: true, isStale: true, updatedAt: "2026-07-02T12:00:00.000Z" },
       topPools: [{ id: "mock", label: "Mock Pool", pair: "juno1mock", tvlUsd: 10, source: "mock", isMock: true, isStale: true, updatedAt: "2026-07-02T12:00:00.000Z" }],
@@ -64,7 +64,8 @@ describe("StatsDashboardView", () => {
       updatedAt: "2026-07-02T12:00:00.000Z",
     });
 
-    expect(screen.getAllByText(/mock indexer data \(stale\)/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/mock indexer data/i)).toBeNull();
+    expect(screen.getByText(/Updated Jul 2, 2026/i)).toBeTruthy();
   });
 
   it("formats top pool metrics and sorts numeric leaders before unavailable pools", () => {

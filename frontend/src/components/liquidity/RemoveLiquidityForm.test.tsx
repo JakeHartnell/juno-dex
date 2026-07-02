@@ -67,7 +67,7 @@ const pool: RegistryPool = {
   type: "xyk",
   feeBps: 30,
   enabled: true,
-  explorer: "https://mintscan.io/juno/wasm/contract/juno1pair",
+  explorer: "https://ping.pub/juno/wasm/contract/juno1pair",
   assets: [
     { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },
     { kind: "native", id: "factory/pair/token", symbol: "TOKEN", decimals: 6 },

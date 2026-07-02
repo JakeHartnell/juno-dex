@@ -171,7 +171,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
           <strong>First-provider warning</strong>
           <ul>
             <li>Your two amounts set the pool's initial price; there is no existing reserve ratio to auto-balance against.</li>
-            <li>This ratio is effectively irreversible once arbitrage and later liquidity arrive, and Astroport may permanently lock minimum liquidity.</li>
+            <li>This ratio is effectively irreversible once arbitrage and later liquidity arrive, and the pool may permanently lock minimum liquidity.</li>
             <li>Thin starting liquidity can cause extreme slippage and makes the pool easier to move; seed only with an intentional price.</li>
           </ul>
           <label className="field">Type <code>SEED</code> to confirm you understand the starting-price responsibility.

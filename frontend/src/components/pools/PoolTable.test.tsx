@@ -80,19 +80,19 @@ describe("PoolTable", () => {
     expect(screen.getAllByText("transfer/channel-1/usdc").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("shows honest unavailable metric copy when no indexer metrics are loaded", () => {
+  it("shows unavailable metric copy when metrics are not loaded", () => {
     renderPoolTable();
 
-    expect(screen.getByText(/fall back to pair contract reserve queries without fake USD metrics/i)).toBeTruthy();
+    expect(screen.getByText(/Browse pools by liquidity, volume, APR, type, and wallet position/i)).toBeTruthy();
     expect(screen.getAllByText(/Metrics unavailable/i).length).toBeGreaterThanOrEqual(3);
-    expect(screen.getAllByText(/On-chain fallback/i).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByText(/Unavailable/i).length).toBeGreaterThanOrEqual(3);
   });
 
-  it("shows retry affordance when indexer metrics fall back", () => {
+  it("shows retry affordance when pool metrics fail", () => {
     mocks.access = { source: "fallback", isFallback: true, isMock: false, isStale: false, error: { code: "timeout", message: "indexer timed out" } };
 
     renderPoolTable();
-    expect(screen.getByText("Indexer metrics unavailable")).toBeTruthy();
+    expect(screen.getByText("Pool metrics unavailable")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: /retry/i })[0]);
     expect(mocks.metricRefetch).toHaveBeenCalledTimes(1);
   });

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
-import { dexRegistry, type RegistryPool } from "../config/registry";
-import { ExplorerLink, useToast } from "../components/common";
+import type { RegistryPool } from "../config/registry";
+import { useToast } from "../components/common";
 import { walletBalancesQueryKey } from "../queries/useWalletBalances";
 import { decodeTxError, type DecodedTxError } from "./errors";
 
@@ -42,10 +42,6 @@ const statusLabels: Record<TxLifecycleStatus, string> = {
   timeout: "Broadcast timeout",
 };
 
-export function mintscanTxUrl(txHash: string) {
-  return `${dexRegistry.explorerBaseUrl}/tx/${txHash}`;
-}
-
 function statusFromError(error: DecodedTxError): TxLifecycleStatus {
   if (error.kind === "user-rejected") return "rejected";
   if (error.kind === "timeout") return "timeout";
@@ -61,7 +57,7 @@ export function invalidateDexTxQueries(queryClient: QueryClient, sender: string 
 }
 
 export function TxHashLink({ txHash }: { txHash: string }) {
-  return <ExplorerLink href={mintscanTxUrl(txHash)}>{txHash}</ExplorerLink>;
+  return <code>{txHash}</code>;
 }
 
 export function useTxRunner() {

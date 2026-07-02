@@ -36,7 +36,7 @@ const contracts = contractSpecs
   .map(({ name, dir }) => ({ name, dir }));
 
 if (contracts.length === 0) {
-  throw new Error("No Astroport schemas found under ../schemas/astroport-*/raw");
+  throw new Error("No contract schemas found under ../schemas/astroport-*/raw");
 }
 
 rmSync(outPath, { recursive: true, force: true });
@@ -74,4 +74,4 @@ await codegen({
   },
 });
 
-console.log(`Generated ${contracts.length} Astroport contract SDKs in ${path.relative(frontendDir, outPath)}.`);
+console.log(`Generated ${contracts.length} contract SDKs in ${path.relative(frontendDir, outPath)}.`);

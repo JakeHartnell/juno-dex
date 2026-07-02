@@ -93,7 +93,7 @@ test.describe("Juno DEX mocked wallet E2E", () => {
   test("enforces create-pool duplicate guardrails and submits a custom pool", async ({ page }) => {
     await page.goto("/create");
     await expectConnected(page);
-    await expect(page.getByRole("heading", { name: "Permissionless Astroport pool" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Permissionless pool" })).toBeVisible();
     await page.getByLabel("Add a custom unverified asset").check();
     await page.getByLabel("Denom or contract").fill("factory/juno1e2etestwallet0000000000000000000000000000000000/e2easset");
     await page.getByLabel("Symbol").fill("E2E");

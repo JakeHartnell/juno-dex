@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { dexRegistry } from "../../config/registry";
 import { truncateAddress } from "../../lib/format/addresses";
-import { ExplorerLink } from "../common/ExplorerLink";
 
 async function copyText(value: string): Promise<"clipboard" | "fallback"> {
   if (navigator.clipboard?.writeText) {
@@ -43,7 +41,6 @@ export function WalletAddressActions({ address }: { address: string }) {
       >
         {copyStatus === "copied" ? "Copied" : copyStatus === "failed" ? "Copy failed" : "Copy"}
       </button>
-      <ExplorerLink href={`${dexRegistry.explorerBaseUrl}/address/${address}`}>Mintscan</ExplorerLink>
     </span>
   );
 }

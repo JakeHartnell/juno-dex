@@ -1,6 +1,5 @@
-import { ExplorerLink } from "../common/ExplorerLink";
 import { decodeTxError, type DecodedTxError } from "../../tx/errors";
-import { mintscanTxUrl, txLifecycleLabel, type TxLifecycleState, type TxLifecycleStatus, type TxResult } from "../../tx/useTxRunner";
+import { txLifecycleLabel, type TxLifecycleState, type TxLifecycleStatus, type TxResult } from "../../tx/useTxRunner";
 
 type LegacyTxStatusDialogProps = {
   status: TxLifecycleStatus | string;
@@ -41,8 +40,7 @@ export function TxStatusDialog(props: TxStatusDialogProps) {
       {state.description ? <p>{state.description}</p> : null}
       {txHash ? (
         <p>
-          Tx hash: <code>{txHash}</code>{" "}
-          <ExplorerLink href={mintscanTxUrl(txHash)}>View on Mintscan</ExplorerLink>
+          Tx hash: <code>{txHash}</code>
         </p>
       ) : null}
       {state.error ? (

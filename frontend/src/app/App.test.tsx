@@ -106,7 +106,7 @@ describe("App wallet state", () => {
 
     expect(screen.getAllByText(/QA wallet/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /disconnect/i })).toBeTruthy();
-    expect(screen.getAllByRole("link", { name: /mintscan/i })[0].getAttribute("href")).toContain("/address/juno1testwallet");
+    expect(screen.getAllByRole("button", { name: /copy wallet address/i }).length).toBeGreaterThan(0);
     expect(await screen.findByText(/Connected wallet:/i)).toBeTruthy();
     expect(screen.queryByText(/No wallet connected/i)).toBeNull();
     expect(screen.getByText(/Connected wallet:/i).textContent).toContain("LP balances, shares, and underlying estimates refresh every 30 seconds");

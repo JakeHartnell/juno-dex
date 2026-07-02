@@ -1,20 +1,20 @@
 import type { RegistryAsset } from "../../config/registry";
 
-export type AstroportAssetInfo =
+export type DexAssetInfo =
   | { native_token: { denom: string } }
   | { token: { contract_addr: string } };
 
-export type AstroportAsset = {
-  info: AstroportAssetInfo;
+export type DexAsset = {
+  info: DexAssetInfo;
   amount: string;
 };
 
-export function toAssetInfo(asset: RegistryAsset): AstroportAssetInfo {
+export function toAssetInfo(asset: RegistryAsset): DexAssetInfo {
   if (asset.kind === "cw20") return { token: { contract_addr: asset.id } };
   return { native_token: { denom: asset.id } };
 }
 
-export function toAsset(asset: RegistryAsset, amount: string): AstroportAsset {
+export function toAsset(asset: RegistryAsset, amount: string): DexAsset {
   return { info: toAssetInfo(asset), amount };
 }
 

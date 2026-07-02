@@ -226,8 +226,8 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
       {swapTx.isError ? <Text as="p" className="error-text">{swapTx.error instanceof Error ? swapTx.error.message : "Swap failed"}</Text> : null}
       {swapTx.isSuccess ? <Text as="p" className="success-text">Swap transaction broadcast. Balances, route quote, and pool reserves are refreshing.</Text> : null}
       <Box className="empty-state compact">
-        <strong>Experimental thin-liquidity routing</strong>
-        <p>Swaps execute against live Astroport pairs or the router. Review route hops, fees, price impact, and slippage before signing; test markets can move sharply.</p>
+        <strong>Review your route</strong>
+        <p>Review route hops, fees, price impact, and slippage before signing.</p>
       </Box>
       <TxStatusDialog state={swapTx.txState} />
       <Button intent="primary" className="primary-action" disabled={submitDisabled} fluidWidth onClick={handleSwap} domAttributes={{ type: "button" }}>{actionCopy}</Button>

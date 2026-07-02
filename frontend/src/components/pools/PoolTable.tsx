@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
-import { truncateAddress } from "../../lib/format/addresses";
-import { dataSourceLabel, type DataAccessState } from "../../lib/data-access/indexerFallback";
+import type { DataAccessState } from "../../lib/data-access/indexerFallback";
 import {
   DEFAULT_POOL_LIST_CONTROLS,
   filterAndSortPools,
@@ -20,7 +19,7 @@ import { assessPoolRisk } from "../../lib/risk";
 import { usePoolMetrics, usePoolReserves } from "../../queries/usePools";
 import { getWalletBalanceAmount, useWalletBalances, type WalletBalance } from "../../queries/useWalletBalances";
 import { useWallet } from "../../wallet/WalletContext";
-import { EmptyState, ErrorState, ExplorerLink, RiskBadgeList, Skeleton, TokenLogo } from "../common";
+import { EmptyState, ErrorState, RiskBadgeList, Skeleton, TokenLogo } from "../common";
 import { PriceCandleChart } from "../charts/PriceCandleChart";
 
 export function PoolTable({ pools }: { pools: RegistryPool[] }) {
@@ -41,11 +40,9 @@ export function PoolTable({ pools }: { pools: RegistryPool[] }) {
   return (
     <div className="pool-list-shell">
       <PoolListControls controls={controls} onChange={setControls} />
-      <p className="pool-metrics-copy">
-        TVL, 24h volume, and APR prefer the configured indexer and fall back to pair contract reserve queries without fake USD metrics. {dataAccessCopy(metrics.access)}
-      </p>
-      {metrics.access?.error ? <ErrorState title="Indexer metrics unavailable" error={`Showing reserve fallback without fake TVL, volume, or APR. ${metrics.access.error.message}`} onRetry={() => void metrics.refetch()} /> : null}
-      <div className="pool-table" role="table" aria-label="Astroport pools">
+      <p className="pool-metrics-copy">Browse pools by liquidity, volume, APR, type, and wallet position.</p>
+      {metrics.access?.error ? <ErrorState title="Pool metrics unavailable" error="Some liquidity, volume, and APR metrics are temporarily unavailable." onRetry={() => void metrics.refetch()} /> : null}
+      <div className="pool-table" role="table" aria-label="Juno pools">
         <div className="pool-table-header" role="row">
           <span role="columnheader">Pool</span>
           <button type="button" onClick={() => setControls((current) => toggleSort(current, "tvl"))}>TVL</button>
@@ -128,12 +125,6 @@ function toggleSort(controls: PoolListControls, sortKey: PoolListSortKey): PoolL
   };
 }
 
-function dataAccessCopy(access: DataAccessState | undefined) {
-  if (!access) return "Checking indexer status…";
-  if (access.source === "indexer" || access.source === "mock") return `${dataSourceLabel(access)} loaded.`;
-  return `${dataSourceLabel(access)} active; analytics-only metrics remain unavailable.`;
-}
-
 function PoolRow({ pool, metrics, balances, access }: { pool: RegistryPool; metrics?: PoolMetrics; balances?: readonly WalletBalance[]; access?: DataAccessState }) {
   const reserves = usePoolReserves(pool);
   const risk = assessPoolRisk(pool, reserves.data);
@@ -157,7 +148,7 @@ function PoolRow({ pool, metrics, balances, access }: { pool: RegistryPool; metr
               {asset.name ? <small>{asset.name}</small> : null}
               <strong>{reserves.isLoading ? <Skeleton width="9rem" /> : reserves.data ? formatAmount(reserves.data.assets[index]?.amount, asset.decimals) : "reserve unavailable"}</strong>
               {asset.denomTrace ? <small title={asset.denomTrace}>{asset.denomTrace}</small> : null}
-              <code>{asset.id}</code>
+              <details className="identifier-disclosure"><summary>Asset ID</summary><code>{asset.id}</code></details>
             </div>
           ))}
         </div>
@@ -172,8 +163,7 @@ function PoolRow({ pool, metrics, balances, access }: { pool: RegistryPool; metr
         <small>{poolType.description}</small>
         <span>Fee tier</span>
         <strong>{pool.feeBps} bps</strong>
-        <code>{truncateAddress(pool.pair)}</code>
-        <ExplorerLink href={pool.explorer}>Mintscan</ExplorerLink>
+        <details className="identifier-disclosure"><summary>Pair address</summary><code>{pool.pair}</code></details>
       </div>
       <div className="pool-position" role="cell">
         <span>Your position</span>
@@ -193,7 +183,7 @@ function MetricCell({ label, value, metrics, access }: { label: string; value: s
     <div className="pool-metric" role="cell">
       <span>{label}</span>
       <strong>{value ?? "Metrics unavailable"}</strong>
-      <small>{value ? dataSourceLabel({ source: metrics?.source ?? access?.source ?? "indexer", isFallback: false, isMock: Boolean(metrics?.isMock), isStale: Boolean(metrics?.isStale), updatedAt: metrics?.updatedAt }) : dataSourceLabel(access)}</small>
+      <small>{value ? "Updated market data" : "Unavailable"}</small>
     </div>
   );
 }

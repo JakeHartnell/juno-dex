@@ -16,7 +16,7 @@ function pool(id: string, assets: [RegistryAsset, RegistryAsset]): RegistryPool 
     type: "xyk",
     feeBps: 30,
     assets,
-    explorer: `https://www.mintscan.io/juno/address/juno1${id}`,
+    explorer: `https://ping.pub/juno/address/juno1${id}`,
     enabled: true,
   };
 }

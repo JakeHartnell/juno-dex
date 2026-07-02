@@ -224,6 +224,9 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .risk-badge-warning { color: #ffcf87; border-color: rgba(255, 179, 71, 0.45); background: rgba(255, 179, 71, 0.10); }
 .risk-badge-danger { color: #ffd7d5; border-color: rgba(255, 107, 107, 0.55); background: rgba(255, 107, 107, 0.14); }
 .risk-acknowledgement { display: flex; gap: 10px; align-items: flex-start; }
+.identifier-disclosure { margin-top: 4px; color: var(--juno-color-text-muted); font-size: 0.82rem; }
+.identifier-disclosure summary { cursor: pointer; color: var(--juno-color-cyan); font-weight: 800; }
+.identifier-disclosure code { display: block; margin-top: 4px; max-width: 100%; overflow-wrap: anywhere; font-size: 0.82rem; }
 .empty-token-results { margin: 0; color: var(--juno-color-text-muted); }
 @media (max-width: 640px) {
   .token-row-main { grid-template-columns: auto minmax(0, 1fr); }

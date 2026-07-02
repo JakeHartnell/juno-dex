@@ -2,28 +2,14 @@ import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { Box, Stack, Text } from "@interchain-ui/react";
 import junoLogo from "../../assets/juno-dex-logo.svg";
-import { dexRegistry } from "../../config/registry";
 import { navigationItems } from "../../app/routes";
 import { WalletProvider } from "../../wallet/WalletContext";
-import { RiskNotice } from "../common/RiskNotice";
 import { ChainStatusBadge } from "../wallet/ChainStatusBadge";
 import { NetworkGuardBanner } from "../wallet/NetworkGuardBanner";
 import { WalletConnectButton } from "../wallet/WalletConnectButton";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { SlippageSettingsProvider } from "../../settings/SlippageSettingsContext";
-
-type ContractLink = {
-  label: string;
-  address: string | undefined;
-};
-
-const contractLinks: ContractLink[] = [
-  { label: "Factory", address: dexRegistry.factory },
-  { label: "Router", address: dexRegistry.router },
-  { label: "Incentives", address: dexRegistry.incentives },
-  { label: "Oracle", address: dexRegistry.oracle },
-  { label: "Registry", address: dexRegistry.nativeCoinRegistry },
-];
+import { dexRegistry } from "../../config/registry";
 
 export function DexShell({ children }: { children: ReactNode }) {
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -38,7 +24,7 @@ export function DexShell({ children }: { children: ReactNode }) {
             <NavLink className="brand-lockup" to="/swap" aria-label="Juno DEX home">
               <img className="brand-logo" src={junoLogo} alt="" aria-hidden="true" />
               <Box className="brand-copy">
-                <Text as="p" className="eyebrow">Astroport Core · Juno mainnet</Text>
+                <Text as="p" className="eyebrow">Juno mainnet</Text>
                 <Text as="h1" variant="heading" className="brand-title">Juno DEX</Text>
               </Box>
             </NavLink>
@@ -87,25 +73,7 @@ export function DexShell({ children }: { children: ReactNode }) {
 
         <Box as="main" className="app-main" tabIndex={-1}>{children}</Box>
 
-        <Box as="footer" className="app-footer">
-          <RiskNotice variant="compact" />
-          <Stack className="footer-grid" direction="horizontal" flexWrap="wrap">
-            <Box className="footer-column">
-              <Text as="p" className="eyebrow">Resources</Text>
-              <a href="https://docs.astroport.fi/" target="_blank" rel="noreferrer">Astroport docs</a>
-              <a href="https://github.com/JakeHartnell/astroport-core" target="_blank" rel="noreferrer">Source repository</a>
-              <a href={dexRegistry.explorerBaseUrl} target="_blank" rel="noreferrer">Mintscan Juno</a>
-            </Box>
-            <Box className="footer-column footer-contracts">
-              <Text as="p" className="eyebrow">Juno contracts</Text>
-              {contractLinks.filter((contract) => contract.address).map((contract) => (
-                <a key={contract.label} href={`${dexRegistry.explorerBaseUrl}/wasm/contract/${contract.address}`} target="_blank" rel="noreferrer">
-                  <span>{contract.label}</span><code>{contract.address}</code>
-                </a>
-              ))}
-            </Box>
-          </Stack>
-        </Box>
+        <Box as="footer" className="app-footer" />
       </Box>
       </SlippageSettingsProvider>
     </WalletProvider>

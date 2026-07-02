@@ -31,8 +31,6 @@ export function PriceCandleChart({ pool, title = "Price chart", compact = false,
           <h3 id={`${describedBy}-title`}>{title}</h3>
           <p id={describedBy} className="price-chart-subtitle">{pool.assets[0]?.symbol}/{pool.assets[1]?.symbol} OHLC candles · {sourceLabel}</p>
         </div>
-        {candles.access?.isMock ? <span className="status-pill status-warn">mock candles</span> : null}
-        {candles.access?.isStale ? <span className="status-pill status-warn">stale</span> : null}
       </div>
 
       {showControls ? <ChartControls interval={interval} range={range} onInterval={setInterval} onRange={setRange} /> : null}

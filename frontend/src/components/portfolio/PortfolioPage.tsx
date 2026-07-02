@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
-import { dexRegistry } from "../../config/registry";
 import { queryPairPool } from "../../lib/astroport/queries";
-import { dataSourceLabel } from "../../lib/data-access/indexerFallback";
 import { formatAmount } from "../../lib/format/amounts";
 import { truncateAddress } from "../../lib/format/addresses";
 import { buildPortfolioSummary, totalLpBalance, type PortfolioPosition } from "../../lib/portfolio/portfolio";
@@ -20,9 +18,8 @@ function usd(value: number | null) {
 }
 
 function positionStatus(position: PortfolioPosition) {
-  if (position.source === "mock") return "Mock indexer position";
-  if (position.source === "indexer") return position.isStale ? "Stale indexer position" : "Indexer position";
-  return "On-chain fallback estimate";
+  if (position.source === "indexer" || position.source === "mock") return "LP position";
+  return "LP estimate";
 }
 
 function PortfolioPositionCard({ position }: { position: PortfolioPosition }) {
@@ -44,7 +41,7 @@ function PortfolioPositionCard({ position }: { position: PortfolioPosition }) {
         <div className="metric-card">
           <span>Total LP exposure</span>
           <strong>{formatAmount(totalLpBalance(position), 6)} {lpSymbol}</strong>
-          <code>{position.pool.lpToken}</code>
+          <details className="identifier-disclosure"><summary>LP token</summary><code>{position.pool.lpToken}</code></details>
         </div>
         <div className="metric-card">
           <span>Pool share</span>
@@ -54,7 +51,7 @@ function PortfolioPositionCard({ position }: { position: PortfolioPosition }) {
         <div className="metric-card">
           <span>Position value</span>
           <strong>{usd(position.valueUsd)}</strong>
-          <code>{position.valueUsd === null ? "Not counted in aggregate total" : "Priced by data source"}</code>
+          <small>{position.valueUsd === null ? "Not counted in aggregate total" : "Priced with market data"}</small>
         </div>
       </div>
 
@@ -118,19 +115,15 @@ export function PortfolioPage() {
   });
   const reserveError = reserveQueries.find((query) => query.isError)?.error;
   const isLoading = Boolean(walletAddress) && (balances.isLoading || indexerData.isLoading || reserveQueries.some((query) => query.isLoading));
-  const dataCopy = walletAddress
-    ? `Portfolio data source: ${dataSourceLabel(indexerData.access)}. ${indexerData.access?.error ? `Indexer unavailable (${indexerData.access.error.message}); using on-chain wallet balances and live pair reserves where possible.` : `${indexerData.data.positions.length} indexed positions loaded.`}`
-    : "Connect a wallet to aggregate LP positions, wallet balances, claimable rewards, and USD value.";
-
   return (
     <section className="panel-page">
       <p className="eyebrow">Portfolio</p>
       <h2>Wallet portfolio</h2>
-      <p>Aggregates unstaked LP balances, staked LP positions when the indexer reports them, claimable rewards when available, and honest USD totals that exclude missing prices.</p>
+      <p>View LP positions, wallet balances, rewards, and estimated USD value in one place.</p>
       {discovery.isError ? <ErrorState title="Factory discovery unavailable" error="Showing curated registry fallback only; unknown factory pairs are not fabricated." onRetry={() => void discovery.refetch()} /> : null}
       {walletAddress ? <div className="contract-strip"><span>Wallet</span><WalletAddressActions address={walletAddress} /></div> : null}
-      <p className="pool-metrics-copy">{dataCopy}</p>
-      {walletAddress && indexerData.access?.error ? <ErrorState title="Indexer portfolio data unavailable" error="Using explicit on-chain fallback where possible; unavailable USD, rewards, and staked rows remain marked unavailable." onRetry={() => void indexerData.refetch()} /> : null}
+      {!walletAddress ? <p className="pool-metrics-copy">Connect a wallet to view LP positions, balances, rewards, and USD value.</p> : null}
+      {walletAddress && indexerData.access?.error ? <ErrorState title="Portfolio details unavailable" error="Some USD, rewards, and staked position details are temporarily unavailable." onRetry={() => void indexerData.refetch()} /> : null}
 
       {!walletAddress ? (
         <EmptyState title="Connect wallet to view portfolio" action={<Link className="wallet-inline-action" to="/pools">Browse pools</Link>}>
@@ -155,25 +148,25 @@ export function PortfolioPage() {
         <>
           <div className="lp-position-metrics" aria-label="Portfolio totals">
             <div className="metric-card">
-              <span>Total LP value</span>
+                  <span>Total LP value</span>
               <strong>{usd(portfolio.totalLpValueUsd)}</strong>
-              <code>{portfolio.missingPositionPrices ? `${portfolio.missingPositionPrices} position(s) missing USD prices` : "All positions priced"}</code>
+              <small>{portfolio.missingPositionPrices ? `${portfolio.missingPositionPrices} position(s) missing USD prices` : "All positions priced"}</small>
             </div>
             <div className="metric-card">
               <span>Total claimable</span>
               <strong>{usd(portfolio.totalClaimableUsd)}</strong>
-              <code>{portfolio.claimableRewardCount ? `${portfolio.claimableRewardCount} reward row(s)` : "Rewards unavailable or zero"}</code>
+              <small>{portfolio.claimableRewardCount ? `${portfolio.claimableRewardCount} reward row(s)` : "No rewards found"}</small>
             </div>
             <div className="metric-card">
               <span>Wallet balances</span>
               <strong>{portfolio.walletBalances.filter((balance) => BigInt(balance.amount || "0") > 0n).length}</strong>
-              <code>Non-zero known and discovered denoms</code>
+              <small>Non-zero known balances</small>
             </div>
           </div>
 
           {portfolio.positions.length === 0 ? (
             <EmptyState title="No LP positions found" action={<Link className="wallet-inline-action" to="/pools">Explore pools</Link>}>
-              No unstaked LP balance was found through the indexer or on-chain fallback. Staked-only positions will appear when the indexer exposes them.
+              No LP balance was found for this wallet. Staked-only positions will appear when available.
             </EmptyState>
           ) : (
             <div className="lp-position-list">
