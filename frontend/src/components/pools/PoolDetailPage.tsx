@@ -8,17 +8,22 @@ import type { PoolMetrics } from "../../lib/pools/poolList";
 import { getPoolTypeMetadata } from "../../lib/pools/poolTypes";
 import { assessPoolRisk } from "../../lib/risk";
 import { useDexRegistry } from "../../queries/useDexRegistry";
-import { usePoolMetrics, usePoolReserves } from "../../queries/usePools";
+import { usePoolMetrics, usePoolReserves, useWalletIndexerData } from "../../queries/usePools";
+import { useWallet } from "../../wallet/WalletContext";
 import { ExplorerLink, RiskBadgeList, TokenLogo } from "../common";
 import { AddLiquidityForm } from "../liquidity/AddLiquidityForm";
 import { LpPositionPanel } from "../liquidity/LpPositionPanel";
 import { RemoveLiquidityForm } from "../liquidity/RemoveLiquidityForm";
+import { WalletTransactionHistory } from "../wallet/WalletTransactionHistory";
 
 export function PoolDetailPage() {
   const { pairAddress } = useParams();
   const { registry, pools, discovery } = useDexRegistry();
+  const { wallet } = useWallet();
   const pool = pools.find((candidate) => candidate.pair === pairAddress);
   const poolMetrics = usePoolMetrics(pool ? [pool] : []);
+  const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
+  const walletIndexerData = useWalletIndexerData(walletAddress);
   const reserves = usePoolReserves(pool);
   const risk = pool ? assessPoolRisk(pool, reserves.data) : undefined;
   const metrics = pool ? poolMetrics.data?.[pool.pair] : undefined;
@@ -111,9 +116,17 @@ export function PoolDetailPage() {
         <section id="remove-liquidity"><RemoveLiquidityForm pool={pool} /></section>
       </div>
 
-      <section className="pool-detail-section" aria-labelledby="transactions-title">
-        <h3 id="transactions-title">Recent transactions</h3>
-        <p className="empty-state">Recent transactions require the pool indexer. Current source: {dataSourceLabel(poolMetrics.access)}. Use the pair Mintscan link above for live contract activity while indexing is unavailable.</p>
+      <section className="pool-detail-section" aria-label="Recent wallet transactions">
+        <WalletTransactionHistory
+          title="Your recent pool transactions"
+          emptyTitle="No indexed transactions for this pool"
+          history={walletIndexerData.data.history}
+          access={walletIndexerData.access}
+          explorerBaseUrl={registry.explorerBaseUrl}
+          walletConnected={Boolean(walletAddress)}
+          isLoading={walletIndexerData.isLoading}
+          pairAddress={pool.pair}
+        />
       </section>
     </section>
   );

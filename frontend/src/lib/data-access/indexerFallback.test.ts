@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { RegistryPool } from "../../config/registry";
-import { loadPoolMetrics, resetIndexerCircuitBreakerForTests, type IndexerRuntimeConfig } from "./indexerFallback";
+import { loadPoolMetrics, loadWalletIndexerData, resetIndexerCircuitBreakerForTests, type IndexerRuntimeConfig } from "./indexerFallback";
 
 const pool = { id: "juno-usdc", label: "JUNO / USDC", pair: "juno1pool", lpToken: "factory/lp", type: "xyk", feeBps: 30, assets: [], enabled: true, verified: true, source: "registry" } as unknown as RegistryPool;
 
@@ -76,5 +76,48 @@ describe("indexer fallback data access", () => {
 
     expect(result.state).toMatchObject({ source: "mock", isMock: true, isStale: true });
     expect(result.data[pool.pair]).toMatchObject({ source: "mock", isMock: true, isStale: true });
+  });
+
+  it("loads indexed wallet positions and transaction history without falling back", async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/health")) return json({ status: "ok", service: "dex-indexer", dataSource: "indexer", isMock: false });
+      if (url.includes("/positions")) return json({ data: [], pagination: { limit: 100, nextCursor: null } });
+      return json({ data: [{ txHash: "ABC", walletAddress: "juno1wallet", poolId: "juno-usdc", pairAddress: pool.pair, type: "swap", height: 10, timestamp: new Date().toISOString(), offerAsset: { denom: "ujuno", symbol: "JUNO", amount: "1" }, askAsset: { denom: "ibc/usdc", symbol: "USDC", amount: "2" }, amountUsd: 2, feeUsd: 0.01, success: true, dataSource: "indexer", isMock: false }], pagination: { limit: 50, nextCursor: null } });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await loadWalletIndexerData("juno1wallet", config());
+
+    expect(result.state).toMatchObject({ source: "indexer", isFallback: false });
+    expect(result.data.history).toHaveLength(1);
+    expect(result.data.history[0]).toMatchObject({ type: "swap", txHash: "ABC", pairAddress: pool.pair });
+  });
+
+  it("keeps empty wallet history empty instead of generating fake activity", async () => {
+    const fetcher = vi.fn(async (url: string) => url.endsWith("/health")
+      ? json({ status: "ok", service: "dex-indexer", dataSource: "indexer", isMock: false })
+      : json({ data: [], pagination: { limit: 100, nextCursor: null } }));
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await loadWalletIndexerData("juno1wallet", config());
+
+    expect(result.state).toMatchObject({ source: "indexer", isFallback: false });
+    expect(result.data.history).toEqual([]);
+    expect(result.data.positions).toEqual([]);
+  });
+
+  it("falls back to empty wallet history when the indexer wallet endpoint fails", async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.endsWith("/health")) return json({ status: "ok", service: "dex-indexer", dataSource: "indexer", isMock: false });
+      if (url.includes("/history")) return json({ error: "down" }, 500);
+      return json({ data: [], pagination: { limit: 100, nextCursor: null } });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetcher);
+
+    const result = await loadWalletIndexerData("juno1wallet", config());
+
+    expect(result.data).toEqual({ positions: [], history: [] });
+    expect(result.state).toMatchObject({ source: "fallback", isFallback: true });
+    expect(result.state.error?.code).toBe("http");
   });
 });

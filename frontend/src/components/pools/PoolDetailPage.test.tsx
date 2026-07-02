@@ -46,6 +46,11 @@ vi.mock("../../queries/useDexRegistry", () => ({
 vi.mock("../../queries/usePools", () => ({
   usePoolMetrics: () => ({ data: mocks.metrics, access: mocks.access, isError: false }),
   usePoolReserves: () => mocks.reserves,
+  useWalletIndexerData: () => ({ data: { positions: [], history: [] }, access: mocks.access, isLoading: false }),
+}));
+
+vi.mock("../../wallet/WalletContext", () => ({
+  useWallet: () => ({ wallet: { status: "connected", address: "juno1wallet", name: "Test wallet" } }),
 }));
 
 vi.mock("../liquidity/AddLiquidityForm", () => ({
@@ -118,7 +123,7 @@ describe("PoolDetailPage", () => {
     expect(within(analytics).getAllByText("Metrics unavailable").length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText(/TVL, 24h volume, and APR are unavailable from/i)).toBeTruthy();
     expect(screen.getByText(/Price charts depend on the pool indexer\/charting service/i)).toBeTruthy();
-    expect(screen.getByText(/Recent transactions require the pool indexer/i)).toBeTruthy();
+    expect(screen.getByText(/No swap, add, withdraw, or claim activity was returned/i)).toBeTruthy();
     expect(screen.getByText(/USD value, volume, and APR require external pricing\/indexer data/i)).toBeTruthy();
   });
 });

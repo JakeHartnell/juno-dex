@@ -5,11 +5,12 @@ import { useWalletIndexerData } from "../../queries/usePools";
 import { useWallet } from "../../wallet/WalletContext";
 import { EmptyState } from "../common";
 import { WalletAddressActions } from "../wallet/WalletAddressActions";
+import { WalletTransactionHistory } from "../wallet/WalletTransactionHistory";
 import { LpPositionPanel } from "./LpPositionPanel";
 
 export function LiquidityPage() {
   const { wallet } = useWallet();
-  const { pools, discovery } = useDexRegistry();
+  const { registry, pools, discovery } = useDexRegistry();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const indexerData = useWalletIndexerData(walletAddress);
   const walletCopy = wallet.status === "connected" && wallet.address
@@ -28,6 +29,13 @@ export function LiquidityPage() {
       <div className="lp-position-list">
         {pools.map((pool) => <LpPositionPanel pool={pool} key={pool.id} />)}
       </div>
+      <WalletTransactionHistory
+        history={indexerData.data.history}
+        access={indexerData.access}
+        explorerBaseUrl={registry.explorerBaseUrl}
+        walletConnected={Boolean(walletAddress)}
+        isLoading={indexerData.isLoading}
+      />
     </section>
   );
 }
