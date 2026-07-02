@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { Box, Stack, Text } from "@interchain-ui/react";
-import junoLogo from "../../assets/juno-dex-logo.svg";
+import junoLogo from "../../assets/juno-logo-salmon.svg";
+import junoWordmark from "../../assets/juno-wordmark-salmon.svg";
 import { navigationItems } from "../../app/routes";
 import { WalletProvider } from "../../wallet/WalletContext";
 import { ChainStatusBadge } from "../wallet/ChainStatusBadge";
@@ -18,18 +18,21 @@ export function DexShell({ children }: { children: ReactNode }) {
   return (
     <WalletProvider>
       <SlippageSettingsProvider>
-      <Box className="dex-shell">
-        <Box as="header" className="app-header">
-          <Stack className="header-inner" direction="horizontal" align="center" justify="space-between">
+      <div className="dex-shell">
+        <header className="app-header">
+          <div className="header-inner">
             <NavLink className="brand-lockup" to="/swap" aria-label="Juno DEX home">
               <img className="brand-logo" src={junoLogo} alt="" aria-hidden="true" />
-              <Box className="brand-copy">
-                <Text as="p" className="eyebrow">Juno mainnet</Text>
-                <Text as="h1" variant="heading" className="brand-title">Juno DEX</Text>
-              </Box>
+              <span className="brand-copy">
+                <span className="eyebrow">Juno mainnet · Δ.4.0.0</span>
+                <h1 className="brand-title">
+                  <img src={junoWordmark} alt="Juno" />
+                  <span>DEX</span>
+                </h1>
+              </span>
             </NavLink>
 
-            <Stack className="topbar-actions" direction="horizontal" align="center" justify="flex-end">
+            <div className="topbar-actions">
               <ChainStatusBadge rpcEndpoint={dexRegistry.rpcEndpoint} />
               <WalletConnectButton />
               <button
@@ -39,7 +42,7 @@ export function DexShell({ children }: { children: ReactNode }) {
                 aria-expanded={settingsOpen}
                 onClick={() => setSettingsOpen((open) => !open)}
               >
-                ⚙
+                ∴
               </button>
               <button
                 className="mobile-nav-toggle"
@@ -50,10 +53,10 @@ export function DexShell({ children }: { children: ReactNode }) {
               >
                 Menu
               </button>
-            </Stack>
-          </Stack>
+            </div>
+          </div>
 
-          <Box id="primary-navigation" as="nav" className={`primary-nav ${isNavOpen ? "is-open" : ""}`} aria-label="Primary navigation">
+          <nav id="primary-navigation" className={`primary-nav ${isNavOpen ? "is-open" : ""}`} aria-label="Primary navigation">
             {navigationItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -64,17 +67,15 @@ export function DexShell({ children }: { children: ReactNode }) {
                 {item.label}
               </NavLink>
             ))}
-          </Box>
+          </nav>
 
           {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
-        </Box>
+        </header>
 
         <NetworkGuardBanner />
 
-        <Box as="main" className="app-main" tabIndex={-1}>{children}</Box>
-
-        <Box as="footer" className="app-footer" />
-      </Box>
+        <main className="app-main" tabIndex={-1}>{children}</main>
+      </div>
       </SlippageSettingsProvider>
     </WalletProvider>
   );
