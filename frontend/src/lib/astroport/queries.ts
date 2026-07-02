@@ -1,5 +1,5 @@
 import type { RegistryAsset, RegistryPool } from "../../config/registry";
-import type { PairsResponse, QueryMsg as FactoryQueryMsg } from "../generated/Factory.types";
+import type { ConfigResponse, PairsResponse, QueryMsg as FactoryQueryMsg } from "../generated/Factory.types";
 import type { PoolResponse, QueryMsg as PairQueryMsg, ReverseSimulationResponse, SimulationResponse } from "../generated/Pair.types";
 import type { QueryMsg as RouterQueryMsg, SimulateSwapOperationsResponse, SwapOperation } from "../generated/Router.types";
 import { dexRegistry } from "../../config/registry";
@@ -32,6 +32,10 @@ export async function queryPairPool(pairAddress: string): Promise<PoolResponse> 
 
 export async function queryFactoryPairs(message: Extract<FactoryQueryMsg, { pairs: unknown }>): Promise<PairsResponse> {
   return queryContractSmart(dexRegistry.factory, message);
+}
+
+export async function queryFactoryConfig(): Promise<ConfigResponse> {
+  return queryContractSmart(dexRegistry.factory, { config: {} } satisfies FactoryQueryMsg);
 }
 
 export async function querySwapSimulation(

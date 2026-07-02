@@ -1,6 +1,6 @@
 import { dexRegistry, enabledPools, type RegistryAsset, type RegistryPool } from "../../config/registry";
 import { resolveAssetMetadata } from "../assets/assetMetadata";
-import type { AssetInfo, PairInfo, PairsResponse } from "../generated/Factory.types";
+import type { AssetInfo, PairConfig, PairInfo, PairsResponse } from "../generated/Factory.types";
 
 export const FACTORY_PAIRS_PAGE_LIMIT = 30;
 
@@ -16,6 +16,20 @@ function pairTypeName(pairType: PairInfo["pair_type"]): RegistryPool["type"] | u
   if ("stable" in pairType) return "stable";
   if ("custom" in pairType && /concentrated/i.test(pairType.custom)) return "concentrated";
   return undefined;
+}
+
+function pairTypeKey(pairType: PairInfo["pair_type"] | PairConfig["pair_type"]): string | undefined {
+  if ("xyk" in pairType) return "xyk";
+  if ("stable" in pairType) return "stable";
+  if ("custom" in pairType) return `custom:${pairType.custom.toLowerCase()}`;
+  return undefined;
+}
+
+export function factoryFeeBpsByPairType(pairConfigs: PairConfig[] = []): Map<string, number> {
+  const entries = pairConfigs
+    .map((config) => [pairTypeKey(config.pair_type), config.total_fee_bps] as const)
+    .filter((entry): entry is readonly [string, number] => Boolean(entry[0]));
+  return new Map(entries);
 }
 
 function assetId(assetInfo: AssetInfo): string {
@@ -58,6 +72,7 @@ export async function queryAllFactoryPairs(queryPairs: FactoryPairsQuery, pageLi
 export function mergeDiscoveredPools(
   discoveredPairs: PairInfo[],
   curatedPools: RegistryPool[] = enabledPools,
+  feeBpsByPairType: Map<string, number> = new Map(),
 ): DiscoveredRegistryPool[] {
   const curatedByPair = new Map(curatedPools.map((pool) => [curatedKey(pool), pool]));
   const merged = new Map<string, DiscoveredRegistryPool>();
@@ -77,7 +92,7 @@ export function mergeDiscoveredPools(
       pair: pair.contract_addr,
       lpToken: curated?.lpToken ?? pair.liquidity_token,
       type: curated?.type ?? type,
-      feeBps: curated?.feeBps ?? 0,
+      feeBps: curated?.feeBps ?? feeBpsByPairType.get(pairTypeKey(pair.pair_type) ?? "") ?? 0,
       assets,
       explorer: curated?.explorer ?? `${dexRegistry.explorerBaseUrl}/wasm/contract/${pair.contract_addr}`,
       enabled: curated?.enabled ?? true,

@@ -1,41 +1,111 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RegistryPool } from "../../config/registry";
 import { PoolTable } from "./PoolTable";
 
+const mocks = vi.hoisted(() => ({
+  metrics: undefined as Record<string, { tvlUsd?: number; volume24hUsd?: number; totalApr?: number; incentivesApr?: number; incentivized?: boolean }> | undefined,
+}));
+
 vi.mock("../../queries/usePools", () => ({
+  usePoolMetrics: () => ({ data: mocks.metrics, isError: false }),
   usePoolReserves: () => ({
     isLoading: false,
     isError: false,
     data: { assets: [{ amount: "1000000" }, { amount: "2000000" }], total_share: "1000000" },
+    refetch: vi.fn(),
   }),
 }));
 
-const pool: RegistryPool = {
-  id: "metadata-pool",
-  label: "JUNO / ATOM",
-  pair: "juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv",
-  lpToken: "factory/juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv/astroport/share",
-  type: "xyk",
-  feeBps: 30,
-  explorer: "https://www.mintscan.io/juno/wasm/contract/juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv",
-  enabled: true,
-  verified: true,
-  assets: [
-    { kind: "native", id: "ujuno", symbol: "JUNO", name: "Juno", decimals: 6, logoURI: "https://example.com/juno.svg" },
-    { kind: "ibc", id: "ibc/atomhash", symbol: "ATOM", name: "ATOM on Juno", decimals: 6, logoURI: "https://example.com/atom.svg", denomTrace: "transfer/channel-1/uatom" },
-  ],
-};
+vi.mock("../../queries/useWalletBalances", async () => {
+  const actual = await vi.importActual<typeof import("../../queries/useWalletBalances")>("../../queries/useWalletBalances");
+  return {
+    ...actual,
+    useWalletBalances: () => ({ data: [] }),
+  };
+});
 
-describe("PoolTable metadata rendering", () => {
+vi.mock("../../wallet/WalletContext", () => ({
+  useWallet: () => ({ wallet: { status: "idle" } }),
+}));
+
+function pool(overrides: Partial<RegistryPool> & Pick<RegistryPool, "id" | "label" | "pair" | "type" | "feeBps">): RegistryPool {
+  const [leftRaw, rightRaw] = overrides.label.split("/");
+  const left = leftRaw?.trim();
+  const right = rightRaw?.trim();
+  return {
+    lpToken: `${overrides.id}-lp`,
+    assets: [
+      { kind: "native", id: `${overrides.id}-base`, symbol: left ?? "AAA", name: left, decimals: 6, logoURI: `https://example.com/${left}.svg` },
+      { kind: "native", id: `${overrides.id}-quote`, symbol: right ?? "BBB", name: `${right} on Juno`, decimals: 6, logoURI: `https://example.com/${right}.svg`, denomTrace: `transfer/channel-1/${right?.toLowerCase()}` },
+    ],
+    explorer: `https://example.com/${overrides.pair}`,
+    enabled: true,
+    verified: true,
+    source: "registry",
+    notes: "Test pool",
+    ...overrides,
+  };
+}
+
+const pools = [
+  pool({ id: "juno-usdc", label: "JUNO / USDC", pair: "juno1alpha", type: "xyk", feeBps: 30 }),
+  pool({ id: "atom-usdc", label: "ATOM / USDC", pair: "juno1beta", type: "stable", feeBps: 5, verified: false }),
+];
+
+function renderPoolTable() {
+  return render(
+    <MemoryRouter>
+      <PoolTable pools={pools} />
+    </MemoryRouter>,
+  );
+}
+
+describe("PoolTable", () => {
+  beforeEach(() => {
+    mocks.metrics = undefined;
+  });
+
   it("renders token logos, names, and IBC trace hints", () => {
-    render(<MemoryRouter><PoolTable pools={[pool]} /></MemoryRouter>);
+    renderPoolTable();
 
-    expect(screen.getByAltText("JUNO logo").getAttribute("src")).toBe("https://example.com/juno.svg");
-    expect(screen.getByAltText("ATOM logo").getAttribute("src")).toBe("https://example.com/atom.svg");
-    expect(screen.getByText("Juno")).toBeTruthy();
-    expect(screen.getByText("ATOM on Juno")).toBeTruthy();
-    expect(screen.getByText("transfer/channel-1/uatom")).toBeTruthy();
+    expect(screen.getByAltText("JUNO logo").getAttribute("src")).toBe("https://example.com/JUNO.svg");
+    expect(screen.getAllByText("USDC on Juno").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("transfer/channel-1/usdc").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows honest unavailable metric copy when no indexer metrics are loaded", () => {
+    renderPoolTable();
+
+    expect(screen.getByText(/Metrics unavailable until the indexer\/pricing service is configured/i)).toBeTruthy();
+    expect(screen.getAllByText(/Metrics unavailable/i).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByText(/Coming from indexer/i).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("filters rows by search and verification controls", () => {
+    renderPoolTable();
+
+    fireEvent.change(screen.getByLabelText(/search pools/i), { target: { value: "atom" } });
+    expect(screen.getByText("ATOM / USDC")).toBeTruthy();
+    expect(screen.queryByText("JUNO / USDC")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/verification/i), { target: { value: "verified" } });
+    expect(screen.getByText(/No pools match these filters/i)).toBeTruthy();
+  });
+
+  it("sorts by TVL from indexer metrics", () => {
+    mocks.metrics = {
+      juno1alpha: { tvlUsd: 10, volume24hUsd: 5, totalApr: 1 },
+      juno1beta: { tvlUsd: 500, volume24hUsd: 20, totalApr: 3 },
+    };
+    renderPoolTable();
+
+    fireEvent.change(screen.getByLabelText(/sort by/i), { target: { value: "tvl" } });
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("ATOM / USDC")).toBeTruthy();
+    expect(within(rows[1]).getByText("JUNO / USDC")).toBeTruthy();
+    expect(screen.getByText("$500")).toBeTruthy();
+    expect(screen.getByText("3%")).toBeTruthy();
   });
 });

@@ -104,13 +104,25 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .network-guard-banner { margin: -10px 0 18px; padding: 14px 16px; border: 1px solid rgba(255, 159, 153, 0.42); border-radius: var(--juno-radius-lg); background: rgba(85, 30, 39, 0.28); box-shadow: var(--juno-shadow-panel); }
 .network-guard-banner button { margin-top: 0; }
 
-.pool-table, .lp-position-list { display: grid; gap: 12px; margin-top: 22px; }
-.pool-row, .liquidity-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, auto) auto; gap: 14px; align-items: center; padding: 18px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); background: rgba(255,255,255,0.04); color: var(--juno-color-text); }
+.pool-list-shell { display: grid; gap: 14px; margin-top: 22px; }
+.pool-list-controls { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(150px, 1fr)); gap: 12px; align-items: end; }
+.pool-list-controls label { display: grid; gap: 6px; color: var(--juno-color-text-muted); font-size: 0.9rem; }
+.pool-metrics-copy { margin: 0; color: var(--juno-color-text-muted); }
+.pool-table, .lp-position-list { display: grid; gap: 12px; margin-top: 8px; }
+.pool-table-header { display: grid; grid-template-columns: minmax(280px, 1.6fr) repeat(3, minmax(100px, 0.62fr)) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(160px, 0.8fr); gap: 12px; align-items: center; padding: 0 18px; color: var(--juno-color-text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.pool-table-header button { border: 0; background: transparent; color: var(--juno-color-cyan); padding: 0; text-align: left; cursor: pointer; text-transform: inherit; letter-spacing: inherit; font-weight: 800; }
+.pool-row { display: grid; grid-template-columns: minmax(280px, 1.6fr) repeat(3, minmax(100px, 0.62fr)) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(160px, 0.8fr); gap: 14px; align-items: center; padding: 18px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); background: rgba(255,255,255,0.04); color: var(--juno-color-text); }
+.liquidity-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, auto) auto; gap: 14px; align-items: center; padding: 18px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); background: rgba(255,255,255,0.04); color: var(--juno-color-text); }
 .pool-row p { margin: 4px 0 0; font-size: 0.9rem; }
 .pool-assets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
 .pool-assets div { display: grid; gap: 4px; padding: 12px; border-radius: 14px; background: rgba(5, 7, 13, 0.52); }
-.pool-assets span, .pool-assets small, .pool-meta span, .risk-copy { color: var(--juno-color-text-muted); }
+.pool-assets span { display: inline-flex; align-items: center; gap: 6px; }
+.pool-assets img { width: 20px; height: 20px; border-radius: 999px; object-fit: contain; background: rgba(255,255,255,0.08); }
+.pool-assets span, .pool-assets small, .pool-meta span, .pool-metric span, .pool-position span, .risk-copy { color: var(--juno-color-text-muted); }
 .pool-meta { display: grid; gap: 8px; }
+.pool-metric, .pool-position { display: grid; gap: 4px; min-width: 0; }
+.pool-metric strong, .pool-position strong { overflow-wrap: anywhere; }
+.pool-metric small { color: var(--juno-color-coral); }
 .pool-actions { justify-content: flex-end; flex-wrap: wrap; }
 .pool-actions a { border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-pill); padding: 9px 12px; background: var(--juno-color-cyan-soft); }
 .liquidity-row { grid-template-columns: minmax(0, 1fr); }
@@ -208,6 +220,8 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
   .header-inner { align-items: flex-start; flex-direction: column; }
   .brand-lockup { align-items: center; }
   .topbar-actions { justify-content: flex-start; width: 100%; }
+  .pool-list-controls { grid-template-columns: 1fr 1fr; }
+  .pool-table-header { display: none; }
   .pool-row { grid-template-columns: 1fr; }
   .pool-actions { justify-content: flex-start; }
   .pool-assets { grid-template-columns: 1fr; }
@@ -230,6 +244,7 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
   .nav-link { text-align: center; padding: 10px 8px; }
   .settings-panel { right: 8px; width: calc(100vw - 24px); }
   .hero-panel, .panel-page, .swap-card { padding: 16px; }
+  .pool-list-controls { grid-template-columns: 1fr; }
   dl div, .quote-details div { grid-template-columns: 1fr; gap: 4px; }
   .quote-detail-value { text-align: left; }
   .footer-contracts a { grid-template-columns: 1fr; }
