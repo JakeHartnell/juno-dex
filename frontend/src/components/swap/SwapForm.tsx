@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Box, Button, Stack, Text } from "@interchain-ui/react";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount, toBaseAmount } from "../../lib/format/amounts";
 import { useSwapQuote } from "../../queries/useSwapQuote";
@@ -27,37 +28,37 @@ export function SwapForm({ pool }: { pool: RegistryPool }) {
           : "Connect Keplr to review swap";
 
   return (
-    <div className="swap-card">
-      <div className="swap-card-header">
-        <div>
-          <p className="eyebrow">Direct swap</p>
-          <h2>{pool.assets[0].symbol} ↔ {pool.assets[1].symbol}</h2>
-        </div>
-        <button type="button" className="slippage-pill" title="Slippage settings are fixed in preview mode">Slippage {DEFAULT_SLIPPAGE_PERCENT}%</button>
-      </div>
-      <div className="mode-tabs" aria-label="Trade mode">
+    <Stack className="swap-card" direction="vertical" space="6">
+      <Stack className="swap-card-header" direction="horizontal" align="center" justify="space-between" flexWrap="wrap">
+        <Box>
+          <Text as="p" className="eyebrow">Direct swap</Text>
+          <Text as="h2" variant="heading">{pool.assets[0].symbol} ↔ {pool.assets[1].symbol}</Text>
+        </Box>
+        <Button variant="outlined" intent="secondary" size="sm" className="slippage-pill" domAttributes={{ type: "button", title: "Slippage settings are fixed in preview mode" }}>Slippage {DEFAULT_SLIPPAGE_PERCENT}%</Button>
+      </Stack>
+      <Box className="mode-tabs" aria-label="Trade mode">
         <span className="mode-tab active">Direct pair</span>
         <span className="mode-tab disabled" title="Router execution is not enabled in v1 preview">Router later</span>
-      </div>
-      <div className="asset-amount-card">
-        <div className="asset-card-topline"><span>From</span><strong>{offerAsset.symbol}</strong></div>
-        <div className="form-grid">
+      </Box>
+      <Stack className="asset-amount-card" direction="vertical" space="4">
+        <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>From</span><strong>{offerAsset.symbol}</strong></Stack>
+        <Stack className="form-grid" direction="horizontal" align="flex-end">
           <label className="field compact-field">
             <span>Amount</span>
             <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
           </label>
           <TokenSelect assets={pool.assets} value={offerId} onChange={setOfferId} label="Asset" />
-        </div>
+        </Stack>
         <code>{offerAsset.id}</code>
-      </div>
-      <div className="swap-direction">↓</div>
-      <div className="asset-amount-card receive-card">
-        <div className="asset-card-topline"><span>To · estimated receive</span><strong>{askAsset.symbol}</strong></div>
-        <div className="estimated-receive">{receiveAmount}</div>
+      </Stack>
+      <Box className="swap-direction">↓</Box>
+      <Stack className="asset-amount-card receive-card" direction="vertical" space="4">
+        <Stack className="asset-card-topline" direction="horizontal" justify="space-between"><span>To · estimated receive</span><strong>{askAsset.symbol}</strong></Stack>
+        <Text as="div" className="estimated-receive">{receiveAmount}</Text>
         <code>{askAsset.id}</code>
-      </div>
+      </Stack>
       <QuoteCard quote={quote.data} askAsset={askAsset} isLoading={quote.isFetching} error={quote.error} pool={pool} slippagePercent={DEFAULT_SLIPPAGE_PERCENT} />
-      <button type="button" className="primary-action" disabled>{actionCopy}</button>
-    </div>
+      <Button intent="primary" className="primary-action" disabled fluidWidth domAttributes={{ type: "button" }}>{actionCopy}</Button>
+    </Stack>
   );
 }

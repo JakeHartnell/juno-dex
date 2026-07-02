@@ -1,0 +1,18 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Juno DEX logo</title>
+  <desc id="desc">Original Juno-inspired purple orbital mark for the DEX frontend.</desc>
+  <rect width="160" height="160" rx="40" fill="#05070D"/>
+  <circle cx="80" cy="80" r="51" fill="url(#core)" opacity="0.95"/>
+  <path d="M33 88C54 49 99 34 127 47C144 55 145 72 129 84C107 101 60 105 29 91" stroke="#80EDFF" stroke-width="8" stroke-linecap="round" opacity="0.88"/>
+  <path d="M37 70C64 105 111 120 132 101C145 89 139 72 119 63C92 51 51 53 30 67" stroke="#FF9F99" stroke-width="7" stroke-linecap="round" opacity="0.72"/>
+  <circle cx="80" cy="80" r="18" fill="#F7F7FB"/>
+  <circle cx="118" cy="63" r="8" fill="#8B5CF6"/>
+  <circle cx="39" cy="91" r="6" fill="#4F46E5"/>
+  <defs>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(67 51) rotate(61) scale(78)">
+      <stop stop-color="#A78BFA"/>
+      <stop offset="0.55" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#2E1065"/>
+    </radialGradient>
+  </defs>
+</svg>
