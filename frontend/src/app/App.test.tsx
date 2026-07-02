@@ -66,8 +66,10 @@ describe("App wallet state", () => {
 
     renderApp();
 
-    expect(screen.getByRole("button", { name: /qa wallet/i })).toBeTruthy();
+    expect(screen.getAllByText(/QA wallet/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /disconnect/i })).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: /mintscan/i })[0].getAttribute("href")).toContain("/address/juno1testwallet");
     expect(screen.queryByText(/No wallet connected/i)).toBeNull();
-    expect(screen.getByText(/Connected wallet:/i).textContent).toContain("LP balances are unknown until queried from verified pool denoms.");
+    expect(screen.getByText(/Connected wallet:/i).textContent).toContain("Known LP balances refresh every 30 seconds");
   });
 });

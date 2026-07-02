@@ -1,15 +1,104 @@
+import { useMemo } from "react";
+import { StargateClient, type Coin } from "@cosmjs/stargate";
 import { useQuery } from "@tanstack/react-query";
-import { StargateClient } from "@cosmjs/stargate";
-import { dexRegistry } from "../config/registry";
+import { dexRegistry, enabledPools, type RegistryAsset, type RegistryPool } from "../config/registry";
 
-export function useWalletBalances(address: string | undefined) {
-  return useQuery({
-    queryKey: ["balances", address],
+export const walletBalancesQueryKey = (address: string | undefined) => ["balances", address] as const;
+
+export type ResolvedDenom = {
+  denom: string;
+  symbol: string;
+  decimals: number;
+  logoURI?: string;
+  source: "registry" | "lp" | "raw";
+  poolId?: string;
+  poolLabel?: string;
+};
+
+export type WalletBalance = ResolvedDenom & {
+  amount: string;
+  isKnownDenom: boolean;
+};
+
+const DEFAULT_DECIMALS = 6;
+
+function denomForAsset(asset: RegistryAsset) {
+  return asset.id;
+}
+
+export function getKnownBalanceDenoms(pools: RegistryPool[] = enabledPools): string[] {
+  return Array.from(new Set(pools.flatMap((pool) => [...pool.assets.map(denomForAsset), pool.lpToken])));
+}
+
+export function resolveDenom(denom: string, pools: RegistryPool[] = enabledPools): ResolvedDenom {
+  for (const pool of pools) {
+    const asset = pool.assets.find((candidate) => denomForAsset(candidate) === denom);
+    if (asset) {
+      return {
+        denom,
+        symbol: asset.symbol,
+        decimals: asset.decimals,
+        logoURI: asset.logoURI,
+        source: "registry",
+        poolId: pool.id,
+        poolLabel: pool.label,
+      };
+    }
+
+    if (pool.lpToken === denom) {
+      return {
+        denom,
+        symbol: `${pool.assets.map((asset) => asset.symbol).join("/")} LP`,
+        decimals: DEFAULT_DECIMALS,
+        source: "lp",
+        poolId: pool.id,
+        poolLabel: pool.label,
+      };
+    }
+  }
+
+  return { denom, symbol: denom, decimals: DEFAULT_DECIMALS, source: "raw" };
+}
+
+function mergeKnownDenoms(coins: readonly Coin[], pools: RegistryPool[]): WalletBalance[] {
+  const coinMap = new Map(coins.map((coin) => [coin.denom, coin.amount]));
+  const knownDenoms = getKnownBalanceDenoms(pools);
+  const rows: WalletBalance[] = knownDenoms.map((denom) => ({
+    ...resolveDenom(denom, pools),
+    amount: coinMap.get(denom) ?? "0",
+    isKnownDenom: true,
+  }));
+
+  for (const coin of coins) {
+    if (!coinMap.has(coin.denom)) continue;
+    if (knownDenoms.includes(coin.denom)) continue;
+    rows.push({ ...resolveDenom(coin.denom, pools), amount: coin.amount, isKnownDenom: false });
+  }
+
+  return rows;
+}
+
+export function getWalletBalanceAmount(balances: readonly WalletBalance[] | undefined, denom: string): string | undefined {
+  return balances?.find((balance) => balance.denom === denom)?.amount;
+}
+
+export function useWalletBalances(address: string | undefined, pools: RegistryPool[] = enabledPools) {
+  const query = useQuery({
+    queryKey: walletBalancesQueryKey(address),
     enabled: Boolean(address),
     queryFn: async () => {
       if (!address) return [];
       const client = await StargateClient.connect(dexRegistry.rpcEndpoint);
-      return client.getAllBalances(address);
+      const coins = await client.getAllBalances(address);
+      return mergeKnownDenoms(coins, pools);
     },
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
+
+  return useMemo(() => ({
+    ...query,
+    nativeAndPoolBalances: query.data?.filter((balance) => balance.isKnownDenom) ?? [],
+    byDenom: new Map((query.data ?? []).map((balance) => [balance.denom, balance])),
+  }), [query]);
 }

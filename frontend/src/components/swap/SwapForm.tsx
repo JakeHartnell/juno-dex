@@ -4,12 +4,15 @@ import type { RegistryPool } from "../../config/registry";
 import { formatAmount, toBaseAmount } from "../../lib/format/amounts";
 import { formatBpsPercent, getPriceImpact } from "../../lib/swap/slippage";
 import { useSwapQuote } from "../../queries/useSwapQuote";
+import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
+import { useWallet } from "../../wallet/WalletContext";
 import { TokenAmountInput } from "../common";
 import { QuoteCard } from "./QuoteCard";
 import { TokenSelect } from "./TokenSelect";
 
 export function SwapForm({ pool }: { pool: RegistryPool }) {
+  const { wallet } = useWallet();
   const [offerId, setOfferId] = useState(pool.assets[0].id);
   const [amount, setAmount] = useState("1");
   const [highImpactConfirmed, setHighImpactConfirmed] = useState(false);
@@ -17,6 +20,9 @@ export function SwapForm({ pool }: { pool: RegistryPool }) {
   const offerAsset = pool.assets.find((asset) => asset.id === offerId) ?? pool.assets[0];
   const askAsset = useMemo(() => pool.assets.find((asset) => asset.id !== offerAsset.id) ?? pool.assets[1], [offerAsset.id, pool.assets]);
   const baseAmount = toBaseAmount(amount, offerAsset.decimals);
+  const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
+  const balances = useWalletBalances(walletAddress, [pool]);
+  const offerBalance = getWalletBalanceAmount(balances.data, offerAsset.id);
   const quote = useSwapQuote(pool, offerAsset, askAsset, baseAmount);
   const hasAmount = Number(baseAmount) > 0;
   const receiveAmount = quote.data ? `${formatAmount(quote.data.return_amount, askAsset.decimals)} ${askAsset.symbol}` : "—";
@@ -56,6 +62,7 @@ export function SwapForm({ pool }: { pool: RegistryPool }) {
             value={amount}
             decimals={offerAsset.decimals}
             symbol={offerAsset.symbol}
+            balanceBaseAmount={offerBalance}
             onChange={(nextAmount) => setAmount(nextAmount)}
             fiatHint={<span>USD hint pending oracle wiring</span>}
           />
