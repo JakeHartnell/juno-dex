@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
 import { truncateAddress } from "../../lib/format/addresses";
+import { dataSourceLabel, type DataAccessState } from "../../lib/data-access/indexerFallback";
 import {
   DEFAULT_POOL_LIST_CONTROLS,
   filterAndSortPools,
@@ -40,9 +41,9 @@ export function PoolTable({ pools }: { pools: RegistryPool[] }) {
     <div className="pool-list-shell">
       <PoolListControls controls={controls} onChange={setControls} />
       <p className="pool-metrics-copy">
-        TVL, 24h volume, and APR use the indexer when configured. {metrics.data ? "Live metrics loaded." : "Metrics unavailable until the indexer/pricing service is configured; reserves remain live from pair queries."}
+        TVL, 24h volume, and APR prefer the configured indexer and fall back to pair contract reserve queries without fake USD metrics. {dataAccessCopy(metrics.access)}
       </p>
-      {metrics.isError ? <p className="error-text">Indexer metrics unavailable; showing reserve fallback without fake TVL, volume, or APR.</p> : null}
+      {metrics.access?.error ? <p className="error-text">Indexer metrics unavailable ({metrics.access.error.message}); showing reserve fallback without fake TVL, volume, or APR.</p> : null}
       <div className="pool-table" role="table" aria-label="Astroport pools">
         <div className="pool-table-header" role="row">
           <span role="columnheader">Pool</span>
@@ -57,6 +58,7 @@ export function PoolTable({ pools }: { pools: RegistryPool[] }) {
           <PoolRow
             balances={balances.data}
             metrics={metrics.data?.[pool.pair]}
+            access={metrics.access}
             pool={pool}
             key={pool.id}
           />
@@ -125,7 +127,13 @@ function toggleSort(controls: PoolListControls, sortKey: PoolListSortKey): PoolL
   };
 }
 
-function PoolRow({ pool, metrics, balances }: { pool: RegistryPool; metrics?: PoolMetrics; balances?: readonly WalletBalance[] }) {
+function dataAccessCopy(access: DataAccessState | undefined) {
+  if (!access) return "Checking indexer status…";
+  if (access.source === "indexer" || access.source === "mock") return `${dataSourceLabel(access)} loaded.`;
+  return `${dataSourceLabel(access)} active; analytics-only metrics remain unavailable.`;
+}
+
+function PoolRow({ pool, metrics, balances, access }: { pool: RegistryPool; metrics?: PoolMetrics; balances?: readonly WalletBalance[]; access?: DataAccessState }) {
   const reserves = usePoolReserves(pool);
   const risk = assessPoolRisk(pool, reserves.data);
   const lpBalance = getWalletBalanceAmount(balances, pool.lpToken);
@@ -153,9 +161,9 @@ function PoolRow({ pool, metrics, balances }: { pool: RegistryPool; metrics?: Po
         </div>
         {reserves.isError ? <ErrorState title="RPC degraded" error="Reserves unavailable; registry metadata remains visible." onRetry={() => void reserves.refetch()} /> : null}
       </div>
-      <MetricCell label="TVL" value={formatUsd(metrics?.tvlUsd)} />
-      <MetricCell label="24h volume" value={formatUsd(metrics?.volume24hUsd)} />
-      <MetricCell label="APR" value={formatApr(getPoolTotalApr(metrics))} />
+      <MetricCell label="TVL" value={formatUsd(metrics?.tvlUsd)} metrics={metrics} access={access} />
+      <MetricCell label="24h volume" value={formatUsd(metrics?.volume24hUsd)} metrics={metrics} access={access} />
+      <MetricCell label="APR" value={formatApr(getPoolTotalApr(metrics))} metrics={metrics} access={access} />
       <div className="pool-meta" role="cell">
         <span>Type</span>
         <strong>{poolType.label}</strong>
@@ -178,12 +186,12 @@ function PoolRow({ pool, metrics, balances }: { pool: RegistryPool; metrics?: Po
   );
 }
 
-function MetricCell({ label, value }: { label: string; value: string | undefined }) {
+function MetricCell({ label, value, metrics, access }: { label: string; value: string | undefined; metrics?: PoolMetrics; access?: DataAccessState }) {
   return (
     <div className="pool-metric" role="cell">
       <span>{label}</span>
       <strong>{value ?? "Metrics unavailable"}</strong>
-      {value ? null : <small>Coming from indexer</small>}
+      <small>{value ? dataSourceLabel({ source: metrics?.source ?? access?.source ?? "indexer", isFallback: false, isMock: Boolean(metrics?.isMock), isStale: Boolean(metrics?.isStale), updatedAt: metrics?.updatedAt }) : dataSourceLabel(access)}</small>
     </div>
   );
 }

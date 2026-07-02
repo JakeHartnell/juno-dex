@@ -6,10 +6,11 @@ import { PoolTable } from "./PoolTable";
 
 const mocks = vi.hoisted(() => ({
   metrics: undefined as Record<string, { tvlUsd?: number; volume24hUsd?: number; totalApr?: number; incentivesApr?: number; incentivized?: boolean }> | undefined,
+  access: undefined as { source: "indexer" | "mock" | "fallback" | "disabled"; isFallback: boolean; isMock: boolean; isStale: boolean; error?: { code: string; message: string } } | undefined,
 }));
 
 vi.mock("../../queries/usePools", () => ({
-  usePoolMetrics: () => ({ data: mocks.metrics, isError: false }),
+  usePoolMetrics: () => ({ data: mocks.metrics, access: mocks.access, isError: false }),
   usePoolReserves: () => ({
     isLoading: false,
     isError: false,
@@ -65,6 +66,7 @@ function renderPoolTable() {
 describe("PoolTable", () => {
   beforeEach(() => {
     mocks.metrics = undefined;
+    mocks.access = undefined;
   });
 
   it("renders token logos, names, and IBC trace hints", () => {
@@ -78,9 +80,9 @@ describe("PoolTable", () => {
   it("shows honest unavailable metric copy when no indexer metrics are loaded", () => {
     renderPoolTable();
 
-    expect(screen.getByText(/Metrics unavailable until the indexer\/pricing service is configured/i)).toBeTruthy();
+    expect(screen.getByText(/fall back to pair contract reserve queries without fake USD metrics/i)).toBeTruthy();
     expect(screen.getAllByText(/Metrics unavailable/i).length).toBeGreaterThanOrEqual(3);
-    expect(screen.getAllByText(/Coming from indexer/i).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByText(/On-chain fallback/i).length).toBeGreaterThanOrEqual(3);
   });
 
   it("filters rows by search and verification controls", () => {
@@ -99,6 +101,7 @@ describe("PoolTable", () => {
       juno1alpha: { tvlUsd: 10, volume24hUsd: 5, totalApr: 1 },
       juno1beta: { tvlUsd: 500, volume24hUsd: 20, totalApr: 3 },
     };
+    mocks.access = { source: "indexer", isFallback: false, isMock: false, isStale: false };
     renderPoolTable();
 
     fireEvent.change(screen.getByLabelText(/sort by/i), { target: { value: "tvl" } });

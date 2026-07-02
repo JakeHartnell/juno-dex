@@ -6,6 +6,7 @@ import { PoolDetailPage } from "./PoolDetailPage";
 
 const mocks = vi.hoisted(() => ({
   metrics: undefined as Record<string, { tvlUsd?: number; volume24hUsd?: number; feeApr?: number; incentivesApr?: number; totalApr?: number; incentivized?: boolean }> | undefined,
+  access: undefined as { source: "indexer" | "mock" | "fallback" | "disabled"; isFallback: boolean; isMock: boolean; isStale: boolean; error?: { code: string; message: string } } | undefined,
   reserves: {
     isLoading: false,
     isFetching: false,
@@ -43,7 +44,7 @@ vi.mock("../../queries/useDexRegistry", () => ({
 }));
 
 vi.mock("../../queries/usePools", () => ({
-  usePoolMetrics: () => ({ data: mocks.metrics, isError: false }),
+  usePoolMetrics: () => ({ data: mocks.metrics, access: mocks.access, isError: false }),
   usePoolReserves: () => mocks.reserves,
 }));
 
@@ -72,6 +73,7 @@ function renderDetail() {
 describe("PoolDetailPage", () => {
   beforeEach(() => {
     mocks.metrics = undefined;
+    mocks.access = undefined;
     mocks.reserves = {
       isLoading: false,
       isFetching: false,
@@ -86,6 +88,7 @@ describe("PoolDetailPage", () => {
     mocks.metrics = {
       [pool.pair]: { tvlUsd: 125000, volume24hUsd: 42000, feeApr: 4.5, incentivesApr: 1.25, totalApr: 5.75, incentivized: true },
     };
+    mocks.access = { source: "indexer", isFallback: false, isMock: false, isStale: false };
 
     renderDetail();
 
@@ -113,7 +116,7 @@ describe("PoolDetailPage", () => {
 
     const analytics = screen.getByLabelText("Pool analytics cards");
     expect(within(analytics).getAllByText("Metrics unavailable").length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText(/TVL, 24h volume, and APR are unavailable until the indexer\/pricing service is configured for this pool/i)).toBeTruthy();
+    expect(screen.getByText(/TVL, 24h volume, and APR are unavailable from/i)).toBeTruthy();
     expect(screen.getByText(/Price charts depend on the pool indexer\/charting service/i)).toBeTruthy();
     expect(screen.getByText(/Recent transactions require the pool indexer/i)).toBeTruthy();
     expect(screen.getByText(/USD value, volume, and APR require external pricing\/indexer data/i)).toBeTruthy();

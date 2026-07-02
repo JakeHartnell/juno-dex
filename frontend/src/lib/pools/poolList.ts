@@ -9,7 +9,10 @@ export type PoolMetrics = {
   incentivesApr?: PoolMetricValue;
   totalApr?: PoolMetricValue;
   incentivized?: boolean;
-  source?: "indexer" | "fallback";
+  source?: "indexer" | "mock" | "fallback" | "disabled";
+  isMock?: boolean;
+  isStale?: boolean;
+  updatedAt?: string;
 };
 
 export type PoolListSortKey = "featured" | "pool" | "tvl" | "volume" | "apr";

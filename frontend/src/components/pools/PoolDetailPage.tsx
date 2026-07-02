@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import type { RegistryAsset, RegistryPool } from "../../config/registry";
 import type { PoolResponse } from "../../lib/astroport/queries";
+import { dataSourceLabel } from "../../lib/data-access/indexerFallback";
 import { formatAmount } from "../../lib/format/amounts";
 import { getPoolTotalApr } from "../../lib/pools/poolList";
 import type { PoolMetrics } from "../../lib/pools/poolList";
@@ -50,11 +51,11 @@ export function PoolDetailPage() {
       <div className="contract-strip"><span>Pair</span><code>{pool.pair}</code><button type="button" onClick={() => navigator.clipboard?.writeText(pool.pair)}>Copy</button><ExplorerLink href={pairExplorer}>Mintscan</ExplorerLink></div>
       <div className="contract-strip"><span>LP denom</span><code>{pool.lpToken}</code><button type="button" onClick={() => navigator.clipboard?.writeText(pool.lpToken)}>Copy</button><ExplorerLink href={lpExplorer}>Mintscan asset</ExplorerLink></div>
       {reserves.isError ? <p className="error-text">Live reserve query failed: {reserves.error instanceof Error ? reserves.error.message : String(reserves.error)}</p> : null}
-      {poolMetrics.isError ? <p className="error-text">Indexer metrics unavailable; TVL, 24h volume, APR, charts, and recent transactions are shown as honest placeholders rather than estimates.</p> : null}
+      {poolMetrics.access?.error ? <p className="error-text">Indexer metrics unavailable ({poolMetrics.access.error.message}); TVL, 24h volume, APR, charts, and recent transactions are shown as honest placeholders rather than estimates.</p> : null}
 
       <div className="metrics-grid" aria-label="Pool analytics cards">
-        <MetricCard label="TVL" value={formatUsd(metrics?.tvlUsd) ?? "Metrics unavailable"} hint={metrics?.tvlUsd ? "From configured indexer/pricing service" : "Requires indexer/pricing service"} />
-        <MetricCard label="24h volume" value={formatUsd(metrics?.volume24hUsd) ?? "Metrics unavailable"} hint={metrics?.volume24hUsd ? "From configured indexer" : "Requires indexer volume feed"} />
+        <MetricCard label="TVL" value={formatUsd(metrics?.tvlUsd) ?? "Metrics unavailable"} hint={metrics?.tvlUsd ? dataSourceLabel(poolMetrics.access) : `${dataSourceLabel(poolMetrics.access)} · requires pricing`} />
+        <MetricCard label="24h volume" value={formatUsd(metrics?.volume24hUsd) ?? "Metrics unavailable"} hint={metrics?.volume24hUsd ? dataSourceLabel(poolMetrics.access) : `${dataSourceLabel(poolMetrics.access)} · requires indexer volume feed`} />
         <MetricCard label="APR" value={formatApr(getPoolTotalApr(metrics)) ?? "Metrics unavailable"} hint={metrics ? aprHint(metrics) : "Requires fee and incentives indexing"} />
         <MetricCard label="Pool type" value={poolType?.label ?? pool.type.toUpperCase()} hint={`${pool.feeBps} bps fee tier · ${poolType?.feeCopy ?? "pool fee"}`} />
         <MetricCard label="Total share" value={reserves.data ? formatAmount(reserves.data.total_share, 6) : "—"} hint={pool.lpToken} />
@@ -62,7 +63,7 @@ export function PoolDetailPage() {
       </div>
 
       {!metrics ? (
-        <p className="pool-metrics-copy">TVL, 24h volume, and APR are unavailable until the indexer/pricing service is configured for this pool; no fake USD metrics are displayed.</p>
+        <p className="pool-metrics-copy">TVL, 24h volume, and APR are unavailable from {dataSourceLabel(poolMetrics.access).toLowerCase()} for this pool; no fake USD metrics are displayed.</p>
       ) : null}
 
       <section className="pool-detail-section" aria-labelledby="composition-title">
@@ -95,7 +96,7 @@ export function PoolDetailPage() {
 
       <section className="pool-detail-section" aria-labelledby="chart-title">
         <h3 id="chart-title">Price chart</h3>
-        <p className="empty-state">Price charts depend on the pool indexer/charting service and are not available in this frontend yet.</p>
+        <p className="empty-state">Price charts depend on the pool indexer/charting service. Current source: {dataSourceLabel(poolMetrics.access)}.</p>
       </section>
 
       <section id="position"><LpPositionPanel pool={pool} compact /></section>
@@ -112,7 +113,7 @@ export function PoolDetailPage() {
 
       <section className="pool-detail-section" aria-labelledby="transactions-title">
         <h3 id="transactions-title">Recent transactions</h3>
-        <p className="empty-state">Recent transactions require the pool indexer. Use the pair Mintscan link above for live contract activity until indexing is configured.</p>
+        <p className="empty-state">Recent transactions require the pool indexer. Current source: {dataSourceLabel(poolMetrics.access)}. Use the pair Mintscan link above for live contract activity while indexing is unavailable.</p>
       </section>
     </section>
   );

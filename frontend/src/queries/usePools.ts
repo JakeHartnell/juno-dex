@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { RegistryPool } from "../config/registry";
 import { queryPairPool } from "../lib/astroport/queries";
-import { createIndexerClient, getConfiguredIndexerBaseUrl } from "../lib/indexer/client";
-import type { PoolMetrics, PoolMetricsByPair } from "../lib/pools/poolList";
+import { loadPoolMetrics, loadWalletIndexerData, type DataAccessState } from "../lib/data-access/indexerFallback";
+import type { PoolMetricsByPair } from "../lib/pools/poolList";
 
 export function usePoolReserves(pool: RegistryPool | undefined) {
   return useQuery({
@@ -15,59 +15,34 @@ export function usePoolReserves(pool: RegistryPool | undefined) {
   });
 }
 
-type IndexerPoolMetrics = Partial<PoolMetrics> & {
-  pair?: string;
-  pairAddress?: string;
-  pair_address?: string;
-  address?: string;
-  tvl_usd?: number | string | null;
-  volume_24h_usd?: number | string | null;
-  volume24h_usd?: number | string | null;
-  fee_apr?: number | string | null;
-  incentives_apr?: number | string | null;
-  total_apr?: number | string | null;
-};
-
-function optionalNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function normalizeMetrics(row: IndexerPoolMetrics): [string, PoolMetrics] | undefined {
-  const pair = row.pair ?? row.pairAddress ?? row.pair_address ?? row.address;
-  if (!pair) return undefined;
-  const metrics: PoolMetrics = {
-    tvlUsd: optionalNumber(row.tvlUsd ?? row.tvl_usd),
-    volume24hUsd: optionalNumber(row.volume24hUsd ?? row.volume_24h_usd ?? row.volume24h_usd),
-    feeApr: optionalNumber(row.feeApr ?? row.fee_apr),
-    incentivesApr: optionalNumber(row.incentivesApr ?? row.incentives_apr),
-    totalApr: optionalNumber(row.totalApr ?? row.total_apr),
-    incentivized: Boolean(row.incentivized),
-    source: "indexer",
-  };
-  return [pair, metrics];
-}
-
-function metricsEndpoint() {
-  return getConfiguredIndexerBaseUrl();
-}
-
 export function usePoolMetrics(pools: RegistryPool[]) {
-  const endpoint = metricsEndpoint();
-  return useQuery({
-    queryKey: ["pool-metrics", endpoint, pools.map((pool) => pool.pair).join(",")],
-    enabled: Boolean(endpoint) && pools.length > 0,
+  const query = useQuery({
+    queryKey: ["pool-metrics", pools.map((pool) => pool.pair).join(",")],
+    enabled: pools.length > 0,
     staleTime: 30_000,
-    retry: 1,
-    queryFn: async (): Promise<PoolMetricsByPair> => {
-      if (!endpoint) return {};
-      const payload = await createIndexerClient({ baseUrl: endpoint }).pools();
-      const rows = payload.data;
-      return Object.fromEntries(rows.map(normalizeMetrics).filter((entry): entry is [string, PoolMetrics] => Boolean(entry)));
-    },
+    retry: false,
+    queryFn: () => loadPoolMetrics(pools),
   });
+
+  return {
+    ...query,
+    data: query.data?.data ?? ({} as PoolMetricsByPair),
+    access: query.data?.state as DataAccessState | undefined,
+  };
+}
+
+export function useWalletIndexerData(address: string | undefined) {
+  const query = useQuery({
+    queryKey: ["wallet-indexer-data", address],
+    enabled: Boolean(address),
+    staleTime: 30_000,
+    retry: false,
+    queryFn: () => loadWalletIndexerData(address),
+  });
+
+  return {
+    ...query,
+    data: query.data?.data ?? { positions: [], history: [] },
+    access: query.data?.state as DataAccessState | undefined,
+  };
 }
