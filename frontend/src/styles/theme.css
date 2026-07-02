@@ -214,6 +214,17 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .footer-contracts a { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; align-items: start; }
 .footer-contracts code { font-size: 0.84rem; }
 .scaffold-page { display: grid; gap: 16px; }
+.create-pool-page { display: grid; gap: 16px; }
+.custom-asset-box { display: grid; gap: 12px; margin: 0; padding: 14px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); background: rgba(255,255,255,0.035); }
+.custom-asset-box legend { padding: 0 6px; color: var(--juno-color-coral); font-weight: 800; }
+.custom-asset-grid { grid-template-columns: minmax(110px, 0.6fr) minmax(160px, 0.8fr) minmax(240px, 1.5fr) minmax(120px, 0.8fr) minmax(96px, 0.5fr); }
+.create-pool-type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.create-pool-type { position: relative; cursor: pointer; }
+.create-pool-type input { position: absolute; opacity: 0; pointer-events: none; }
+.create-pool-type.active { border-color: var(--juno-color-cyan); background: var(--juno-color-cyan-soft); }
+.create-pool-type.disabled { opacity: 0.62; }
+.create-pool-assets { margin-top: 0; }
+
 
 @media (max-width: 860px) {
   .page-grid, .swap-page-grid { grid-template-columns: 1fr; }
@@ -244,7 +255,7 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
   .nav-link { text-align: center; padding: 10px 8px; }
   .settings-panel { right: 8px; width: calc(100vw - 24px); }
   .hero-panel, .panel-page, .swap-card { padding: 16px; }
-  .pool-list-controls { grid-template-columns: 1fr; }
+  .pool-list-controls, .custom-asset-grid, .create-pool-type-grid { grid-template-columns: 1fr; }
   dl div, .quote-details div { grid-template-columns: 1fr; gap: 4px; }
   .quote-detail-value { text-align: left; }
   .footer-contracts a { grid-template-columns: 1fr; }
