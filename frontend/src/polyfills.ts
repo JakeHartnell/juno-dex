@@ -5,5 +5,10 @@ if (typeof globalThis.Buffer === "undefined") {
 }
 
 if (typeof globalThis.process === "undefined") {
-  globalThis.process = { env: {}, browser: true, version: "" } as typeof globalThis.process;
+  globalThis.process = {
+    env: {},
+    browser: true,
+    version: "",
+    nextTick: (callback: () => void) => Promise.resolve().then(callback),
+  } as typeof globalThis.process;
 }
