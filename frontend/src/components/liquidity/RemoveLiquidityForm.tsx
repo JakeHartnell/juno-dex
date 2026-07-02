@@ -1,10 +1,11 @@
 import type { RegistryPool } from "../../config/registry";
 import { getWalletBalanceAmount, resolveDenom, useWalletBalances } from "../../queries/useWalletBalances";
-import { useWallet } from "../../wallet/WalletContext";
+import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
 import { TokenAmountInput } from "../common";
 
 export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
   const { wallet } = useWallet();
+  const { network } = useNetworkGuard();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, [pool]);
   const lp = resolveDenom(pool.lpToken, [pool]);
@@ -26,7 +27,8 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
         {[25, 50, 75, 100].map((percent) => <button type="button" disabled key={percent}>{percent}%</button>)}
       </div>
       <code>{pool.lpToken}</code>
-      <button type="button" disabled>Preview withdraw</button>
+      {network.isWrongNetwork ? <p className="error-text">Switch to Juno to withdraw liquidity. Transactions are blocked off-network.</p> : null}
+      <button type="button" disabled>{network.isWrongNetwork ? "Switch to Juno to withdraw" : "Preview withdraw"}</button>
     </section>
   );
 }

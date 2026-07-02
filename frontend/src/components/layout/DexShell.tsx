@@ -7,6 +7,7 @@ import { navigationItems } from "../../app/routes";
 import { WalletProvider } from "../../wallet/WalletContext";
 import { RiskNotice } from "../common/RiskNotice";
 import { ChainStatusBadge } from "../wallet/ChainStatusBadge";
+import { NetworkGuardBanner } from "../wallet/NetworkGuardBanner";
 import { WalletConnectButton } from "../wallet/WalletConnectButton";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { SlippageSettingsProvider } from "../../settings/SlippageSettingsContext";
@@ -81,6 +82,8 @@ export function DexShell({ children }: { children: ReactNode }) {
 
           {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
         </Box>
+
+        <NetworkGuardBanner />
 
         <Box as="main" className="app-main" tabIndex={-1}>{children}</Box>
 

@@ -94,12 +94,14 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .error-text { color: var(--juno-color-coral); }
 
 .status-pill { border-radius: var(--juno-radius-pill); padding: 10px 12px; font-size: 0.85rem; border: 1px solid currentColor; white-space: nowrap; }
-.status-ok { color: var(--juno-color-cyan); }
-.status-warn, .error-text { color: var(--juno-color-coral); }
+.status-ok { color: var(--juno-color-cyan); background: rgba(34,197,94,0.12); }
+.status-warn, .error-text { color: #ffd7d5; }
 .status-danger { color: #ff6b6b; }
 .price-impact-warning { margin-top: 12px; padding: 12px; border: 1px solid rgba(255, 159, 153, 0.42); border-radius: var(--juno-radius-lg); background: rgba(255, 159, 153, 0.10); color: #ffd7d5; line-height: 1.45; }
 .price-impact-danger { display: flex; gap: 10px; align-items: flex-start; border-color: rgba(255, 107, 107, 0.55); background: rgba(85, 30, 39, 0.24); }
 .price-impact-danger input { width: auto; margin-top: 0.25rem; }
+.network-guard-banner { margin: -10px 0 18px; padding: 14px 16px; border: 1px solid rgba(255, 159, 153, 0.42); border-radius: var(--juno-radius-lg); background: rgba(85, 30, 39, 0.28); box-shadow: var(--juno-shadow-panel); }
+.network-guard-banner button { margin-top: 0; }
 
 .pool-table { display: grid; gap: 12px; margin-top: 22px; }
 .pool-row, .liquidity-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, auto) auto; gap: 14px; align-items: center; padding: 18px; border: 1px solid var(--juno-color-border); border-radius: var(--juno-radius-lg); background: rgba(255,255,255,0.04); color: var(--juno-color-text); }

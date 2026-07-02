@@ -16,6 +16,17 @@ export type WalletState = {
   address?: string;
   name?: string;
   error?: string;
+  chainId?: string;
   signer?: unknown;
   getSigningCosmWasmClient?: () => Promise<CosmWasmExecuteClient>;
+};
+
+export type NetworkGuardState = {
+  expectedChainId: "juno-1";
+  connectedChainId?: string;
+  isWalletConnected: boolean;
+  isRecovering: boolean;
+  isWrongNetwork: boolean;
+  isJunoReady: boolean;
+  message?: string;
 };

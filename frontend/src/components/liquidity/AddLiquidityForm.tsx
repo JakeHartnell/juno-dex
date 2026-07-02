@@ -1,10 +1,11 @@
 import type { RegistryPool } from "../../config/registry";
 import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
-import { useWallet } from "../../wallet/WalletContext";
+import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
 import { TokenAmountInput } from "../common";
 
 export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
   const { wallet } = useWallet();
+  const { network } = useNetworkGuard();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, [pool]);
 
@@ -24,7 +25,8 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
           disabled
         />
       ))}
-      <button type="button" disabled>Preview add liquidity</button>
+      {network.isWrongNetwork ? <p className="error-text">Switch to Juno to add liquidity. Transactions are blocked off-network.</p> : null}
+      <button type="button" disabled>{network.isWrongNetwork ? "Switch to Juno to add liquidity" : "Preview add liquidity"}</button>
     </section>
   );
 }

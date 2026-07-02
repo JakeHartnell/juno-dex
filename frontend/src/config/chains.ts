@@ -2,6 +2,7 @@ export const JUNO_CHAIN_INFO = {
   chainId: "juno-1",
   chainName: "Juno",
   rpc: "https://rpc-juno.itastakers.com",
+  fallbackRpcs: ["https://juno-rpc.publicnode.com", "https://rpc-juno-ia.cosmosia.notional.ventures"],
   rest: "https://lcd-juno.itastakers.com",
   bip44: { coinType: 118 },
   bech32Config: {
