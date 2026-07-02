@@ -102,6 +102,43 @@ OK: Juno v1 deployment template matches instantiate schema requirements
 instantiate_msgs=7 code_ids=9 addresses=7 pair_type=xyk
 ```
 
+## First-pool launch gate txs
+
+Before opening public pair creation, keep the factory `xyk` pair config
+`permissioned=true`. The owner should create only the official first pool from
+`pair_create_msg_template`, seed initial liquidity, then smoke-check:
+
+- `query_pair`/factory pair lookup returns the expected pair address for the two
+  native denoms.
+- `provide_liquidity` succeeds and pool balances are non-zero.
+- A tiny round-trip swap succeeds through the pair/router path with expected
+  slippage bounds.
+
+Only after those checks pass, broadcast `update_pair_config` with the same pair
+code ID and fees to set `permissioned=false` (replace `123` with
+`code_ids.astroport-pair` from the rendered config):
+
+```json
+{
+  "update_pair_config": {
+    "config": {
+      "code_id": 123,
+      "pair_type": { "xyk": {} },
+      "total_fee_bps": 30,
+      "maker_fee_bps": 0,
+      "is_disabled": false,
+      "is_generator_disabled": false,
+      "permissioned": false,
+      "whitelist": null
+    }
+  }
+}
+```
+
+Save the opening tx JSON beside the other handoff files as
+`deployment/tx/uni-7/update-pair-config-open-xyk.json`. Do not open stable,
+custom, PCL, LST, perps, yield, or new-token surfaces while removing this gate.
+
 ## If extraction fails
 
 - `missing tx JSON`: save the full `junod` tx response body at the expected path.

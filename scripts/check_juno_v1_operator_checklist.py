@@ -47,6 +47,15 @@ REQUIRED_MANUAL_ENV = (
 )
 
 SCOPE_GUARDRAIL = "No stable pools, LSTs, perps, yield theater, or new token scope."
+LAUNCH_GATE_TEXT = (
+    "permissioned=true",
+    "pair_create_msg_template",
+    "provide_liquidity",
+    "round-trip swap",
+    "update_pair_config",
+    "permissioned=false",
+    "deployment/tx/uni-7/update-pair-config-open-xyk.json",
+)
 
 
 def fail(message: str) -> NoReturn:
@@ -105,8 +114,15 @@ def main() -> None:
     if SCOPE_GUARDRAIL not in text:
         fail("checklist missing explicit v1 scope guardrail")
 
+    for needle in LAUNCH_GATE_TEXT:
+        if needle not in text:
+            fail(f"checklist missing first-pool launch gate text: {needle}")
+
     print("OK: Juno v1 operator tx checklist matches deployment helpers")
-    print(f"store_txs={len(STORE_KEYS)} instantiate_txs={len(ADDRESS_KEYS)} manual_values={len(REQUIRED_MANUAL_ENV)}")
+    print(
+        f"store_txs={len(STORE_KEYS)} instantiate_txs={len(ADDRESS_KEYS)} "
+        f"manual_values={len(REQUIRED_MANUAL_ENV)} first_pool_gate=permissioned"
+    )
 
 
 if __name__ == "__main__":

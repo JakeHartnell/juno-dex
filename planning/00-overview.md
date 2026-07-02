@@ -106,6 +106,7 @@ Three diffs to the AI audit; one mechanical (A), two functional (B, C). See
 | `37-frontend-release-checklist-guard-2026-06-29.md` | Frontend release checklist and guard for copying rendered deployment files into the UI repo. |
 | `38-frontend-release-bundle-ci-2026-07-02.md` | Frontend release bundle helper wired into CI with ignored zip output guardrails. |
 | `39-factory-docs-launch-gate-2026-07-02.md` | Factory/operator docs guard for the permissioned first-pool launch gate and XYK-only v1 scope. |
+| `40-operator-first-pool-gate-2026-07-02.md` | Operator tx checklist update that makes first-pool smoke checks and permissioned gate removal explicit. |
 
 Files marked "(P*)" are stubs until that phase begins.
 
