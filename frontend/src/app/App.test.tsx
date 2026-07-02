@@ -108,7 +108,7 @@ describe("App wallet state", () => {
     expect(screen.getByRole("button", { name: /disconnect/i })).toBeTruthy();
     expect(screen.getAllByRole("link", { name: /mintscan/i })[0].getAttribute("href")).toContain("/address/juno1testwallet");
     expect(screen.queryByText(/No wallet connected/i)).toBeNull();
-    expect(screen.getByText(/Connected wallet:/i).textContent).toContain("Known LP balances refresh every 30 seconds");
+    expect(screen.getByText(/Connected wallet:/i).textContent).toContain("LP balances, shares, and underlying estimates refresh every 30 seconds");
   });
 
   it("offers wrong-network recovery and blocks liquidity actions", async () => {

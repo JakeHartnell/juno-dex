@@ -4,6 +4,7 @@ import { formatAmount } from "../../lib/format/amounts";
 import { usePoolReserves } from "../../queries/usePools";
 import { ExplorerLink } from "../common/ExplorerLink";
 import { AddLiquidityForm } from "../liquidity/AddLiquidityForm";
+import { LpPositionPanel } from "../liquidity/LpPositionPanel";
 import { RemoveLiquidityForm } from "../liquidity/RemoveLiquidityForm";
 
 export function PoolDetailPage() {
@@ -35,6 +36,7 @@ export function PoolDetailPage() {
         <div className="metric-card"><span>Total share</span><strong>{reserves.data ? formatAmount(reserves.data.total_share, 6) : "—"}</strong><code>{pool.lpToken}</code></div>
         <div className="metric-card"><span>Query status</span><strong>{reserves.isFetching ? "Refreshing" : reserves.data ? "Live" : "Unavailable"}</strong><code>{reserves.data ? new Date().toLocaleTimeString() : "RPC degraded or not queried"}</code></div>
       </div>
+      <LpPositionPanel pool={pool} compact />
       <div className="liquidity-grid">
         <AddLiquidityForm pool={pool} />
         <RemoveLiquidityForm pool={pool} />
