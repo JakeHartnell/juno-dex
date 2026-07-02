@@ -2,10 +2,11 @@ import { Link } from "react-router-dom";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
 import { estimateLpPosition, formatPositionSharePercent } from "../../lib/liquidity/position";
+import { assessPoolRisk } from "../../lib/risk";
 import { usePoolReserves } from "../../queries/usePools";
 import { getWalletBalanceAmount, resolveDenom, useWalletBalances } from "../../queries/useWalletBalances";
 import { useWallet } from "../../wallet/WalletContext";
-import { EmptyState, ErrorState, Skeleton } from "../common";
+import { EmptyState, ErrorState, RiskBadgeList, Skeleton } from "../common";
 
 type LpPositionPanelProps = {
   pool: RegistryPool;
@@ -27,6 +28,7 @@ export function LpPositionPanel({ pool, compact = false }: LpPositionPanelProps)
   const hasError = balances.isError || reserves.isError;
   const position = estimateLpPosition(reserves.data, lpBalance);
   const poolHref = `/pools/${pool.pair}`;
+  const risk = assessPoolRisk(pool, reserves.data);
 
   return (
     <section className={`lp-position-panel ${compact ? "lp-position-panel-compact" : ""}`} aria-label={`${pool.label} LP position`}>
@@ -35,6 +37,7 @@ export function LpPositionPanel({ pool, compact = false }: LpPositionPanelProps)
           <p className="eyebrow">LP position</p>
           <h3>{pool.label}</h3>
           <p>{pool.assets.map((asset) => asset.symbol).join(" / ")} pool shares</p>
+          <RiskBadgeList assessment={risk} max={3} />
         </div>
         <span className={position.hasPosition ? "status-pill status-ok" : "status-pill status-warn"}>
           {position.hasPosition ? "Position found" : "No LP balance"}

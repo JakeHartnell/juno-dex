@@ -2,8 +2,9 @@ import { Link } from "react-router-dom";
 import type { RegistryPool } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
 import { truncateAddress } from "../../lib/format/addresses";
+import { assessPoolRisk } from "../../lib/risk";
 import { usePoolReserves } from "../../queries/usePools";
-import { EmptyState, ErrorState, ExplorerLink, Skeleton, TokenLogo } from "../common";
+import { EmptyState, ErrorState, ExplorerLink, RiskBadgeList, Skeleton, TokenLogo } from "../common";
 
 export function PoolTable({ pools }: { pools: RegistryPool[] }) {
   if (pools.length === 0) {
@@ -19,14 +20,13 @@ export function PoolTable({ pools }: { pools: RegistryPool[] }) {
 
 function PoolRow({ pool }: { pool: RegistryPool }) {
   const reserves = usePoolReserves(pool);
+  const risk = assessPoolRisk(pool, reserves.data);
   return (
     <article className="pool-row">
       <div className="pool-main">
         <div className="pool-title-line">
           <strong>{pool.label}</strong>
-          <span className={`status-pill ${pool.verified === false ? "status-warn" : "status-ok"}`}>{pool.verified === false ? "unverified" : "verified"}</span>
-          {pool.source === "factory" ? <span className="status-pill status-warn">factory discovered</span> : null}
-          <span className="status-pill status-warn">thin liquidity</span>
+          <RiskBadgeList assessment={risk} max={4} />
         </div>
         <p>{pool.notes}</p>
         <div className="pool-assets">

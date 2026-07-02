@@ -2,8 +2,9 @@ import type { RouteQuote } from "../../queries/useSwapQuote";
 import type { RegistryAsset } from "../../config/registry";
 import { routeSymbols } from "../../lib/astroport/routes";
 import { formatAmount } from "../../lib/format/amounts";
+import { assessRouteRisk } from "../../lib/risk";
 import { calculateMinimumReceived, formatBpsPercent, getPriceImpact } from "../../lib/swap/slippage";
-import { EmptyState, ErrorState, ExplorerLink, Skeleton } from "../common";
+import { EmptyState, ErrorState, ExplorerLink, RiskBadgeList, Skeleton } from "../common";
 
 export function QuoteCard({
   quote,
@@ -33,6 +34,7 @@ export function QuoteCard({
   const priceImpactClass = priceImpact?.severity === "high" ? "status-danger" : priceImpact?.severity === "warning" ? "status-warn" : "status-ok";
   const route = quote?.route;
   const isRouterRoute = quote?.source === "router";
+  const routeRisk = assessRouteRisk(route);
   const freshnessLabel = isExpired ? "expired" : expiresInMs !== undefined ? `expires in ${Math.ceil(expiresInMs / 1_000)}s` : undefined;
 
   return (
@@ -57,6 +59,7 @@ export function QuoteCard({
             <div><dt>Spread</dt><dd className="quote-detail-value">{isRouterRoute ? "per-hop via router" : `${formatAmount(quote.spread_amount, askAsset.decimals)} ${askAsset.symbol}`}</dd></div>
             <div><dt>Commission / fee</dt><dd className="quote-detail-value">{isRouterRoute ? "included in router return" : `${formatAmount(quote.commission_amount, askAsset.decimals)} ${askAsset.symbol} · ${route.hops[0]?.pool.feeBps ?? 0} bps`}</dd></div>
             <div><dt>Route</dt><dd className="quote-detail-value">{routeSymbols(route)} · {route.hops.length} hop{route.hops.length === 1 ? "" : "s"}</dd></div>
+            <div><dt>Risk</dt><dd className="quote-detail-value"><RiskBadgeList assessment={routeRisk} max={5} /></dd></div>
             <div><dt>Hops</dt><dd className="quote-detail-value">{route.hops.map((hop, index) => <span key={`${hop.pool.pair}-${index}`}>{index > 0 ? " · " : ""}{hop.offerAsset.symbol}/{hop.askAsset.symbol} <ExplorerLink href={hop.pool.explorer}>{hop.pool.pair}</ExplorerLink></span>)}</dd></div>
             <div><dt>Source</dt><dd className="quote-detail-value">{isRouterRoute ? (quote.mode === "exact-out" ? "router reverse_simulate_swap_operations" : "router simulate_swap_operations") : (quote.mode === "exact-out" ? "pair reverse simulation" : "pair simulation")}{updatedAtLabel ? ` · ${updatedAtLabel}` : ""}</dd></div>
           </dl>

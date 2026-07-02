@@ -200,4 +200,24 @@ describe("SwapForm", () => {
     fireEvent.click(screen.getByLabelText(/i understand this quote has high price impact/i));
     expect(screen.getByRole("button", { name: /^swap$/i }).hasAttribute("disabled")).toBe(false);
   });
+
+  it("blocks unverified routes until the user acknowledges risk", () => {
+    const unverifiedPool: RegistryPool = { ...pool, source: "factory", verified: false };
+    mocks.quote.data = {
+      return_amount: "990000",
+      spread_amount: "1000",
+      commission_amount: "3000",
+      source: "pair",
+      route: {
+        id: "unverified-direct",
+        hops: [{ pool: unverifiedPool, offerAsset: unverifiedPool.assets[0], askAsset: unverifiedPool.assets[1] }],
+        operations: [],
+      },
+    };
+
+    render(<SwapForm pool={unverifiedPool} />);
+    expect(screen.getByRole("button", { name: /acknowledge unverified route/i }).hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getByLabelText(/i understand this swap route uses unverified or risky assets/i));
+    expect(screen.getByRole("button", { name: /^swap$/i }).hasAttribute("disabled")).toBe(false);
+  });
 });

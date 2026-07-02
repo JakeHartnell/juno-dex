@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RegistryAsset } from "../../config/registry";
 import { formatAmount } from "../../lib/format/amounts";
+import { assessAssetRisk } from "../../lib/risk";
 import type { WalletBalance } from "../../queries/useWalletBalances";
-import { Modal, TokenLogo } from "../common";
+import { Modal, RiskBadgeList, TokenLogo } from "../common";
 
 const FAVORITES_STORAGE_KEY = "juno-dex.token-selector.favorites";
 const RECENTS_STORAGE_KEY = "juno-dex.token-selector.recents";
@@ -112,13 +113,14 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
               const balance = assetBalance(asset, balances);
               const isFavorite = favorites.includes(asset.id);
               const isDisabled = disabled.has(asset.id);
+              const assessment = assessAssetRisk(asset, { inheritedVerified: asset.verified });
               return (
                 <div className={`token-row${asset.id === value ? " selected" : ""}${isDisabled ? " disabled" : ""}`} key={asset.id} role="option" aria-selected={asset.id === value}>
                   <button className="favorite-button" type="button" aria-label={`${isFavorite ? "Remove" : "Add"} ${asset.symbol} favorite`} aria-pressed={isFavorite} onClick={() => persistFavorite(asset.id)}>{isFavorite ? "★" : "☆"}</button>
                   <button className="token-row-main" type="button" disabled={isDisabled} onClick={() => selectAsset(asset.id)}>
                     <TokenLogo asset={asset} />
                     <span className="token-row-copy">
-                      <strong>{asset.symbol} {asset.verified === false ? <em className="risk-badge">Unverified</em> : null}</strong>
+                      <strong>{asset.symbol} <RiskBadgeList assessment={assessment} max={2} /></strong>
                       <small>{asset.name ?? asset.id}</small>
                     </span>
                     <span className="token-row-meta">

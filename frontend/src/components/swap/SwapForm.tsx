@@ -5,13 +5,14 @@ import { Box, Button, Stack, Text } from "@interchain-ui/react";
 import { dexRegistry, type RegistryAsset, type RegistryPool } from "../../config/registry";
 import type { SwapQuoteMode } from "../../lib/astroport/queries";
 import { formatAmount, isBaseAmountGreaterThan, parseTokenAmount } from "../../lib/format/amounts";
+import { assessRouteRisk } from "../../lib/risk";
 import { calculateMinimumReceived, formatBpsPercent, getPriceImpact, slippageBpsToMaxSpread } from "../../lib/swap/slippage";
 import { useSwapTx } from "../../mutations/useSwapTx";
 import { useSwapQuote } from "../../queries/useSwapQuote";
 import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
-import { TokenAmountInput, TokenLogo } from "../common";
+import { RiskAcknowledgement, TokenAmountInput, TokenLogo } from "../common";
 import { TxStatusDialog } from "../tx/TxStatusDialog";
 import { QuoteCard } from "./QuoteCard";
 import { TokenSelect } from "./TokenSelect";
@@ -55,6 +56,7 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
   const [askAmount, setAskAmount] = useState("");
   const [quoteMode, setQuoteMode] = useState<SwapQuoteMode>("exact-in");
   const [highImpactConfirmed, setHighImpactConfirmed] = useState(false);
+  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
   const { slippageBps, formattedSlippagePercent, maxSpread } = useSlippageSettings();
   const offerAsset = selectableAssets.find((asset) => asset.id === offerId) ?? pool.assets[0];
   const askAsset = selectableAssets.find((asset) => asset.id === askId && asset.id !== offerAsset.id) ?? selectableAssets.find((asset) => asset.id !== offerAsset.id) ?? pool.assets[1];
@@ -83,8 +85,10 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
   const priceImpact = quote.data && quote.data.source === "pair" ? getPriceImpact({ spreadAmount: quote.data.spread_amount, returnAmount: quote.data.return_amount }) : null;
   const requiresHighImpactConfirm = priceImpact?.severity === "high";
   const selectedRoute = quote.data?.route;
+  const routeRisk = assessRouteRisk(selectedRoute);
   const minimumReceive = quote.data ? calculateMinimumReceived(quote.data.return_amount, slippageBps) : "0";
   useEffect(() => setHighImpactConfirmed(false), [quoteInputBaseAmount, quoteMode, offerAsset.id, askAsset.id, quote.data?.return_amount, quote.data?.spread_amount]);
+  useEffect(() => setRiskAcknowledged(false), [quoteInputBaseAmount, quoteMode, offerAsset.id, askAsset.id, selectedRoute?.id]);
 
   const validationError = !activeParsedAmount.isValid
     ? activeParsedAmount.error
@@ -106,7 +110,9 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
                     ? "No route found"
                     : requiresHighImpactConfirm && !highImpactConfirmed
                       ? "Confirm high price impact"
-                      : undefined;
+                      : routeRisk.requiresAcknowledgement && !riskAcknowledged
+                        ? "Acknowledge unverified route"
+                        : undefined;
   const submitDisabled = wallet.status !== "connected"
     || !network.isJunoReady
     || network.isWrongNetwork
@@ -217,6 +223,7 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
           I understand this quote has high price impact ({formatBpsPercent(priceImpact.bps)}).
         </label>
       ) : null}
+      <RiskAcknowledgement assessment={routeRisk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="swap route" />
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
       {validationError && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validationError}</Text> : null}
       {swapTx.isError ? <Text as="p" className="error-text">{swapTx.error instanceof Error ? swapTx.error.message : "Swap failed"}</Text> : null}

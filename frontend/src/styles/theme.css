@@ -174,7 +174,13 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .token-row-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 10px 12px 10px 0; text-align: left; }
 .token-row-main:disabled { cursor: not-allowed; }
 .token-row-meta { text-align: right; color: var(--juno-color-cyan); }
-.risk-badge { display: inline-block; margin-left: 6px; border: 1px solid rgba(255, 179, 71, 0.45); border-radius: var(--juno-radius-pill); padding: 1px 6px; color: #ffcf87; font-size: 0.7rem; font-style: normal; vertical-align: middle; }
+.risk-badge-list { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-left: 6px; vertical-align: middle; }
+.risk-badge { display: inline-block; border: 1px solid rgba(255, 179, 71, 0.45); border-radius: var(--juno-radius-pill); padding: 1px 6px; color: #ffcf87; font-size: 0.7rem; font-style: normal; vertical-align: middle; white-space: nowrap; }
+.risk-badge-ok { color: #8fffc1; border-color: rgba(143, 255, 193, 0.45); background: rgba(143, 255, 193, 0.08); }
+.risk-badge-info { color: #9bd4ff; border-color: rgba(155, 212, 255, 0.42); background: rgba(155, 212, 255, 0.08); }
+.risk-badge-warning { color: #ffcf87; border-color: rgba(255, 179, 71, 0.45); background: rgba(255, 179, 71, 0.10); }
+.risk-badge-danger { color: #ffd7d5; border-color: rgba(255, 107, 107, 0.55); background: rgba(255, 107, 107, 0.14); }
+.risk-acknowledgement { display: flex; gap: 10px; align-items: flex-start; }
 .empty-token-results { margin: 0; color: var(--juno-color-text-muted); }
 @media (max-width: 640px) {
   .token-row-main { grid-template-columns: auto minmax(0, 1fr); }

@@ -3,13 +3,14 @@ import { Box, Button, Stack, Text } from "@interchain-ui/react";
 import type { RegistryPool } from "../../config/registry";
 import { displayBaseAmount, calculateProvideLiquidityQuote, formatLpShareBps, ratioAmount } from "../../lib/liquidity/provide";
 import { formatAmount, isBaseAmountGreaterThan, parseTokenAmount, toBaseAmount } from "../../lib/format/amounts";
+import { assessPoolRisk } from "../../lib/risk";
 import { slippageBpsToMaxSpread } from "../../lib/swap/slippage";
 import { useProvideLiquidityTx } from "../../mutations/useProvideLiquidityTx";
 import { usePoolReserves } from "../../queries/usePools";
 import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
-import { TokenAmountInput } from "../common";
+import { RiskAcknowledgement, RiskBadgeList, TokenAmountInput } from "../common";
 
 function hasPositiveBaseAmount(amount: string): boolean {
   return /^\d+$/.test(amount) && BigInt(amount) > 0n;
@@ -26,6 +27,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
   const { slippageBps, formattedSlippagePercent, maxSpread } = useSlippageSettings();
   const [amounts, setAmounts] = useState<[string, string]>(["", ""]);
   const [lastEditedIndex, setLastEditedIndex] = useState<0 | 1>(0);
+  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, [pool]);
   const reserves = usePoolReserves(pool);
@@ -45,6 +47,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
   const quote = reserveAmounts
     ? calculateProvideLiquidityQuote({ depositAmounts: baseAmounts, reserves: reserveAmounts, totalShare: reserves.data?.total_share ?? "0" })
     : null;
+  const risk = assessPoolRisk(pool, reserves.data);
   const minLpToReceive = quote ? applySlippageFloor(quote.expectedLpAmount, slippageBps) : undefined;
 
   const updateAmount = (index: 0 | 1, nextAmount: string) => {
@@ -77,8 +80,9 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
     if (!reserveAmounts) return "Pool reserves are still loading";
     if (!quote) return "Pool share estimate unavailable";
     if (!quote.isProportional) return "Amounts must match the current pool ratio";
+    if (risk.requiresAcknowledgement && !riskAcknowledged) return "Acknowledge unverified pool";
     return undefined;
-  }, [amounts, balances.data, baseAmounts, pool.assets, quote, reserveAmounts]);
+  }, [amounts, balances.data, baseAmounts, pool.assets, quote, reserveAmounts, risk.requiresAcknowledgement, riskAcknowledged]);
 
   const submitDisabled = Boolean(validationError)
     || wallet.status !== "connected"
@@ -109,6 +113,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
         <Box>
           <Text as="h3">Add liquidity</Text>
           <Text as="p">Two-sided deposits are balanced to the live pool ratio. Single-sided add liquidity is not enabled for this pair yet.</Text>
+          <RiskBadgeList assessment={risk} max={4} />
         </Box>
         <Button variant="outlined" intent="secondary" size="sm" className="slippage-pill" domAttributes={{ type: "button", title: `provide_liquidity slippage_tolerance ${maxSpread}` }}>Slippage {formattedSlippagePercent}%</Button>
       </Stack>
@@ -142,6 +147,7 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
       </Box>
 
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
+      <RiskAcknowledgement assessment={risk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="liquidity action" />
       {validationError && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validationError}</Text> : null}
       {provideTx.isError ? <Text as="p" className="error-text">{provideTx.error instanceof Error ? provideTx.error.message : "Add liquidity failed"}</Text> : null}
       {provideTx.isSuccess ? <Text as="p" className="success-text">Liquidity transaction broadcast. Balances and pool reserves are refreshing.</Text> : null}
