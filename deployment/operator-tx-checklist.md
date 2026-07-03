@@ -151,10 +151,11 @@ python3 scripts/validate_juno_v1_first_pool_smoke_evidence.py \
 ```
 
 The final green line should include `first_pool_smoke_evidence=true`,
-`tx_files=4`, and `query_files=5`. The validator also requires the four
-broadcast responses to have distinct tx hashes and nondecreasing heights in
-launch order: create pair, provide liquidity, direct tiny swap, then router tiny
-swap.
+`tx_files=4`, and `query_files=5`. The validator also requires both saved pool
+queries to use exactly the two native denoms from `pair_create_msg_template`,
+and requires the four broadcast responses to have distinct tx hashes and
+nondecreasing heights in launch order: create pair, provide liquidity, direct
+tiny swap, then router tiny swap.
 
 Only after those checks pass, broadcast `update_pair_config` with the same pair
 code ID and fees to set `permissioned=false`. Generate the message and

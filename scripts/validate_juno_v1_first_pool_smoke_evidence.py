@@ -117,7 +117,7 @@ def amount_value(raw: Any, *, label: str) -> int:
     return value
 
 
-def validate_pool(path: pathlib.Path) -> tuple[tuple[str, int], tuple[str, int]]:
+def validate_pool(path: pathlib.Path, *, expected_denoms: tuple[str, str] | None = None) -> tuple[tuple[str, int], tuple[str, int]]:
     body = unwrap_data(object_at(load_json(path), path))
     assets = body.get("assets")
     if not isinstance(assets, list) or len(assets) != 2:
@@ -137,6 +137,11 @@ def validate_pool(path: pathlib.Path) -> tuple[tuple[str, int], tuple[str, int]]
     denoms = [denom for denom, _amount in assets_seen]
     if denoms[0] == denoms[1]:
         fail(f"pool evidence denoms must be distinct: {path}")
+    if expected_denoms is not None and sorted(denoms) != sorted(expected_denoms):
+        fail(
+            f"pool evidence denoms must match rendered first-pool template in {path}: "
+            f"got {sorted(denoms)!r}, expected {sorted(expected_denoms)!r}"
+        )
     total_share = body.get("total_share")
     if total_share is not None:
         amount_value(total_share, label="pool total_share")
@@ -159,7 +164,16 @@ def validate_simulation(path: pathlib.Path, *, label: str) -> None:
             fail(f"{label} spread_amount must not be negative: {path}")
 
 
-def load_expected_pair(config_path: pathlib.Path | None) -> str | None:
+def native_denom(asset_info: Any, *, label: str) -> str:
+    if not isinstance(asset_info, dict):
+        fail(f"{label} must be an object")
+    native = asset_info.get("native_token")
+    if not isinstance(native, dict) or not isinstance(native.get("denom"), str):
+        fail(f"{label} must be a native_token denom for Juno v1 first-pool smoke")
+    return native["denom"]
+
+
+def load_expected_denoms(config_path: pathlib.Path | None) -> tuple[str, str] | None:
     if config_path is None:
         return None
     config = object_at(load_json(config_path), config_path)
@@ -169,7 +183,17 @@ def load_expected_pair(config_path: pathlib.Path | None) -> str | None:
     pair_config = pair_configs[0]
     if not isinstance(pair_config, dict) or pair_config.get("pair_type") != {"xyk": {}} or pair_config.get("permissioned") is not True:
         fail("rendered config factory pair config must still be permissioned=true and XYK-only while validating first-pool smoke")
-    return None
+    pair_template = config.get("pair_create_msg_template")
+    if not isinstance(pair_template, dict) or pair_template.get("pair_type") != {"xyk": {}}:
+        fail("rendered config pair_create_msg_template must be XYK-only while validating first-pool smoke")
+    asset_infos = pair_template.get("asset_infos")
+    if not isinstance(asset_infos, list) or len(asset_infos) != 2:
+        fail("rendered config pair_create_msg_template must contain exactly two first-pool assets")
+    denom_a = native_denom(asset_infos[0], label="pair_create_msg_template.asset_infos[0]")
+    denom_b = native_denom(asset_infos[1], label="pair_create_msg_template.asset_infos[1]")
+    if denom_a == denom_b:
+        fail("rendered config first-pool denoms must be distinct")
+    return denom_a, denom_b
 
 
 def parse_args() -> argparse.Namespace:
@@ -183,7 +207,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    load_expected_pair(args.config)
+    expected_denoms = load_expected_denoms(args.config)
     paths = {suffix: args.dir / f"{args.prefix}-{suffix}.json" for suffix in (*TX_SUFFIXES, *QUERY_SUFFIXES)}
 
     tx_results = [validate_tx(paths[suffix]) for suffix in TX_SUFFIXES]
@@ -200,10 +224,10 @@ def main() -> None:
     if args.pair_address is not None and pair_address != args.pair_address:
         fail(f"pair lookup returned {pair_address}, expected {args.pair_address}")
 
-    pool_after_provide = validate_pool(paths["pool-after-provide"])
+    pool_after_provide = validate_pool(paths["pool-after-provide"], expected_denoms=expected_denoms)
     validate_simulation(paths["pair-simulation"], label="pair")
     validate_simulation(paths["router-simulation"], label="router")
-    pool_after_swaps = validate_pool(paths["pool-after-swaps"])
+    pool_after_swaps = validate_pool(paths["pool-after-swaps"], expected_denoms=expected_denoms)
     if pool_after_swaps == pool_after_provide:
         fail("pool-after-swaps evidence must differ from pool-after-provide evidence")
 

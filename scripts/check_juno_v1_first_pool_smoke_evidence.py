@@ -203,6 +203,18 @@ def main() -> None:
         if "nondecreasing in launch order" not in height_proc.stderr:
             fail(f"out-of-order tx height error was not explicit: {height_proc.stderr!r}")
 
+        wrong_denoms = tmp / "wrong-denoms"
+        write_fixture_set(wrong_denoms)
+        wrong_pool_path = wrong_denoms / "first-pool-smoke-pool-after-provide.json"
+        wrong_pool = json.loads(wrong_pool_path.read_text())
+        wrong_pool["data"]["assets"][1]["info"]["native_token"]["denom"] = (
+            "ibc/FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        )
+        write_json(wrong_pool_path, wrong_pool)
+        denom_proc = run_validator(wrong_denoms, config, expect_ok=False)
+        if "must match rendered first-pool template" not in denom_proc.stderr:
+            fail(f"wrong-denom pool error was not explicit: {denom_proc.stderr!r}")
+
     docs = README.read_text() + "\n" + CHECKLIST.read_text()
     for needle in (
         "scripts/validate_juno_v1_first_pool_smoke_evidence.py",
@@ -214,7 +226,7 @@ def main() -> None:
             fail(f"operator docs missing first-pool evidence validator text: {needle}")
 
     print("OK: Juno v1 first-pool smoke evidence validator accepts complete fixtures and rejects unsafe evidence")
-    print("first_pool_smoke_evidence_validator=true tx_files=4 query_files=5 failure_cases=7 txhash_uniqueness=true tx_height_order=true post_swap_pool_delta=true")
+    print("first_pool_smoke_evidence_validator=true tx_files=4 query_files=5 failure_cases=8 txhash_uniqueness=true tx_height_order=true denom_match=true post_swap_pool_delta=true")
 
 
 if __name__ == "__main__":
