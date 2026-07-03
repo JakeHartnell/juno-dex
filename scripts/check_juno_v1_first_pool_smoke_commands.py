@@ -97,6 +97,7 @@ def main() -> None:
             "first-pool-smoke-create-pair.json",
             '"pair":{"asset_infos"',
             "--amount 1000000ujunox,1000000ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+            "first-pool-smoke-provide-liquidity.json",
             '"pool":{}',
             '"simulation":{"ask_asset_info":{"native_token":{"denom":"ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"}},"offer_asset":{"amount":"1000","info":{"native_token":{"denom":"ujunox"}}}}',
             '"swap":{"ask_asset_info":{"native_token":{"denom":"ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"}},"belief_price":null,"max_spread":"0.01","offer_asset":{"amount":"1000","info":{"native_token":{"denom":"ujunox"}}},"to":null}',
@@ -135,6 +136,7 @@ def main() -> None:
     for needle in (
         "scripts/build_juno_v1_first_pool_smoke_commands.py",
         "first-pool-smoke-create-pair.json",
+        "first-pool-smoke-provide-liquidity.json",
         "first-pool-smoke-tiny-swap.json",
         "Do not run the open-XYK helper until these pass",
     ):

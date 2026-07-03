@@ -126,7 +126,8 @@ python3 scripts/build_juno_v1_first_pool_smoke_commands.py \
 ```
 
 Save the generated broadcast responses under
-`deployment/tx/uni-7/first-pool-smoke-create-pair.json` and
+`deployment/tx/uni-7/first-pool-smoke-create-pair.json`,
+`deployment/tx/uni-7/first-pool-smoke-provide-liquidity.json`, and
 `deployment/tx/uni-7/first-pool-smoke-tiny-swap.json`. Do not run the open-XYK
 helper until these pass.
 

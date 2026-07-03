@@ -13,7 +13,7 @@ helper that reads a rendered `deployment/juno-v1-testnet.json` and emits guarded
 
 1. creating only the official XYK first pool from `pair_create_msg_template`,
 2. querying the factory `pair` endpoint and exporting the pair address,
-3. seeding non-zero native liquidity,
+3. seeding non-zero native liquidity and saving the provide-liquidity tx JSON,
 4. querying `pool`,
 5. simulating and broadcasting one tiny native swap, and
 6. re-querying `pool` before the post-smoke `update_pair_config` open step.
