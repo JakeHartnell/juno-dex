@@ -26,6 +26,7 @@ class FakeMigrationPool {
 class FakeBlockClient {
   rowsByKey = new Map<string, unknown[]>();
   queries: Query[] = [];
+  nextWriteRowCount = 1;
 
   async query<T = Record<string, unknown>>(text: string, values?: unknown[]): Promise<{ rows: T[]; rowCount: number }> {
     this.queries.push({ text, values });
@@ -37,6 +38,7 @@ class FakeBlockClient {
       const rows = (this.rowsByKey.get(`existing:${String(values?.[1])}`) ?? []) as T[];
       return { rows, rowCount: rows.length };
     }
+    if (text.includes("INSERT INTO processed_blocks")) return { rows: [], rowCount: this.nextWriteRowCount };
     return { rows: [], rowCount: 1 };
   }
 }
@@ -86,5 +88,23 @@ describe("processed block recording", () => {
       blockTime: "2026-07-01T03:00:06Z",
       txCount: 1,
     })).rejects.toThrow(/parent hash mismatch/i);
+  });
+
+  it("rejects an atomic write conflict when the guarded upsert affects no rows", async () => {
+    const client = new FakeBlockClient();
+    client.nextWriteRowCount = 0;
+
+    await expect(recordProcessedBlock(client as never, {
+      chainId: "juno-1",
+      height: 39381307,
+      blockHash: "late-conflict-hash",
+      parentHash: "parent",
+      blockTime: "2026-07-01T03:00:12Z",
+      txCount: 1,
+    })).rejects.toThrow(/processed block conflict/i);
+
+    const insert = client.queries.find((query) => query.text.includes("INSERT INTO processed_blocks"));
+    expect(insert?.text).toContain("WHERE processed_blocks.chain_id = EXCLUDED.chain_id");
+    expect(insert?.text).toContain("processed_blocks.block_hash = EXCLUDED.block_hash");
   });
 });

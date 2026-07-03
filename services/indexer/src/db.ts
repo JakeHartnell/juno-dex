@@ -71,18 +71,27 @@ export async function recordProcessedBlock(
     }
   }
 
-  await client.query(
+  const written = await client.query(
     `INSERT INTO processed_blocks(chain_id, height, block_hash, parent_hash, block_time, tx_count)
      VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (height) DO UPDATE
      SET chain_id = EXCLUDED.chain_id,
-         block_hash = EXCLUDED.block_hash,
-         parent_hash = EXCLUDED.parent_hash,
          block_time = EXCLUDED.block_time,
          tx_count = EXCLUDED.tx_count,
-         processed_at = now()`,
+         processed_at = now(),
+         parent_hash = COALESCE(processed_blocks.parent_hash, EXCLUDED.parent_hash)
+     WHERE processed_blocks.chain_id = EXCLUDED.chain_id
+       AND processed_blocks.block_hash = EXCLUDED.block_hash
+       AND (
+         processed_blocks.parent_hash IS NULL
+         OR EXCLUDED.parent_hash IS NULL
+         OR processed_blocks.parent_hash = EXCLUDED.parent_hash
+       )`,
     [params.chainId, params.height, params.blockHash, params.parentHash ?? null, params.blockTime, params.txCount],
   );
+  if (written.rowCount === 0) {
+    throw new Error(`processed block conflict at height ${params.height}: existing row differs from incoming block`);
+  }
 }
 
 export async function advanceCursor(
