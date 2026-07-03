@@ -18,6 +18,7 @@ This service uses a small TypeScript/Node block poller over Juno Tendermint RPC/
 - Idempotent transaction/event shape based on `(tx_hash, msg_index, event_index, action)` uniqueness.
 - Reorg-aware block ledger fields (`height`, `block_hash`, `parent_hash`) and configurable confirmation depth.
 - Juno RPC/REST/WebSocket configuration placeholders for poll/backfill/live modes.
+- Height-safe LCD pool-state queries after swap/provide/withdraw events, persisted as reserve snapshots keyed by `(pool_id, height, source)`.
 - Unit-tested event normalization for factory, pair, and incentives events.
 - Swap-derived pool OHLC candle writes for `5m`, `1h`, and `1d` intervals plus a replayable candle backfill command.
 - HTTP API routes for `/health`, `/ready`, `/openapi.json`, `/stats`, `/prices`, `/pools`, pool candles, pool positions, wallet positions, and wallet history.
@@ -32,7 +33,7 @@ Copy `.env.example` to `.env` or export variables:
 | --- | --- | --- |
 | `DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/astroport_indexer` | Postgres connection string. Use host-managed secrets in production. |
 | `JUNO_RPC_URL` | `https://rpc-juno.itastakers.com` | Tendermint RPC endpoint. |
-| `JUNO_REST_URL` | `https://lcd-juno.itastakers.com` | Cosmos REST endpoint for future queries. |
+| `JUNO_REST_URL` | `https://lcd-juno.itastakers.com` | Cosmos REST endpoint used for height-pinned pair pool-state smart queries. |
 | `JUNO_WS_URL` | derived from RPC | WebSocket endpoint for future tailing. |
 | `CHAIN_ID` | `juno-1` | Expected chain id. |
 | `FACTORY_ADDRESS` | deployed Juno v1 factory | Astroport factory contract. |
@@ -161,11 +162,12 @@ Alert on:
 3. Process blocks up to `head - CONFIRMATION_DEPTH` in bounded batches.
 4. Fetch block metadata and block results via Tendermint RPC.
 5. Normalize wasm events emitted by the factory, pairs, and incentives contracts.
-6. Upsert pools, append immutable event rows, update position deltas, and advance the cursor in one transaction.
-7. On restart, unique constraints make replay safe; block hashes in `processed_blocks` provide the basis for future rollback if a reorg is detected inside the confirmation window.
+6. Upsert pools, append immutable event rows, update position deltas, and advance the cursor in one core block transaction.
+7. After the cursor advances, run best-effort height-pinned LCD reserve snapshot writes for known touched pairs. Snapshot failures are logged and can be repaired by later snapshot/backfill tooling; they do not roll back block/event persistence.
+8. On restart, unique constraints make replay safe; block hashes in `processed_blocks` provide the basis for future rollback if a reorg is detected inside the confirmation window.
 
 ## Notes for follow-up issues
 
-- Pool state snapshots and USD oracle pricing still need production-quality valuation logic; API totals stay `null` until persisted aggregate data exists rather than returning synthetic zeroes.
-- Candles are swap-derived and will be most accurate once asset decimal metadata is wired from the native registry/asset lists; quote volume is stored in `volume_quote`, not `volume_usd`.
+- Pool state snapshots are captured from height-pinned LCD smart queries when touched pairs emit swap/provide/withdraw events; USD/JUNO valuation logic still needs production-quality pricing and aggregate writes. API totals stay `null` until persisted aggregate data exists rather than returning synthetic zeroes.
+- Candles are swap-derived from asset decimal metadata and store quote volume in `volume_quote`, not `volume_usd`.
 - The frontend reads `VITE_DEX_INDEXER_URL`; point it at this service only after staging has backfilled real transaction data and `/ready` reports `ready`.

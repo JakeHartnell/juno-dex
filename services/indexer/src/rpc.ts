@@ -10,8 +10,48 @@ export type BlockBundle = {
   txCount: number;
   txEvents: Array<{ txHash: string; events: TendermintEvent[] }>;
 };
+export type PoolState = {
+  reserves: Array<{ denom: string; amount: string }>;
+  totalShare: string | null;
+};
 
 type Json = Record<string, unknown>;
+
+export class JunoRestClient {
+  constructor(private readonly restUrl: string, private readonly timeoutMs = 5_000, private readonly maxRetries = 2) {}
+
+  async poolState(pairAddress: string, height?: number): Promise<PoolState> {
+    const encodedQuery = encodeURIComponent(Buffer.from(JSON.stringify({ pool: {} })).toString("base64"));
+    const headers: Record<string, string> = {};
+    if (height !== undefined) headers["x-cosmos-block-height"] = String(height);
+    const path = `/cosmwasm/wasm/v1/contract/${pairAddress}/smart/${encodedQuery}`;
+    const json = await this.getJson(path, headers);
+    return normalizePoolState(json.data ?? json);
+  }
+
+  private async getJson(path: string, headers: Record<string, string>): Promise<Json> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+      try {
+        const response = await fetch(`${this.restUrl}${path}`, { headers, signal: controller.signal });
+        if (response.ok) return await response.json() as Json;
+        if (!isTransientStatus(response.status) || attempt === this.maxRetries) {
+          throw new Error(`LCD smart query failed: ${response.status} ${response.statusText}`);
+        }
+        lastError = new Error(`LCD smart query failed: ${response.status} ${response.statusText}`);
+      } catch (error) {
+        lastError = error;
+        if (attempt === this.maxRetries || !isTransientFetchError(error)) throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+      await delay(100 * 2 ** attempt);
+    }
+    throw lastError instanceof Error ? lastError : new Error("LCD smart query failed");
+  }
+}
 
 export class JunoRpcClient {
   constructor(private readonly rpcUrl: string) {}
@@ -51,6 +91,46 @@ export class JunoRpcClient {
     if (!response.ok) throw new Error(`RPC ${path} failed: ${response.status} ${response.statusText}`);
     return response.json();
   }
+}
+
+function isTransientStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function isTransientFetchError(error: unknown): boolean {
+  return error instanceof Error && (error.name === "AbortError" || error.name === "TypeError");
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizePoolState(value: unknown): PoolState {
+  if (!value || typeof value !== "object") throw new Error("LCD pool query returned non-object data");
+  const raw = value as Json;
+  const assets = Array.isArray(raw.assets) ? raw.assets : [];
+  const reserves = assets.map(normalizePoolAsset).filter((asset): asset is { denom: string; amount: string } => asset !== null);
+  if (reserves.length === 0) throw new Error("LCD pool query returned no reserves");
+  return { reserves, totalShare: raw.total_share === null || raw.total_share === undefined ? null : String(raw.total_share) };
+}
+
+function normalizePoolAsset(value: unknown): { denom: string; amount: string } | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Json;
+  const denom = normalizeAssetInfo(raw.info ?? raw.asset_info ?? raw.denom ?? raw.asset);
+  if (!denom || raw.amount === null || raw.amount === undefined) return null;
+  return { denom, amount: String(raw.amount) };
+}
+
+function normalizeAssetInfo(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+  const raw = value as Json;
+  const native = raw.native_token;
+  if (native && typeof native === "object") return String((native as Json).denom ?? "");
+  const token = raw.token;
+  if (token && typeof token === "object") return String((token as Json).contract_addr ?? "");
+  return String(raw.denom ?? raw.asset ?? "");
 }
 
 function txHashFromBase64(tx?: string): string | undefined {

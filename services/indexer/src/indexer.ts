@@ -1,16 +1,18 @@
 import type { IndexerConfig } from "./config.js";
-import { advanceCursor, createPool, getCursor, recordProcessedBlock, writeNormalizedEvent, type PgPool } from "./db.js";
-import { normalizeBlockEvents } from "./events.js";
-import { JunoRpcClient } from "./rpc.js";
+import { advanceCursor, createPool, getCursor, recordProcessedBlock, upsertPoolStateSnapshot, writeNormalizedEvent, type PgPool } from "./db.js";
+import { normalizeBlockEvents, type NormalizedEvent } from "./events.js";
+import { JunoRestClient, JunoRpcClient } from "./rpc.js";
 import { nextBlockRange } from "./ranges.js";
 
 export class Indexer {
   private readonly rpc: JunoRpcClient;
+  private readonly rest: JunoRestClient;
   private readonly pool?: PgPool;
   private readonly ownsPool: boolean;
 
   constructor(private readonly config: IndexerConfig, pool?: PgPool) {
     this.rpc = new JunoRpcClient(config.rpcUrl);
+    this.rest = new JunoRestClient(config.restUrl);
     this.pool = pool ?? (config.dryRun ? undefined : createPool(config));
     this.ownsPool = !pool && !config.dryRun;
   }
@@ -61,6 +63,7 @@ export class Indexer {
             throw error;
           }
         });
+        await this.writeReserveSnapshots(normalized, height, block.time);
       }
       processed += 1;
     }
@@ -82,6 +85,44 @@ export class Indexer {
     }
     return { ...result, done: result.cursorHeight >= maxHeight };
   }
+
+  private async writeReserveSnapshots(events: NormalizedEvent[], height: number, blockTime: string): Promise<void> {
+    const touchedPairs = Array.from(new Set(events
+      .filter(isPairStateEvent)
+      .map((event) => event.pairAddress)
+      .filter(Boolean)));
+    if (touchedPairs.length === 0) return;
+
+    const knownPairs = await withClient(this.pool!, async (client) => {
+      const result = await client.query<{ pair_address: string }>(
+        `SELECT pair_address FROM pools WHERE chain_id = $1 AND pair_address = ANY($2::text[])`,
+        [this.config.chainId, touchedPairs],
+      );
+      return new Set(result.rows.map((row) => row.pair_address));
+    });
+
+    for (const pairAddress of touchedPairs) {
+      if (!knownPairs.has(pairAddress)) continue;
+      try {
+        const state = await this.rest.poolState(pairAddress, height);
+        await withClient(this.pool!, async (client) => upsertPoolStateSnapshot(client, {
+          chainId: this.config.chainId,
+          pairAddress,
+          height,
+          blockTime,
+          reserves: state.reserves,
+          totalShare: state.totalShare,
+          source: "lcd",
+        }));
+      } catch (error) {
+        console.warn("indexer_reserve_snapshot_failed", { pairAddress, height, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  }
+}
+
+function isPairStateEvent(event: NormalizedEvent): event is Extract<NormalizedEvent, { kind: "swap" | "provide" | "withdraw" }> {
+  return event.kind === "swap" || event.kind === "provide" || event.kind === "withdraw";
 }
 
 async function withClient<T>(pool: PgPool, fn: (client: import("./db.js").PgClient) => Promise<T>): Promise<T> {
