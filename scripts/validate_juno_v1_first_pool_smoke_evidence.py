@@ -69,7 +69,7 @@ def tx_code(data: dict[str, Any]) -> int:
         fail(f"tx code must be numeric when present, got {raw!r}")
 
 
-def validate_tx(path: pathlib.Path) -> None:
+def validate_tx(path: pathlib.Path) -> str:
     data = object_at(load_json(path), path)
     code = tx_code(data)
     if code != 0:
@@ -78,6 +78,7 @@ def validate_tx(path: pathlib.Path) -> None:
     txhash = data.get("txhash") or data.get("tx_hash") or data.get("transactionHash")
     if not isinstance(txhash, str) or len(txhash.strip()) < 8:
         fail(f"tx evidence missing txhash: {path}")
+    return txhash.strip()
 
 
 def extract_pair_address(data: dict[str, Any]) -> str:
@@ -104,28 +105,31 @@ def amount_value(raw: Any, *, label: str) -> int:
     return value
 
 
-def validate_pool(path: pathlib.Path) -> None:
+def validate_pool(path: pathlib.Path) -> tuple[tuple[str, int], tuple[str, int]]:
     body = unwrap_data(object_at(load_json(path), path))
     assets = body.get("assets")
     if not isinstance(assets, list) or len(assets) != 2:
         fail(f"pool evidence must include exactly two assets: {path}")
-    denoms: list[str] = []
+    assets_seen: list[tuple[str, int]] = []
     for idx, asset in enumerate(assets):
         if not isinstance(asset, dict):
             fail(f"pool asset[{idx}] must be an object: {path}")
-        amount_value(asset.get("amount"), label=f"pool asset[{idx}]")
+        amount = amount_value(asset.get("amount"), label=f"pool asset[{idx}]")
         info = asset.get("info")
         if not isinstance(info, dict):
             fail(f"pool asset[{idx}] missing info: {path}")
         native = info.get("native_token")
         if not isinstance(native, dict) or not isinstance(native.get("denom"), str):
             fail(f"pool asset[{idx}] must be native_token evidence for v1: {path}")
-        denoms.append(native["denom"])
+        assets_seen.append((native["denom"], amount))
+    denoms = [denom for denom, _amount in assets_seen]
     if denoms[0] == denoms[1]:
         fail(f"pool evidence denoms must be distinct: {path}")
     total_share = body.get("total_share")
     if total_share is not None:
         amount_value(total_share, label="pool total_share")
+    sorted_assets = sorted(assets_seen)
+    return (sorted_assets[0], sorted_assets[1])
 
 
 def validate_simulation(path: pathlib.Path, *, label: str) -> None:
@@ -170,18 +174,21 @@ def main() -> None:
     load_expected_pair(args.config)
     paths = {suffix: args.dir / f"{args.prefix}-{suffix}.json" for suffix in (*TX_SUFFIXES, *QUERY_SUFFIXES)}
 
-    for suffix in TX_SUFFIXES:
-        validate_tx(paths[suffix])
+    txhashes = [validate_tx(paths[suffix]) for suffix in TX_SUFFIXES]
+    if len(set(txhashes)) != len(txhashes):
+        fail("tx evidence files must contain four distinct txhashes")
 
     pair_lookup = object_at(load_json(paths["pair-lookup"]), paths["pair-lookup"])
     pair_address = extract_pair_address(pair_lookup)
     if args.pair_address is not None and pair_address != args.pair_address:
         fail(f"pair lookup returned {pair_address}, expected {args.pair_address}")
 
-    validate_pool(paths["pool-after-provide"])
+    pool_after_provide = validate_pool(paths["pool-after-provide"])
     validate_simulation(paths["pair-simulation"], label="pair")
     validate_simulation(paths["router-simulation"], label="router")
-    validate_pool(paths["pool-after-swaps"])
+    pool_after_swaps = validate_pool(paths["pool-after-swaps"])
+    if pool_after_swaps == pool_after_provide:
+        fail("pool-after-swaps evidence must differ from pool-after-provide evidence")
 
     print("OK: first-pool smoke evidence is complete and internally sane")
     print(

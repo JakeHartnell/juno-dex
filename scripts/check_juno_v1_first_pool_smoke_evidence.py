@@ -88,7 +88,10 @@ def write_fixture_set(directory: pathlib.Path, *, prefix: str = "first-pool-smok
     write_json(directory / f"{prefix}-pool-after-provide.json", pool)
     write_json(directory / f"{prefix}-pair-simulation.json", {"data": {"return_amount": "997", "spread_amount": "3"}})
     write_json(directory / f"{prefix}-router-simulation.json", {"data": {"return_amount": "996", "spread_amount": "4"}})
-    write_json(directory / f"{prefix}-pool-after-swaps.json", pool)
+    pool_after_swaps = json.loads(json.dumps(pool))
+    pool_after_swaps["data"]["assets"][0]["amount"] = "1000100"
+    pool_after_swaps["data"]["assets"][1]["amount"] = "999900"
+    write_json(directory / f"{prefix}-pool-after-swaps.json", pool_after_swaps)
 
 
 def run_validator(directory: pathlib.Path, config: pathlib.Path, *extra: str, expect_ok: bool = True) -> subprocess.CompletedProcess[str]:
@@ -172,6 +175,24 @@ def main() -> None:
         if "permissioned=true" not in open_proc.stderr:
             fail(f"open factory gate error was not explicit: {open_proc.stderr!r}")
 
+        duplicate_tx = tmp / "duplicate-tx"
+        write_fixture_set(duplicate_tx)
+        duplicate_path = duplicate_tx / "first-pool-smoke-router-tiny-swap.json"
+        duplicate = json.loads(duplicate_path.read_text())
+        duplicate["txhash"] = "TINYSWAP123"
+        write_json(duplicate_path, duplicate)
+        duplicate_proc = run_validator(duplicate_tx, config, expect_ok=False)
+        if "distinct txhashes" not in duplicate_proc.stderr:
+            fail(f"duplicate txhash error was not explicit: {duplicate_proc.stderr!r}")
+
+        unchanged_pool = tmp / "unchanged-pool"
+        write_fixture_set(unchanged_pool)
+        after_provide = json.loads((unchanged_pool / "first-pool-smoke-pool-after-provide.json").read_text())
+        write_json(unchanged_pool / "first-pool-smoke-pool-after-swaps.json", after_provide)
+        unchanged_proc = run_validator(unchanged_pool, config, expect_ok=False)
+        if "must differ" not in unchanged_proc.stderr:
+            fail(f"unchanged post-swap pool error was not explicit: {unchanged_proc.stderr!r}")
+
     docs = README.read_text() + "\n" + CHECKLIST.read_text()
     for needle in (
         "scripts/validate_juno_v1_first_pool_smoke_evidence.py",
@@ -183,7 +204,7 @@ def main() -> None:
             fail(f"operator docs missing first-pool evidence validator text: {needle}")
 
     print("OK: Juno v1 first-pool smoke evidence validator accepts complete fixtures and rejects unsafe evidence")
-    print("first_pool_smoke_evidence_validator=true tx_files=4 query_files=5 failure_cases=4")
+    print("first_pool_smoke_evidence_validator=true tx_files=4 query_files=5 failure_cases=6 txhash_uniqueness=true post_swap_pool_delta=true")
 
 
 if __name__ == "__main__":
