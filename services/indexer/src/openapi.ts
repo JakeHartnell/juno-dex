@@ -20,6 +20,7 @@ const assetAmount = {
   type: "object",
   properties: {
     denom: { type: "string" },
+    reserve: { type: ["string", "null"], description: "Pool reserve amount from latest persisted pool_state_snapshots row." },
     amount: { type: "string" },
     valueUsd: { type: ["number", "null"] },
     valueJuno: { type: ["number", "null"] },
@@ -38,6 +39,7 @@ const pool = {
     lpToken: { type: ["string", "null"] },
     poolType: { type: ["string", "null"] },
     assets: { type: "array", items: assetAmount },
+    totalShare: { type: ["string", "null"], description: "Latest total LP share from persisted pool_state_snapshots." },
     tvlUsd: { type: ["number", "null"], description: "Null when valuation is unavailable; never fabricated as zero." },
     tvlJuno: { type: ["number", "null"] },
     volume24hUsd: { type: ["number", "null"] },

@@ -6,7 +6,7 @@ export type IndexerPagination = {
 export type IndexerAssetAmount = {
   denom: string;
   symbol?: string;
-  reserve?: string;
+  reserve?: string | null;
   amount?: string;
   valueUsd?: number | null;
   valueJuno?: number | null;
@@ -37,6 +37,7 @@ export type IndexerPoolMetrics = {
   lpToken: string | null;
   poolType: string | null;
   assets: IndexerAssetAmount[];
+  totalShare?: string | null;
   tvlUsd: number | null;
   tvlJuno?: number | null;
   volume24hUsd: number | null;

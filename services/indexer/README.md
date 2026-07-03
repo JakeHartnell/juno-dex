@@ -21,6 +21,7 @@ This service uses a small TypeScript/Node block poller over Juno Tendermint RPC/
 - Unit-tested event normalization for factory, pair, and incentives events.
 - Swap-derived pool OHLC candle writes for `5m`, `1h`, and `1d` intervals plus a replayable candle backfill command.
 - HTTP API routes for `/health`, `/ready`, `/openapi.json`, `/stats`, `/prices`, `/pools`, pool candles, pool positions, wallet positions, and wallet history.
+- Pool API responses expose latest persisted reserves and total LP share from `pool_state_snapshots` when snapshot rows exist.
 - Optional JUNO-denominated value fields alongside honest nullable USD fields.
 
 ## Configuration

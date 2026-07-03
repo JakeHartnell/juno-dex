@@ -104,6 +104,24 @@ export async function advanceCursor(
   );
 }
 
+export async function upsertPoolStateSnapshot(
+  client: PgClient,
+  params: { chainId: string; pairAddress: string; height: number; blockTime: string; reserves: unknown[]; totalShare?: string | null; source?: string },
+): Promise<void> {
+  const pool = await client.query<{ id: string }>(`SELECT id FROM pools WHERE chain_id = $1 AND pair_address = $2`, [params.chainId, params.pairAddress]);
+  const poolId = pool.rows[0]?.id;
+  if (!poolId) throw new Error(`cannot write pool state snapshot for unknown pair ${params.pairAddress}`);
+  await client.query(
+    `INSERT INTO pool_state_snapshots(pool_id, height, block_time, reserves, total_share, source)
+     VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+     ON CONFLICT (pool_id, height, source) DO UPDATE
+     SET block_time = EXCLUDED.block_time,
+         reserves = EXCLUDED.reserves,
+         total_share = EXCLUDED.total_share`,
+    [poolId, params.height, params.blockTime, JSON.stringify(params.reserves), params.totalShare ?? null, params.source ?? "event"],
+  );
+}
+
 export async function writeNormalizedEvent(client: PgClient, chainId: string, event: NormalizedEvent): Promise<void> {
   switch (event.kind) {
     case "pool_created":

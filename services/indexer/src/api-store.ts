@@ -52,9 +52,34 @@ function hasValue(value: unknown): boolean {
   return value !== null && value !== undefined;
 }
 
+function jsonArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function reserveAmountFor(asset: string, reserves: unknown[]): string | null {
+  for (const reserve of reserves) {
+    if (!reserve || typeof reserve !== "object") continue;
+    const row = reserve as Record<string, unknown>;
+    const denom = normalizeAssetInfo(row.denom ?? row.asset ?? row.info ?? row.asset_info);
+    if (denom === asset && hasValue(row.amount)) return String(row.amount);
+  }
+  return null;
+}
+
 function normalizePool(row: Record<string, unknown>) {
   const assetInfos = Array.isArray(row.asset_infos) ? row.asset_infos : [];
-  const assets = assetInfos.map((asset) => ({ denom: normalizeAssetInfo(asset), valueUsd: null, valueJuno: null, priceUsd: null, priceJuno: null, priceStatus: "missing" }));
+  const reserves = jsonArray(row.reserves);
+  const assets = assetInfos.map((asset) => {
+    const denom = normalizeAssetInfo(asset);
+    return { denom, reserve: reserveAmountFor(denom, reserves), valueUsd: null, valueJuno: null, priceUsd: null, priceJuno: null, priceStatus: "missing" };
+  });
   const updatedAt = iso(row.updated_at ?? row.state_updated_at) ?? new Date(0).toISOString();
   return {
     id: String(row.id ?? row.pool_id ?? row.pair_address),
@@ -63,6 +88,7 @@ function normalizePool(row: Record<string, unknown>) {
     lpToken: row.liquidity_token_address ? String(row.liquidity_token_address) : null,
     poolType: row.pool_type ? String(row.pool_type) : null,
     assets,
+    totalShare: row.total_share ? String(row.total_share) : null,
     tvlUsd: toNumber(row.tvl_usd),
     tvlJuno: toNumber(row.tvl_juno),
     volume24hUsd: toNumber(row.volume_24h_usd),
@@ -236,7 +262,7 @@ export class PostgresApiStore implements IndexerApiStore {
   async pools(query: PaginationQuery) {
     const safeLimit = limit(query);
     const result = await this.db.query(
-      `SELECT p.*, lps.tvl_usd, lps.tvl_juno, lps.volume_24h_usd, lps.volume_24h_juno,
+      `SELECT p.*, lps.reserves, lps.total_share, lps.tvl_usd, lps.tvl_juno, lps.volume_24h_usd, lps.volume_24h_juno,
               lps.volume_7d_usd, lps.volume_7d_juno, lps.fees_24h_usd, lps.fees_24h_juno,
               lps.state_updated_at
        FROM pools p
@@ -251,7 +277,7 @@ export class PostgresApiStore implements IndexerApiStore {
 
   async pool(id: string) {
     const result = await this.db.query(
-      `SELECT p.*, lps.tvl_usd, lps.tvl_juno, lps.volume_24h_usd, lps.volume_24h_juno,
+      `SELECT p.*, lps.reserves, lps.total_share, lps.tvl_usd, lps.tvl_juno, lps.volume_24h_usd, lps.volume_24h_juno,
               lps.volume_7d_usd, lps.volume_7d_juno, lps.fees_24h_usd, lps.fees_24h_juno,
               lps.state_updated_at
        FROM pools p

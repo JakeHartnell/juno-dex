@@ -37,6 +37,8 @@ function poolRow() {
     asset_infos: [{ native_token: { denom: "ujuno" } }, { native_token: { denom: "uusdc" } }],
     tvl_usd: null,
     tvl_juno: "1000",
+    total_share: "789",
+    reserves: [{ denom: "ujuno", amount: "123" }, { denom: "uusdc", amount: "456" }],
     updated_at: "2026-07-03T00:00:00.000Z",
   };
 }
@@ -124,8 +126,14 @@ describe("production API", () => {
     const { server, baseUrl } = await start();
     openServer = server;
     const pools = await (await fetch(`${baseUrl}/pools`)).json();
-    expect(pools.data[0]).toMatchObject({ id: "pool-1", pairAddress: "juno1pair", tvlUsd: null, tvlJuno: 1000, isMock: false });
-    expect(pools.data[0].assets[0]).toMatchObject({ denom: "ujuno", priceJuno: null, priceStatus: "missing" });
+    expect(pools.data[0]).toMatchObject({ id: "pool-1", pairAddress: "juno1pair", tvlUsd: null, tvlJuno: 1000, totalShare: "789", isMock: false });
+    expect(pools.data[0].assets[0]).toMatchObject({ denom: "ujuno", reserve: "123", priceJuno: null, priceStatus: "missing" });
+    expect(pools.data[0].assets[1]).toMatchObject({ denom: "uusdc", reserve: "456" });
+
+    const poolDetail = await (await fetch(`${baseUrl}/pools/juno1pair`)).json();
+    expect(poolDetail).toMatchObject({ id: "pool-1", pairAddress: "juno1pair", totalShare: "789", isMock: false });
+    expect(poolDetail.assets[0]).toMatchObject({ denom: "ujuno", reserve: "123" });
+    expect(poolDetail.assets[1]).toMatchObject({ denom: "uusdc", reserve: "456" });
 
     const price = await (await fetch(`${baseUrl}/prices/ujuno`)).json();
     expect(price).toMatchObject({ asset: "ujuno", priceUsd: null, priceJuno: 1, source: "pool", status: "fresh", isMock: false });

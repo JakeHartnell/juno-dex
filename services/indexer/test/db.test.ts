@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { recordProcessedBlock, runMigrations } from "../src/db.js";
+import { recordProcessedBlock, runMigrations, upsertPoolStateSnapshot } from "../src/db.js";
 
 type Query = { text: string; values?: unknown[] };
 
@@ -39,6 +39,11 @@ class FakeBlockClient {
       return { rows, rowCount: rows.length };
     }
     if (text.includes("INSERT INTO processed_blocks")) return { rows: [], rowCount: this.nextWriteRowCount };
+    if (text.includes("FROM pools") && text.includes("pair_address")) {
+      const rows = (this.rowsByKey.get(`pool:${String(values?.[1])}`) ?? []) as T[];
+      return { rows, rowCount: rows.length };
+    }
+    if (text.includes("INSERT INTO pool_state_snapshots")) return { rows: [], rowCount: 1 };
     return { rows: [], rowCount: 1 };
   }
 }
@@ -106,5 +111,40 @@ describe("processed block recording", () => {
     const insert = client.queries.find((query) => query.text.includes("INSERT INTO processed_blocks"));
     expect(insert?.text).toContain("WHERE processed_blocks.chain_id = EXCLUDED.chain_id");
     expect(insert?.text).toContain("processed_blocks.block_hash = EXCLUDED.block_hash");
+  });
+});
+
+describe("pool state snapshots", () => {
+  it("upserts reserve snapshots idempotently by pool, height, and source", async () => {
+    const client = new FakeBlockClient();
+    client.rowsByKey.set("pool:juno1pair", [{ id: "pool-1" }]);
+
+    await upsertPoolStateSnapshot(client as never, {
+      chainId: "juno-1",
+      pairAddress: "juno1pair",
+      height: 39381355,
+      blockTime: "2026-07-01T03:01:00Z",
+      reserves: [{ denom: "ujuno", amount: "123" }, { denom: "uusdc", amount: "456" }],
+      totalShare: "789",
+      source: "event",
+    });
+
+    const select = client.queries.find((query) => query.text.includes("FROM pools"));
+    expect(select?.values).toEqual(["juno-1", "juno1pair"]);
+    const insert = client.queries.find((query) => query.text.includes("INSERT INTO pool_state_snapshots"));
+    expect(insert?.text).toContain("ON CONFLICT (pool_id, height, source) DO UPDATE");
+    expect(insert?.values).toEqual(["pool-1", 39381355, "2026-07-01T03:01:00Z", JSON.stringify([{ denom: "ujuno", amount: "123" }, { denom: "uusdc", amount: "456" }]), "789", "event"]);
+  });
+
+  it("rejects snapshots for unknown pools instead of writing orphan state", async () => {
+    const client = new FakeBlockClient();
+
+    await expect(upsertPoolStateSnapshot(client as never, {
+      chainId: "juno-1",
+      pairAddress: "juno1missing",
+      height: 39381355,
+      blockTime: "2026-07-01T03:01:00Z",
+      reserves: [],
+    })).rejects.toThrow(/unknown pair juno1missing/i);
   });
 });
