@@ -1,12 +1,13 @@
 import { createIndexerApi } from "./api.js";
 import { PostgresApiStore } from "./api-store.js";
 import { loadConfig } from "./config.js";
-import { createPool } from "./db.js";
+import { createPool, listMigrationFiles } from "./db.js";
 import { Indexer } from "./indexer.js";
 
 const config = loadConfig();
 const pool = createPool(config);
-const api = createIndexerApi(new PostgresApiStore(pool, config.chainId, config.cursorId, { rpcUrl: config.rpcUrl, expectedMigrationCount: 4, confirmationDepth: config.confirmationDepth }));
+const expectedMigrationVersions = await listMigrationFiles();
+const api = createIndexerApi(new PostgresApiStore(pool, config.chainId, config.cursorId, { rpcUrl: config.rpcUrl, expectedMigrationVersions, confirmationDepth: config.confirmationDepth }));
 const indexer = new Indexer(config, pool);
 
 await new Promise<void>((resolve) => api.listen(config.apiPort, resolve));

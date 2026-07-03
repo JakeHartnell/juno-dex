@@ -8,7 +8,7 @@ const MAX_CANDLE_LIMIT = 500;
 const CANDLE_INTERVALS = new Set(["5m", "1h", "1d"]);
 
 type Queryable = Pick<PgPool, "query">;
-type StoreOptions = { rpcUrl?: string; expectedMigrationCount?: number; confirmationDepth?: number };
+type StoreOptions = { rpcUrl?: string; expectedMigrationCount?: number; expectedMigrationVersions?: string[]; confirmationDepth?: number };
 
 function limit(query: PaginationQuery, max = MAX_LIMIT): number {
   const parsed = Number.parseInt(query.limit ?? String(DEFAULT_LIMIT), 10);
@@ -119,11 +119,13 @@ function normalizePrice(row: Record<string, unknown> | undefined, asset: string)
 export class PostgresApiStore implements IndexerApiStore {
   private readonly rpc?: JunoRpcClient;
   private readonly expectedMigrationCount?: number;
+  private readonly expectedMigrationVersions?: string[];
   private readonly confirmationDepth: number;
 
   constructor(private readonly db: Queryable, private readonly chainId: string, private readonly cursorId = "astroport-juno-v1", options: StoreOptions = {}) {
     this.rpc = options.rpcUrl ? new JunoRpcClient(options.rpcUrl) : undefined;
-    this.expectedMigrationCount = options.expectedMigrationCount;
+    this.expectedMigrationVersions = options.expectedMigrationVersions;
+    this.expectedMigrationCount = options.expectedMigrationCount ?? options.expectedMigrationVersions?.length;
     this.confirmationDepth = Math.max(0, options.confirmationDepth ?? 0);
   }
 
@@ -161,8 +163,12 @@ export class PostgresApiStore implements IndexerApiStore {
     };
   }
 
-  private readyFrom(migrationsApplied: number, head: { height: number; hash: string } | null) {
-    const migrationsCurrent = this.expectedMigrationCount === undefined || migrationsApplied >= this.expectedMigrationCount;
+  private readyFrom(appliedVersions: string[], head: { height: number; hash: string } | null) {
+    const migrationsApplied = appliedVersions.length;
+    const missingMigrations = this.expectedMigrationVersions?.filter((version) => !appliedVersions.includes(version)) ?? [];
+    const migrationsCurrent = this.expectedMigrationVersions
+      ? missingMigrations.length === 0
+      : this.expectedMigrationCount === undefined || migrationsApplied >= this.expectedMigrationCount;
     const rpcRequired = Boolean(this.rpc);
     const rpcOk = !rpcRequired || head !== null;
     return {
@@ -171,6 +177,7 @@ export class PostgresApiStore implements IndexerApiStore {
       database: "ok",
       migrationsApplied,
       expectedMigrations: this.expectedMigrationCount ?? null,
+      missingMigrations,
       rpcConfigured: rpcRequired,
       rpcReachable: head !== null,
       headHeight: head?.height ?? null,
@@ -190,11 +197,10 @@ export class PostgresApiStore implements IndexerApiStore {
   async ready() {
     await this.db.query("SELECT 1");
     const [migrations, head] = await Promise.all([
-      this.db.query(`SELECT count(*)::int AS count FROM schema_migrations`),
+      this.db.query<{ version: string }>(`SELECT version FROM schema_migrations ORDER BY version`),
       this.chainHead(),
     ]);
-    const migrationsApplied = Number(migrations.rows[0]?.count ?? 0);
-    return this.readyFrom(migrationsApplied, head);
+    return this.readyFrom(migrations.rows.map((row) => row.version), head);
   }
 
   async opsStatus() {
@@ -202,12 +208,11 @@ export class PostgresApiStore implements IndexerApiStore {
       this.db.query(`SELECT last_height, last_block_hash, updated_at FROM indexer_cursors WHERE id = $1`, [this.cursorId]),
       (async () => {
         await this.db.query("SELECT 1");
-        return this.db.query(`SELECT count(*)::int AS count FROM schema_migrations`);
+        return this.db.query<{ version: string }>(`SELECT version FROM schema_migrations ORDER BY version`);
       })(),
       this.chainHead(),
     ]);
-    const migrationsApplied = Number(migrations.rows[0]?.count ?? 0);
-    return { health: this.healthFrom(cursor.rows[0], head), ready: this.readyFrom(migrationsApplied, head) };
+    return { health: this.healthFrom(cursor.rows[0], head), ready: this.readyFrom(migrations.rows.map((row) => row.version), head) };
   }
 
   async stats() {

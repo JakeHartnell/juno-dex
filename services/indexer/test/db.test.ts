@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { backfillTokenCandles, recordProcessedBlock, runMigrations, upsertPoolStateSnapshot, writeNormalizedEvent } from "../src/db.js";
+import { backfillTokenCandles, listMigrationFiles, recordProcessedBlock, runMigrations, upsertPoolStateSnapshot, writeNormalizedEvent } from "../src/db.js";
 
 type Query = { text: string; values?: unknown[] };
 
@@ -72,6 +72,24 @@ class FakeCandleClient {
 }
 
 describe("migration runner", () => {
+  it("lists repository migrations from the default runtime path", async () => {
+    await expect(listMigrationFiles()).resolves.toEqual([
+      "001_init.sql",
+      "002_pool_candles.sql",
+      "003_api_pricing_readiness.sql",
+      "004_pool_state_source_precedence.sql",
+    ]);
+  });
+
+  it("lists only SQL migrations in deterministic order", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "juno-indexer-migration-list-"));
+    await writeFile(join(dir, "002_next.sql"), "SELECT 2;");
+    await writeFile(join(dir, "README.md"), "not a migration");
+    await writeFile(join(dir, "001_init.sql"), "SELECT 1;");
+
+    await expect(listMigrationFiles(dir)).resolves.toEqual(["001_init.sql", "002_next.sql"]);
+  });
+
   it("records migrations once and skips already-applied files on subsequent runs", async () => {
     const dir = await mkdtemp(join(tmpdir(), "juno-indexer-migrations-"));
     await writeFile(join(dir, "001_init.sql"), "SELECT 1;");

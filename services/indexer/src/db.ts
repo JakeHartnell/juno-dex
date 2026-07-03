@@ -13,8 +13,14 @@ export function createPool(config: IndexerConfig): PgPool {
   return new Pool({ connectionString: config.databaseUrl, max: 5 });
 }
 
-export async function runMigrations(pool: PgPool, migrationsDir = new URL("../migrations", import.meta.url).pathname): Promise<string[]> {
-  const files = (await readdir(migrationsDir)).filter((file) => file.endsWith(".sql")).sort();
+const DEFAULT_MIGRATIONS_DIR = join(process.cwd(), "migrations");
+
+export async function listMigrationFiles(migrationsDir = DEFAULT_MIGRATIONS_DIR): Promise<string[]> {
+  return (await readdir(migrationsDir)).filter((file) => file.endsWith(".sql")).sort();
+}
+
+export async function runMigrations(pool: PgPool, migrationsDir = DEFAULT_MIGRATIONS_DIR): Promise<string[]> {
+  const files = await listMigrationFiles(migrationsDir);
   await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
   const existing = await pool.query<{ version: string }>("SELECT version FROM schema_migrations");
   const alreadyApplied = new Set(existing.rows.map((row) => row.version));

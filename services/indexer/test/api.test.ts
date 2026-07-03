@@ -10,7 +10,7 @@ class FakeDb {
   async query(text: string, values?: unknown[]) {
     this.calls.push({ text, values });
     if (text === "SELECT 1") return { rows: [{ "?column?": 1 }] };
-    if (text.includes("FROM schema_migrations")) return { rows: [{ count: 3 }] };
+    if (text.includes("FROM schema_migrations")) return { rows: [{ version: "001_init.sql" }, { version: "002_pool_candles.sql" }, { version: "003_api_pricing_readiness.sql" }] };
     if (text.includes("FROM indexer_cursors")) return { rows: [{ last_height: "42", updated_at: "2026-07-03T00:00:00.000Z" }] };
     if (text.includes("pool_count") && text.includes("latest_pool_states")) return { rows: [{ pool_count: 1, incentivized_pools: 1, updated_at: "2026-07-03T00:00:00.000Z", tvl_usd: null, tvl_juno: "1000", volume_24h_usd: null, volume_24h_juno: "25", volume_7d_usd: null, volume_7d_juno: "100", fees_24h_usd: null, fees_24h_juno: "0.3" }] };
     if (text.includes("FROM token_prices")) return { rows: [{ asset: "ujuno", price_usd: null, price_juno: "1", source: "pool", status: "fresh", observed_at: "2026-07-03T00:00:00.000Z" }] };
@@ -147,7 +147,7 @@ describe("production API", () => {
 
   it("returns HTTP 503 when readiness checks report not_ready", async () => {
     const db = new FakeDb();
-    const store = new PostgresApiStore(db as never, "juno-1", "cursor", { expectedMigrationCount: 4 });
+    const store = new PostgresApiStore(db as never, "juno-1", "cursor", { expectedMigrationVersions: ["001_init.sql", "002_pool_candles.sql", "003_api_pricing_readiness.sql", "004_pool_state_source_precedence.sql"] });
     const server = createIndexerApi(store);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     openServer = server;
@@ -156,7 +156,7 @@ describe("production API", () => {
 
     const response = await fetch(`http://127.0.0.1:${address.port}/ready`);
     expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toMatchObject({ status: "not_ready", checks: { migrations: false } });
+    await expect(response.json()).resolves.toMatchObject({ status: "not_ready", checks: { migrations: false }, missingMigrations: ["004_pool_state_source_precedence.sql"] });
   });
 
   it("returns structured errors without leaking database internals", async () => {
