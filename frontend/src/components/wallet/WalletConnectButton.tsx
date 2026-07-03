@@ -9,7 +9,7 @@ export function WalletConnectButton() {
     return (
       <Button className="wallet-button connected" onClick={() => void disconnect()} domAttributes={{ "aria-label": "Disconnect wallet", title: "Disconnect wallet" }}>
         <span className="wallet-status-dot" aria-hidden="true" />
-        {truncateAddress(wallet.address)}
+        {wallet.name ?? truncateAddress(wallet.address)}
       </Button>
     );
   }

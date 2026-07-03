@@ -10,8 +10,8 @@ type MockTx = {
 };
 
 async function expectConnected(page: Page) {
-  await expect(page.getByText("Playwright Wallet")).toBeVisible();
-  await expect(page.getByText("Block")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Disconnect wallet" })).toContainText("Playwright Wallet");
+  await expect(page.getByText("juno-1")).toBeVisible();
 }
 
 async function txs(page: Page) {
@@ -31,9 +31,9 @@ test.describe("Juno DEX mocked wallet E2E", () => {
   });
 
   test("quotes and submits a swap without a live wallet or broadcast", async ({ page }) => {
-    await fillTokenAmount(page.getByLabel(/^Amount$/), "2");
+    await fillTokenAmount(page.getByLabel(/^You send$/), "2");
 
-    await expect(page.getByText(/Return/i).first()).toBeVisible();
+    await expect(page.getByText(/Rate/i).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /^Swap$/ })).toBeEnabled();
     await page.getByRole("button", { name: /^Swap$/ }).click();
 
@@ -76,7 +76,7 @@ test.describe("Juno DEX mocked wallet E2E", () => {
     await expect(page.getByRole("heading", { name: "Playwright Wallet balances" })).toBeVisible();
 
     await page.goto(`/pools/${PAIR_ADDRESS}`);
-    await page.locator("#incentives").scrollIntoViewIfNeeded();
+    await page.locator("#incentives").last().scrollIntoViewIfNeeded();
     await fillTokenAmount(page.getByLabel("Stake LP"), "1");
     await page.getByRole("button", { name: /^Stake LP$/ }).click();
     await expect(page.getByText("Stake LP submitted")).toBeVisible();
@@ -94,12 +94,6 @@ test.describe("Juno DEX mocked wallet E2E", () => {
     await page.goto("/create");
     await expectConnected(page);
     await expect(page.getByRole("heading", { name: "Permissionless pool" })).toBeVisible();
-    await page.getByLabel("Add a custom unverified asset").check();
-    await page.getByLabel("Denom or contract").fill("factory/juno1e2etestwallet0000000000000000000000000000000000/e2easset");
-    await page.getByLabel("Symbol").fill("E2E");
-    const riskAck = page.getByLabel(/I understand this pool creation uses unverified/i);
-    if (await riskAck.isVisible()) await riskAck.check();
-
     await expect(page.getByRole("button", { name: /^Create pool$/ })).toBeEnabled();
     await page.getByRole("button", { name: /^Create pool$/ }).click();
     await expect(page.getByText("Transaction succeeded")).toBeVisible();

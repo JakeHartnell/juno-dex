@@ -15,8 +15,12 @@ export function createPool(config: IndexerConfig): PgPool {
 
 export async function runMigrations(pool: PgPool, migrationsDir = new URL("../migrations", import.meta.url).pathname): Promise<string[]> {
   const files = (await readdir(migrationsDir)).filter((file) => file.endsWith(".sql")).sort();
+  await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  const existing = await pool.query<{ version: string }>("SELECT version FROM schema_migrations");
+  const alreadyApplied = new Set(existing.rows.map((row) => row.version));
   const applied: string[] = [];
   for (const file of files) {
+    if (alreadyApplied.has(file)) continue;
     const sql = await readFile(join(migrationsDir, file), "utf8");
     await pool.query("BEGIN");
     try {
@@ -141,14 +145,15 @@ async function upsertCandlesForSwap(client: PgClient, chainId: string, event: Sw
   const poolId = pool.rows[0]?.id ?? null;
   for (const interval of SUPPORTED_CANDLE_INTERVALS) {
     await client.query(
-      `INSERT INTO token_candles(chain_id, pool_id, pair_address, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_usd, trade_count, source)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$8,$8,$9,$10,1,'indexer')
+      `INSERT INTO token_candles(chain_id, pool_id, pair_address, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, volume_usd, trade_count, source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$8,$8,$9,$10,NULL,1,'indexer')
        ON CONFLICT (chain_id, pair_address, asset, quote_asset, interval, bucket_start) DO UPDATE
        SET high = GREATEST(token_candles.high, EXCLUDED.high),
            low = LEAST(token_candles.low, EXCLUDED.low),
            close = EXCLUDED.close,
            volume = token_candles.volume + EXCLUDED.volume,
-           volume_usd = COALESCE(token_candles.volume_usd, 0) + COALESCE(EXCLUDED.volume_usd, 0),
+           volume_quote = COALESCE(token_candles.volume_quote, 0) + COALESCE(EXCLUDED.volume_quote, 0),
+           volume_usd = NULL,
            trade_count = token_candles.trade_count + 1,
            pool_id = COALESCE(token_candles.pool_id, EXCLUDED.pool_id),
            updated_at = now()`,
@@ -192,15 +197,16 @@ export async function backfillTokenCandles(
     const candles = aggregateSwapsToCandles(swaps, interval);
     for (const candle of candles) {
       await client.query(
-        `INSERT INTO token_candles(chain_id, pool_id, pair_address, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_usd, trade_count, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'backfill')
+        `INSERT INTO token_candles(chain_id, pool_id, pair_address, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, volume_usd, trade_count, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULL,$14,'backfill')
          ON CONFLICT (chain_id, pair_address, asset, quote_asset, interval, bucket_start) DO UPDATE
          SET open = EXCLUDED.open,
              high = EXCLUDED.high,
              low = EXCLUDED.low,
              close = EXCLUDED.close,
              volume = EXCLUDED.volume,
-             volume_usd = EXCLUDED.volume_usd,
+             volume_quote = EXCLUDED.volume_quote,
+             volume_usd = NULL,
              trade_count = EXCLUDED.trade_count,
              pool_id = COALESCE(token_candles.pool_id, EXCLUDED.pool_id),
              source = 'backfill',

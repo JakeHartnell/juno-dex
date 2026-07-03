@@ -20,9 +20,9 @@ export type TopPool = {
   id: string;
   label: string;
   pair: string;
-  tvlUsd?: number;
-  volume24hUsd?: number;
-  fees24hUsd?: number;
+  tvlUsd?: number | null;
+  volume24hUsd?: number | null;
+  fees24hUsd?: number | null;
   feeApr?: number;
   incentivesApr?: number;
   totalApr?: number;

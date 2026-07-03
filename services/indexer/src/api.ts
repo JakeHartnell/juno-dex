@@ -1,0 +1,105 @@
+import http from "node:http";
+import { URL } from "node:url";
+import { openApiDocument } from "./openapi.js";
+
+export type PaginationQuery = {
+  limit?: string;
+  cursor?: string;
+  pair?: string;
+  interval?: string;
+  from?: string;
+  to?: string;
+  baseAsset?: string;
+  quoteAsset?: string;
+};
+
+export type IndexerApiStore = {
+  health(): Promise<Record<string, unknown>>;
+  ready(): Promise<Record<string, unknown>>;
+  stats(): Promise<Record<string, unknown>>;
+  prices(assets: string[]): Promise<Record<string, unknown>[]>;
+  pools(query: PaginationQuery): Promise<Record<string, unknown>>;
+  pool(id: string): Promise<Record<string, unknown> | null>;
+  candles(id: string, query: PaginationQuery): Promise<Record<string, unknown> | null>;
+  poolPositions(id: string, query: PaginationQuery): Promise<Record<string, unknown>>;
+  walletPositions(addr: string, query: PaginationQuery): Promise<Record<string, unknown>>;
+  walletHistory(addr: string, query: PaginationQuery): Promise<Record<string, unknown>>;
+};
+
+function jsonResponse(res: http.ServerResponse, status: number, body: unknown, extraHeaders: Record<string, string> = {}) {
+  const payload = status === 204 ? "" : JSON.stringify(body);
+  res.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, OPTIONS",
+    "access-control-allow-headers": "content-type, authorization",
+    "cache-control": status === 200 ? "public, max-age=15, stale-while-revalidate=30" : "no-store",
+    ...extraHeaders,
+  });
+  res.end(payload);
+}
+
+function query(searchParams: URLSearchParams): PaginationQuery {
+  return {
+    limit: searchParams.get("limit") ?? undefined,
+    cursor: searchParams.get("cursor") ?? undefined,
+    pair: searchParams.get("pair") ?? undefined,
+    interval: searchParams.get("interval") ?? undefined,
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+    baseAsset: searchParams.get("baseAsset") ?? searchParams.get("base_asset") ?? undefined,
+    quoteAsset: searchParams.get("quoteAsset") ?? searchParams.get("quote_asset") ?? undefined,
+  };
+}
+
+function assets(searchParams: URLSearchParams, pathAsset?: string): string[] {
+  const values: string[] = [];
+  if (pathAsset) values.push(pathAsset);
+  for (const key of ["asset", "assets", "denom", "denoms"]) {
+    const value = searchParams.get(key);
+    if (value) values.push(...value.split(","));
+  }
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+export function createIndexerApi(store: IndexerApiStore): http.Server {
+  return http.createServer(async (req, res) => {
+    if (req.method === "OPTIONS") return jsonResponse(res, 204, {});
+    if (req.method !== "GET") return jsonResponse(res, 405, { error: "method_not_allowed" });
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+    const parsedQuery = query(url.searchParams);
+    try {
+      if (url.pathname === "/health") return jsonResponse(res, 200, await store.health(), { "cache-control": "no-store" });
+      if (url.pathname === "/ready") {
+        const body = await store.ready();
+        return jsonResponse(res, body.status === "ready" ? 200 : 503, body, { "cache-control": "no-store" });
+      }
+      if (url.pathname === "/openapi.json") return jsonResponse(res, 200, openApiDocument);
+      if (url.pathname === "/stats") return jsonResponse(res, 200, await store.stats());
+      if (parts[0] === "prices" && parts.length <= 2) {
+        const ids = assets(url.searchParams, parts[1]);
+        if (ids.length === 0) return jsonResponse(res, 400, { error: "asset_required" });
+        const prices = await store.prices(ids);
+        return jsonResponse(res, 200, parts[1] ? prices[0] ?? null : { data: prices });
+      }
+      if (parts[0] === "pools" && parts.length === 1) return jsonResponse(res, 200, await store.pools(parsedQuery));
+      if (parts[0] === "pools" && parts.length === 2) {
+        const pool = await store.pool(parts[1]);
+        return pool ? jsonResponse(res, 200, pool) : jsonResponse(res, 404, { error: "pool_not_found" });
+      }
+      if (parts[0] === "pools" && parts.length === 3 && parts[2] === "candles") {
+        const page = await store.candles(parts[1], parsedQuery);
+        return page ? jsonResponse(res, 200, page) : jsonResponse(res, 404, { error: "pool_not_found" });
+      }
+      if (parts[0] === "pools" && parts.length === 3 && parts[2] === "positions") return jsonResponse(res, 200, await store.poolPositions(parts[1], parsedQuery));
+      if (parts[0] === "wallets" && parts.length === 3 && parts[2] === "positions") return jsonResponse(res, 200, await store.walletPositions(parts[1], parsedQuery));
+      if (parts[0] === "wallets" && parts.length === 3 && parts[2] === "history") return jsonResponse(res, 200, await store.walletHistory(parts[1], parsedQuery));
+      return jsonResponse(res, 404, { error: "not_found" });
+    } catch (error) {
+      if (error instanceof RangeError) return jsonResponse(res, 400, { error: "bad_request", message: error.message });
+      console.error("indexer_api_error", error);
+      return jsonResponse(res, 500, { error: "internal_error" });
+    }
+  });
+}

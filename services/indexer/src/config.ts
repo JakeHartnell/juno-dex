@@ -6,6 +6,8 @@ export const DEFAULT_CONTRACTS = {
   nativeCoinRegistry: "juno1qwer7jleluth33trk2ywqvp6vwjh4j4zar3ag6dw5d8derkpel0sq8vfh2",
 } as const;
 
+export const DEFAULT_START_HEIGHT = 39_381_297;
+
 export type IndexerConfig = {
   databaseUrl: string;
   rpcUrl: string;
@@ -30,6 +32,7 @@ export type IndexerConfig = {
   priceStaleAfterMs: number;
   priceAllowStale: boolean;
   priceDevMocks: boolean;
+  apiPort: number;
 };
 
 function env(name: string, fallback: string): string {
@@ -70,7 +73,7 @@ export function loadConfig(): IndexerConfig {
     incentivesAddress: env("INCENTIVES_ADDRESS", DEFAULT_CONTRACTS.incentives),
     oracleAddress: env("ORACLE_ADDRESS", DEFAULT_CONTRACTS.oracle),
     nativeCoinRegistryAddress: env("NATIVE_COIN_REGISTRY_ADDRESS", DEFAULT_CONTRACTS.nativeCoinRegistry),
-    startHeight: intEnv("START_HEIGHT", 1),
+    startHeight: intEnv("START_HEIGHT", DEFAULT_START_HEIGHT),
     confirmationDepth: intEnv("CONFIRMATION_DEPTH", 2),
     pollIntervalMs: intEnv("POLL_INTERVAL_MS", 5_000),
     batchSize: Math.max(1, intEnv("BATCH_SIZE", 20)),
@@ -83,5 +86,6 @@ export function loadConfig(): IndexerConfig {
     priceStaleAfterMs: intEnv("PRICE_STALE_AFTER_MS", 1_800_000),
     priceAllowStale: boolEnv("PRICE_ALLOW_STALE", true),
     priceDevMocks: boolEnv("PRICE_DEV_MOCKS"),
+    apiPort: intEnv("API_PORT", 8787),
   };
 }

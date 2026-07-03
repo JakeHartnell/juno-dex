@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { TendermintEvent } from "./events.js";
 
 export type ChainHead = { height: number; hash: string };
@@ -39,7 +40,7 @@ export class JunoRpcClient {
       time: String(header.time),
       txCount: txs.length,
       txEvents: txsResults.map((tx, index) => ({
-        txHash: String(tx.hash ?? `height-${height}-tx-${index}`),
+        txHash: String(tx.hash ?? txHashFromBase64(txs[index]) ?? `height-${height}-tx-${index}`),
         events: convertEvents((tx.events ?? []) as Json[]),
       })),
     };
@@ -50,6 +51,11 @@ export class JunoRpcClient {
     if (!response.ok) throw new Error(`RPC ${path} failed: ${response.status} ${response.statusText}`);
     return response.json();
   }
+}
+
+function txHashFromBase64(tx?: string): string | undefined {
+  if (!tx) return undefined;
+  return createHash("sha256").update(Buffer.from(tx, "base64")).digest("hex").toUpperCase();
 }
 
 function convertEvents(events: Json[]): TendermintEvent[] {

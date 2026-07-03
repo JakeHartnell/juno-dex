@@ -6,14 +6,16 @@ import { JunoRpcClient } from "./rpc.js";
 export class Indexer {
   private readonly rpc: JunoRpcClient;
   private readonly pool?: PgPool;
+  private readonly ownsPool: boolean;
 
   constructor(private readonly config: IndexerConfig, pool?: PgPool) {
     this.rpc = new JunoRpcClient(config.rpcUrl);
     this.pool = pool ?? (config.dryRun ? undefined : createPool(config));
+    this.ownsPool = !pool && !config.dryRun;
   }
 
   async close(): Promise<void> {
-    await this.pool?.end();
+    if (this.ownsPool) await this.pool?.end();
   }
 
   async runOnce(): Promise<{ processed: number; head: number; target: number }> {

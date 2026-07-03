@@ -1,6 +1,6 @@
 # Astroport Juno Indexer
 
-Minimal event-ingestion and Postgres schema foundation for Juno Astroport pool metrics, history, LP positions, and future API work.
+Production indexer/API foundation for Juno Astroport pool metrics, history, LP positions, candles, and frontend-facing market data.
 
 ## Stack decision
 
@@ -20,6 +20,8 @@ This service uses a small TypeScript/Node block poller over Juno Tendermint RPC/
 - Juno RPC/REST/WebSocket configuration placeholders for poll/backfill/live modes.
 - Unit-tested event normalization for factory, pair, and incentives events.
 - Swap-derived pool OHLC candle writes for `5m`, `1h`, and `1d` intervals plus a replayable candle backfill command.
+- HTTP API routes for `/health`, `/ready`, `/openapi.json`, `/stats`, `/prices`, `/pools`, pool candles, pool positions, wallet positions, and wallet history.
+- Optional JUNO-denominated value fields alongside honest nullable USD fields.
 
 ## Configuration
 
@@ -27,7 +29,7 @@ Copy `.env.example` to `.env` or export variables:
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/astroport_indexer` | Postgres connection string. |
+| `DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/astroport_indexer` | Postgres connection string. Use host-managed secrets in production. |
 | `JUNO_RPC_URL` | `https://rpc-juno.itastakers.com` | Tendermint RPC endpoint. |
 | `JUNO_REST_URL` | `https://lcd-juno.itastakers.com` | Cosmos REST endpoint for future queries. |
 | `JUNO_WS_URL` | derived from RPC | WebSocket endpoint for future tailing. |
@@ -37,18 +39,19 @@ Copy `.env.example` to `.env` or export variables:
 | `INCENTIVES_ADDRESS` | deployed Juno v1 incentives | Incentives contract to watch. |
 | `ORACLE_ADDRESS` | deployed Juno v1 oracle | Oracle contract for price/candle work. |
 | `NATIVE_COIN_REGISTRY_ADDRESS` | deployed Juno v1 native registry | Native registry contract. |
-| `START_HEIGHT` | `1` | Backfill start height; set to factory deployment height when known. |
+| `START_HEIGHT` | `39381297` | Juno v1 factory deployment height. Override only for intentional archive/full-chain replays. |
 | `CONFIRMATION_DEPTH` | `2` | Blocks to lag chain head for reorg safety. |
 | `POLL_INTERVAL_MS` | `5000` | Poll cadence. |
 | `BATCH_SIZE` | `20` | Max blocks per polling loop. |
 | `DRY_RUN` | `false` | If true, normalizes and logs without DB writes. |
-| `PRICE_PROVIDER_BASE_URL` | unset | Optional HTTP JSON USD price provider used by the API resolver; queried with `?asset=<normalized asset>`. |
-| `PRICE_PROVIDER_API_KEY` | unset | Optional provider key; never commit real keys. |
-| `PRICE_PROVIDER_NAME` | `provider` | Source label returned with resolver results. |
-| `PRICE_CACHE_TTL_MS` | `300000` | In-process price cache TTL. |
-| `PRICE_STALE_AFTER_MS` | `1800000` | Age threshold before prices are flagged stale. |
-| `PRICE_ALLOW_STALE` | `true` | Set `false` to suppress stale prices as missing instead of returning stale values. |
-| `PRICE_DEV_MOCKS` | `false` | Opt-in local mock price source only; mock outputs are marked `isMock`. |
+| `API_PORT` | `8787` | Port for the HTTP API served by the same production process as the poller. |
+| `PRICE_PROVIDER_BASE_URL` | unset | Reserved for a future provider worker. Current API only serves persisted `token_prices` rows. |
+| `PRICE_PROVIDER_API_KEY` | unset | Reserved for future provider credentials; never commit real keys. |
+| `PRICE_PROVIDER_NAME` | `provider` | Reserved source label for persisted provider writes. |
+| `PRICE_CACHE_TTL_MS` | `300000` | Reserved for future provider/cache worker. |
+| `PRICE_STALE_AFTER_MS` | `1800000` | Target age threshold for persisted price status. Current API returns stored `status`. |
+| `PRICE_ALLOW_STALE` | `true` | Reserved for future resolver policy; current API never fabricates replacement prices. |
+| `PRICE_DEV_MOCKS` | `false` | Reserved for local development only; production API in this package does not serve mocks. |
 
 ## Local development
 
@@ -88,7 +91,7 @@ cd services/indexer
 docker compose up --build
 ```
 
-The `indexer` container waits on Postgres via Compose dependency and runs migrations before starting the poller.
+The `indexer` container waits on Postgres via Compose dependency, runs migrations, then starts the poller and API in one process.
 
 ## Production deploy readiness
 
@@ -108,9 +111,9 @@ Recommended platform settings:
 Production environment variables should mirror `.env.example`, with these deployment-specific values set by the host secret manager:
 
 - `DATABASE_URL`: managed Postgres connection string; require TLS if the provider supports `?sslmode=require`.
-- `START_HEIGHT`: factory deployment height for first backfill, not `1` unless a full-chain backfill is intentional.
+- `START_HEIGHT`: factory deployment height for first backfill (`39381297` for the recorded Juno v1 deployment), not `1` unless a full-chain backfill is intentional.
 - `JUNO_RPC_URL`, `JUNO_REST_URL`, `JUNO_WS_URL`: provider endpoints with agreed rate limits.
-- `PRICE_PROVIDER_*`: optional price source credentials; never commit real keys.
+- `PRICE_PROVIDER_*`: reserved for future persisted price-worker integration; never commit real keys.
 
 Runbook for a release:
 
@@ -123,20 +126,20 @@ Runbook for a release:
 
 ## Health checks and monitoring
 
-Until the HTTP API process is deployed alongside this poller, use platform process health plus database/RPC smoke checks for the worker container:
+Use platform process health plus database/RPC smoke checks for the worker container:
 
 ```bash
 # Database connectivity from a one-off job/container with the same DATABASE_URL.
 npm run migrate
 
 # Cursor freshness: should move over time once the poller is running.
-psql "$DATABASE_URL" -c "select namespace, height, updated_at from indexer_cursors order by updated_at desc limit 5;"
+psql "$DATABASE_URL" -c "select id, last_height, updated_at from indexer_cursors order by updated_at desc limit 5;"
 ```
 
-When the API surface is enabled, expose `GET /health` at the same stable origin used by `VITE_DEX_INDEXER_URL`. The frontend client already probes `/health` before reading `/stats`, `/pools`, `/prices`, `/wallets/:address/*`, and candle endpoints. The health response should be JSON with at least:
+Expose `GET /health` and `GET /ready` at the same stable origin used by `VITE_DEX_INDEXER_URL`. The frontend client probes `/health` before reading `/stats`, `/pools`, `/prices`, `/wallets/:address/*`, and candle endpoints. The health response is JSON with at least:
 
 ```json
-{ "status": "ok", "chainId": "juno-1", "latestIndexedHeight": 123456 }
+{ "status": "ok", "chainId": "juno-1", "cursorHeight": 123456, "headHeight": 123500, "lag": 44 }
 ```
 
 Alert on:
@@ -146,7 +149,7 @@ Alert on:
 - Postgres CPU/storage/connection saturation;
 - cursor lag above the agreed SLO, e.g. indexed height more than 50 confirmed blocks behind RPC head;
 - repeated RPC rate-limit/network failures;
-- API `/health` not returning `status: ok` once API hosting is enabled.
+- API `/health` not returning `status: ok` or `/ready` not returning `status: ready`.
 
 ## Ingestion model
 
@@ -160,6 +163,6 @@ Alert on:
 
 ## Notes for follow-up issues
 
-- `START_HEIGHT` should be updated to the actual factory deployment height before a production backfill.
-- Pool state snapshots and USD oracle pricing still need production-quality valuation logic; candles are swap-derived and will be most accurate once asset decimal metadata is wired from the native registry/asset lists.
-- The frontend currently reads `VITE_DEX_INDEXER_URL`; this service intentionally exposes ingestion/schema first and does not add an HTTP API yet.
+- Pool state snapshots and USD oracle pricing still need production-quality valuation logic; API totals stay `null` until persisted aggregate data exists rather than returning synthetic zeroes.
+- Candles are swap-derived and will be most accurate once asset decimal metadata is wired from the native registry/asset lists; quote volume is stored in `volume_quote`, not `volume_usd`.
+- The frontend reads `VITE_DEX_INDEXER_URL`; point it at this service only after staging has backfilled real transaction data and `/ready` reports `ready`.

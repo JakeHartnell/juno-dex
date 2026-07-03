@@ -47,6 +47,7 @@ export function TokenAmountInput({
     hasBalance &&
     parsed.isValid &&
     isBaseAmountGreaterThan(parsed.baseAmount, balanceBaseAmount);
+  const error = parsed.error ?? (isOverBalance ? "Amount exceeds balance" : undefined);
   const balanceCopy = hasBalance
     ? `${formatAmount(balanceBaseAmount, decimals)} ${symbol}`
     : "—";
@@ -126,6 +127,7 @@ export function TokenAmountInput({
           {fiatHint ? <span className="fiat-hint">{fiatHint}</span> : null}
         </div>
       ) : null}
+      {error ? <p role="alert" className="token-amount-error">{error}</p> : null}
     </section>
   );
 }
