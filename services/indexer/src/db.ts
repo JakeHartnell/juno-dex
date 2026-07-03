@@ -128,6 +128,15 @@ export async function upsertPoolStateSnapshot(
   );
 }
 
+export async function writeNormalizedEvents(client: PgClient, chainId: string, events: NormalizedEvent[]): Promise<void> {
+  for (const event of events) {
+    if (event.kind === "pool_created") await upsertPool(client, chainId, event);
+  }
+  for (const event of events) {
+    if (event.kind !== "pool_created") await writeNormalizedEvent(client, chainId, event);
+  }
+}
+
 export async function writeNormalizedEvent(client: PgClient, chainId: string, event: NormalizedEvent): Promise<void> {
   switch (event.kind) {
     case "pool_created":
@@ -155,15 +164,23 @@ async function upsertPool(client: PgClient, chainId: string, event: PoolCreatedE
   );
 }
 
+async function poolIdForPair(client: PgClient, chainId: string, pairAddress: string): Promise<string | null> {
+  const pool = await client.query<{ id: string }>(`SELECT id FROM pools WHERE chain_id = $1 AND pair_address = $2`, [chainId, pairAddress]);
+  return pool.rows[0]?.id ?? null;
+}
+
 async function insertSwap(client: PgClient, chainId: string, event: SwapEvent): Promise<void> {
+  const poolId = await poolIdForPair(client, chainId, event.pairAddress);
+  if (!poolId) return;
   const inserted = await client.query<{ id: string; pool_id: string | null }>(
-    `INSERT INTO swaps(chain_id, pair_address, height, block_time, tx_hash, msg_index, event_index, trader,
+    `INSERT INTO swaps(chain_id, pool_id, pair_address, height, block_time, tx_hash, msg_index, event_index, trader,
        offer_asset, offer_amount, ask_asset, return_amount, spread_amount, commission_amount, raw_event)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb)
      ON CONFLICT DO NOTHING
      RETURNING id, pool_id`,
     [
       chainId,
+      poolId,
       event.pairAddress,
       event.height,
       event.blockTime,
@@ -181,7 +198,7 @@ async function insertSwap(client: PgClient, chainId: string, event: SwapEvent): 
     ],
   );
   if (inserted.rowCount === 0) return;
-  await upsertCandlesForSwap(client, chainId, event);
+  await upsertCandlesForSwap(client, chainId, event, poolId);
 }
 
 const MAX_ASSET_DECIMALS = 36;
@@ -226,7 +243,7 @@ async function loadAssetDecimals(client: PgClient, chainId: string, assets: Arra
   return decimals;
 }
 
-async function upsertCandlesForSwap(client: PgClient, chainId: string, event: SwapEvent): Promise<void> {
+async function upsertCandlesForSwap(client: PgClient, chainId: string, event: SwapEvent, poolId: string): Promise<void> {
   const decimals = await loadAssetDecimals(client, chainId, [event.offerAsset, event.askAsset]);
   if (!hasCompleteDecimals(decimals, [event.offerAsset, event.askAsset])) return;
   const derived = deriveCanonicalSwapPrice({
@@ -238,8 +255,6 @@ async function upsertCandlesForSwap(client: PgClient, chainId: string, event: Sw
     returnAmount: event.returnAmount,
   }, decimals);
   if (!derived) return;
-  const pool = await client.query<{ id: string }>(`SELECT id FROM pools WHERE chain_id = $1 AND pair_address = $2`, [chainId, event.pairAddress]);
-  const poolId = pool.rows[0]?.id ?? null;
   for (const interval of SUPPORTED_CANDLE_INTERVALS) {
     await client.query(
       `INSERT INTO token_candles(chain_id, pool_id, pair_address, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, volume_usd, trade_count, source)
@@ -318,11 +333,13 @@ export async function backfillTokenCandles(
 }
 
 async function insertLiquidityEvent(client: PgClient, chainId: string, event: LiquidityEvent): Promise<void> {
+  const poolId = await poolIdForPair(client, chainId, event.pairAddress);
+  if (!poolId) return;
   await client.query(
-    `INSERT INTO liquidity_events(chain_id, pair_address, height, block_time, tx_hash, msg_index, event_index, kind, provider, assets, share_amount, raw_event)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12::jsonb)
+    `INSERT INTO liquidity_events(chain_id, pool_id, pair_address, height, block_time, tx_hash, msg_index, event_index, kind, provider, assets, share_amount, raw_event)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13::jsonb)
      ON CONFLICT DO NOTHING`,
-    [chainId, event.pairAddress, event.height, event.blockTime, event.txHash, event.msgIndex, event.eventIndex, event.kind, event.provider ?? null, JSON.stringify(event.assets), event.shareAmount ?? null, JSON.stringify(event.raw)],
+    [chainId, poolId, event.pairAddress, event.height, event.blockTime, event.txHash, event.msgIndex, event.eventIndex, event.kind, event.provider ?? null, JSON.stringify(event.assets), event.shareAmount ?? null, JSON.stringify(event.raw)],
   );
 }
 

@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { backfillTokenCandles, listMigrationFiles, recordProcessedBlock, runMigrations, upsertPoolStateSnapshot, writeNormalizedEvent } from "../src/db.js";
+import { backfillTokenCandles, listMigrationFiles, recordProcessedBlock, runMigrations, upsertPoolStateSnapshot, writeNormalizedEvent, writeNormalizedEvents } from "../src/db.js";
 
 type Query = { text: string; values?: unknown[] };
 
@@ -54,18 +54,27 @@ class FakeCandleClient {
   constructor(
     private readonly metadataRows: Array<{ asset: string; decimals: number | string | null }> = [{ asset: "ujuno", decimals: 6 }, { asset: "factory/token18", decimals: 18 }],
     private readonly swapRow: Record<string, string> = { pair_address: "juno1pair", block_time: "2026-07-01T03:01:00Z", offer_asset: "factory/backfill18", offer_amount: "2000000000000000000", ask_asset: "ujuno-backfill", return_amount: "3000000", height: "39381355", tx_hash: "tx", msg_index: "0", event_index: "0" },
+    private poolRows: Array<{ id: string; pair_address?: string }> = [{ id: "pool-1", pair_address: "juno1pair" }],
   ) {}
 
   async query<T = Record<string, unknown>>(text: string, values?: unknown[]): Promise<{ rows: T[]; rowCount: number }> {
     this.queries.push({ text, values });
-    if (text.includes("INSERT INTO swaps")) return { rows: [], rowCount: 1 };
+    if (text.includes("INSERT INTO pools")) {
+      this.poolRows = [{ id: "pool-created", pair_address: String(values?.[1]) }, ...this.poolRows];
+      return { rows: [], rowCount: 1 };
+    }
+    if (text.includes("INSERT INTO swaps")) return { rows: [{ id: "swap-1", pool_id: values?.[1] ?? null }] as T[], rowCount: 1 };
     if (text.includes("FROM swaps")) return { rows: [this.swapRow] as T[], rowCount: 1 };
     if (text.includes("FROM asset_metadata")) {
       const requested = new Set((values?.[1] as string[]) ?? []);
       const rows = this.metadataRows.filter((row) => requested.has(row.asset));
       return { rows: rows as T[], rowCount: rows.length };
     }
-    if (text.includes("FROM pools") && text.includes("pair_address")) return { rows: [{ id: "pool-1" }] as T[], rowCount: 1 };
+    if (text.includes("FROM pools") && text.includes("pair_address")) {
+      const pairAddress = String(values?.[1]);
+      const rows = this.poolRows.filter((row) => row.pair_address === pairAddress || row.pair_address === undefined);
+      return { rows: rows as T[], rowCount: rows.length };
+    }
     if (text.includes("INSERT INTO token_candles")) return { rows: [], rowCount: 1 };
     return { rows: [], rowCount: 0 };
   }
@@ -175,6 +184,8 @@ describe("swap candle writes", () => {
       raw: {},
     });
 
+    const swapInsert = client.queries.find((query) => query.text.includes("INSERT INTO swaps"));
+    expect(swapInsert?.values?.slice(0, 4)).toEqual(["juno-1", "pool-1", "juno1pair", 39381355]);
     const metadata = client.queries.find((query) => query.text.includes("FROM asset_metadata"));
     expect(metadata?.values).toEqual(["juno-1", ["factory/token18", "ujuno"]]);
     const candleInsert = client.queries.find((query) => query.text.includes("INSERT INTO token_candles"));
@@ -216,6 +227,115 @@ describe("swap candle writes", () => {
     );
     await expect(backfillTokenCandles(badClient as never, { chainId: "juno-1" })).resolves.toBe(1);
     expect(badClient.queries.some((query) => query.text.includes("INSERT INTO token_candles"))).toBe(false);
+  });
+  it("writes pool discovery before same-batch pair events regardless of emitted order", async () => {
+    const client = new FakeCandleClient(undefined, undefined, []);
+
+    await writeNormalizedEvents(client as never, "juno-1", [
+      {
+        kind: "swap",
+        chainId: "juno-1",
+        height: 39381355,
+        blockTime: "2026-07-01T03:01:00Z",
+        txHash: "tx",
+        msgIndex: 0,
+        eventIndex: 0,
+        pairAddress: "juno1newpair",
+        offerAsset: "factory/token18",
+        offerAmount: "2000000000000000000",
+        askAsset: "ujuno",
+        returnAmount: "3000000",
+        raw: {},
+      },
+      {
+        kind: "pool_created",
+        chainId: "juno-1",
+        height: 39381355,
+        blockTime: "2026-07-01T03:01:00Z",
+        txHash: "tx",
+        msgIndex: 0,
+        eventIndex: 1,
+        factoryAddress: "juno1factory",
+        pairAddress: "juno1newpair",
+        assetInfos: ["factory/token18", "ujuno"],
+        raw: {},
+      },
+    ]);
+
+    const poolInsertIndex = client.queries.findIndex((query) => query.text.includes("INSERT INTO pools"));
+    const swapInsertIndex = client.queries.findIndex((query) => query.text.includes("INSERT INTO swaps"));
+    expect(poolInsertIndex).toBeGreaterThanOrEqual(0);
+    expect(swapInsertIndex).toBeGreaterThan(poolInsertIndex);
+    const swapInsert = client.queries[swapInsertIndex];
+    expect(swapInsert?.values?.slice(0, 4)).toEqual(["juno-1", "pool-created", "juno1newpair", 39381355]);
+  });
+
+  it("skips swap persistence for unknown pair contracts", async () => {
+    const client = new FakeCandleClient(undefined, undefined, []);
+
+    await writeNormalizedEvent(client as never, "juno-1", {
+      kind: "swap",
+      chainId: "juno-1",
+      height: 39381355,
+      blockTime: "2026-07-01T03:01:00Z",
+      txHash: "tx",
+      msgIndex: 0,
+      eventIndex: 0,
+      pairAddress: "juno1unrelated",
+      offerAsset: "factory/token18",
+      offerAmount: "2000000000000000000",
+      askAsset: "ujuno",
+      returnAmount: "3000000",
+      raw: {},
+    });
+
+    expect(client.queries.some((query) => query.text.includes("FROM pools"))).toBe(true);
+    expect(client.queries.some((query) => query.text.includes("INSERT INTO swaps"))).toBe(false);
+    expect(client.queries.some((query) => query.text.includes("INSERT INTO token_candles"))).toBe(false);
+  });
+
+  it("writes known liquidity events with pool_id", async () => {
+    const client = new FakeCandleClient();
+
+    await writeNormalizedEvent(client as never, "juno-1", {
+      kind: "provide",
+      chainId: "juno-1",
+      height: 39381355,
+      blockTime: "2026-07-01T03:01:00Z",
+      txHash: "tx-liq-known",
+      msgIndex: 0,
+      eventIndex: 1,
+      pairAddress: "juno1pair",
+      provider: "juno1provider",
+      assets: [{ asset: "ujuno", amount: "1" }],
+      shareAmount: "1",
+      raw: {},
+    });
+
+    const insert = client.queries.find((query) => query.text.includes("INSERT INTO liquidity_events"));
+    expect(insert?.values?.slice(0, 4)).toEqual(["juno-1", "pool-1", "juno1pair", 39381355]);
+  });
+
+  it("skips liquidity persistence for unknown pair contracts", async () => {
+    const client = new FakeCandleClient(undefined, undefined, []);
+
+    await writeNormalizedEvent(client as never, "juno-1", {
+      kind: "provide",
+      chainId: "juno-1",
+      height: 39381355,
+      blockTime: "2026-07-01T03:01:00Z",
+      txHash: "tx-liq",
+      msgIndex: 0,
+      eventIndex: 1,
+      pairAddress: "juno1unrelated",
+      provider: "juno1provider",
+      assets: [{ asset: "ujuno", amount: "1" }],
+      shareAmount: "1",
+      raw: {},
+    });
+
+    expect(client.queries.some((query) => query.text.includes("FROM pools"))).toBe(true);
+    expect(client.queries.some((query) => query.text.includes("INSERT INTO liquidity_events"))).toBe(false);
   });
 });
 

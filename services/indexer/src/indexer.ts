@@ -1,5 +1,5 @@
 import type { IndexerConfig } from "./config.js";
-import { advanceCursor, createPool, getCursor, recordProcessedBlock, upsertPoolStateSnapshot, writeNormalizedEvent, type PgPool } from "./db.js";
+import { advanceCursor, createPool, getCursor, recordProcessedBlock, upsertPoolStateSnapshot, writeNormalizedEvents, type PgPool } from "./db.js";
 import { normalizeBlockEvents, type NormalizedEvent } from "./events.js";
 import { JunoRestClient, JunoRpcClient } from "./rpc.js";
 import { nextBlockRange } from "./ranges.js";
@@ -55,7 +55,7 @@ export class Indexer {
               blockTime: block.time,
               txCount: block.txCount,
             });
-            for (const event of normalized) await writeNormalizedEvent(client, this.config.chainId, event);
+            await writeNormalizedEvents(client, this.config.chainId, normalized);
             await advanceCursor(client, { cursorId: this.config.cursorId, height, blockHash: block.hash });
             await client.query("COMMIT");
           } catch (error) {
