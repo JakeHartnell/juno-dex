@@ -140,6 +140,19 @@ query/simulation evidence the helper redirects to
 
 Do not run the open-XYK helper until these pass.
 
+After all nine first-pool smoke files are saved, run the offline evidence
+validator before opening public pair creation:
+
+```sh
+python3 scripts/validate_juno_v1_first_pool_smoke_evidence.py \
+  --dir deployment/tx/uni-7 \
+  --config deployment/juno-v1-testnet.json \
+  --pair-address "$PAIR_ADDR"
+```
+
+The final green line should include `first_pool_smoke_evidence=true`,
+`tx_files=4`, and `query_files=5`.
+
 Only after those checks pass, broadcast `update_pair_config` with the same pair
 code ID and fees to set `permissioned=false`. Generate the message and
 copy/paste-safe `junod tx wasm execute` command from the rendered config so the

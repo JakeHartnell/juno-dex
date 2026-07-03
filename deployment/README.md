@@ -132,6 +132,18 @@ saves suggested tx outputs and query evidence under
 `first-pool-smoke-pool-after-swaps.json`. Do not run the open-XYK helper until
 these pass and the pool query confirms non-zero liquidity.
 
+Once those nine JSON files are saved, validate them offline before opening
+public pair creation:
+
+```sh
+python3 scripts/validate_juno_v1_first_pool_smoke_evidence.py \
+  --dir deployment/tx/uni-7 \
+  --config deployment/juno-v1-testnet.json \
+  --pair-address "$PAIR_ADDR"
+```
+
+Expected: `first_pool_smoke_evidence=true tx_files=4 query_files=5`.
+
 ## Post-smoke open-XYK command
 
 After the first pool is registered, seeded, and smoke-checked, generate the

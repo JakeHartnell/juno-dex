@@ -110,6 +110,7 @@ Three diffs to the AI audit; one mechanical (A), two functional (B, C). See
 | `41-open-pair-config-tx-helper-2026-07-02.md` | Generated `junod tx wasm execute` helper for the post-smoke `update_pair_config` open-XYK step. |
 | `42-first-pool-smoke-command-helper-2026-07-02.md` | Generated permissioned first-pool create/seed/query/tiny-swap command helper and CI guard. |
 | `43-first-pool-query-evidence-2026-07-03.md` | First-pool smoke helper now saves pair lookup, pool, and simulation query evidence before opening public XYK creation. |
+| `44-first-pool-smoke-evidence-validator-2026-07-03.md` | Offline validator for saved first-pool smoke tx/query evidence before opening public XYK creation. |
 
 Files marked "(P*)" are stubs until that phase begins.
 

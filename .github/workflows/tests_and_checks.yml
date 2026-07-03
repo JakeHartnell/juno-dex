@@ -31,6 +31,7 @@ jobs:
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_tx_extractor.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_deployment_command.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_first_pool_smoke_commands.py
+          python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_first_pool_smoke_evidence.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_open_pair_config_tx.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_secret_scan.py
           python3 $GITHUB_WORKSPACE/scripts/check_juno_v1_operator_checklist.py
