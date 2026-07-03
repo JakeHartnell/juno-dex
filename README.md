@@ -1,14 +1,8 @@
-# Astroport Core
+# Juno Dex
 
 [![codecov](https://codecov.io/gh/astroport-fi/astroport-core/branch/main/graph/badge.svg?token=ROOLZTGZMM)](https://codecov.io/gh/astroport-fi/astroport-core)
 
-Multi pool type automated market-maker (AMM) protocol powered by smart contracts on the Terra, Injective, Neutron,
-and Osmosis
-blockchains.
-
-## Contracts diagram
-
-![contract diagram](./assets/sc_diagram.png "Contracts Diagram")
+Forked with love by agents from [astroport-core](https://github.com/astroport-fi/astroport-core).
 
 ## General Contracts
 
