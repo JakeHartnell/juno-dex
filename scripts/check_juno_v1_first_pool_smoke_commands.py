@@ -95,17 +95,22 @@ def main() -> None:
             "junod tx wasm execute juno1factory000000000000000000000000000000000",
             '"create_pair":{"asset_infos":[{"native_token":{"denom":"ujunox"}},{"native_token":{"denom":"ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"}}],"init_params":null,"pair_type":{"xyk":{}}}',
             "first-pool-smoke-create-pair.json",
+            "first-pool-smoke-pair-lookup.json",
             '"pair":{"asset_infos"',
             "--amount 1000000ujunox,1000000ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
             "first-pool-smoke-provide-liquidity.json",
+            "first-pool-smoke-pool-after-provide.json",
             '"pool":{}',
+            "first-pool-smoke-pair-simulation.json",
             '"simulation":{"ask_asset_info":{"native_token":{"denom":"ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"}},"offer_asset":{"amount":"1000","info":{"native_token":{"denom":"ujunox"}}}}',
             '"swap":{"ask_asset_info":{"native_token":{"denom":"ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"}},"belief_price":null,"max_spread":"0.01","offer_asset":{"amount":"1000","info":{"native_token":{"denom":"ujunox"}}},"to":null}',
             "first-pool-smoke-tiny-swap.json",
             "juno1router0000000000000000000000000000000000",
+            "first-pool-smoke-router-simulation.json",
             '"simulate_swap_operations":{"offer_amount":"1000","operations":[{"astro_swap":{"ask_asset_info":{"native_token":{"denom":"ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"}},"offer_asset_info":{"native_token":{"denom":"ujunox"}}}}]}',
             '"execute_swap_operations":{"max_spread":"0.01","minimum_receive":null,"operations":[{"astro_swap":{"ask_asset_info":{"native_token":{"denom":"ibc/0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"}},"offer_asset_info":{"native_token":{"denom":"ujunox"}}}}],"to":null}',
             "first-pool-smoke-router-tiny-swap.json",
+            "first-pool-smoke-pool-after-swaps.json",
             "first_pool_smoke_commands=ready chain_id=uni-7",
             "router=juno1router0000000000000000000000000000000000",
             "permissioned=true",
@@ -149,16 +154,21 @@ def main() -> None:
     for needle in (
         "scripts/build_juno_v1_first_pool_smoke_commands.py",
         "first-pool-smoke-create-pair.json",
+        "first-pool-smoke-pair-lookup.json",
         "first-pool-smoke-provide-liquidity.json",
+        "first-pool-smoke-pool-after-provide.json",
+        "first-pool-smoke-pair-simulation.json",
         "first-pool-smoke-tiny-swap.json",
+        "first-pool-smoke-router-simulation.json",
         "first-pool-smoke-router-tiny-swap.json",
+        "first-pool-smoke-pool-after-swaps.json",
         "Do not run the open-XYK helper until these pass",
     ):
         if needle not in docs:
             fail(f"operator docs missing first-pool smoke helper text: {needle}")
 
     print("OK: Juno v1 first-pool smoke command builder emits guarded create/seed/query/swap snippets")
-    print("first_pool_smoke_commands=true create_pair=true seed_liquidity=true query_pool=true tiny_swap=true router_tiny_swap=true failure_cases=4")
+    print("first_pool_smoke_commands=true create_pair=true query_evidence=true seed_liquidity=true query_pool=true tiny_swap=true router_tiny_swap=true failure_cases=4")
 
 
 if __name__ == "__main__":

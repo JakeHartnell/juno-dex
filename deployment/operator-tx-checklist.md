@@ -128,10 +128,17 @@ python3 scripts/build_juno_v1_first_pool_smoke_commands.py \
 
 Save the generated broadcast responses under
 `deployment/tx/uni-7/first-pool-smoke-create-pair.json`,
-`deployment/tx/uni-7/first-pool-smoke-provide-liquidity.json`, and
-`deployment/tx/uni-7/first-pool-smoke-tiny-swap.json`, plus the router smoke
-evidence at `deployment/tx/uni-7/first-pool-smoke-router-tiny-swap.json`. Do
-not run the open-XYK helper until these pass.
+`deployment/tx/uni-7/first-pool-smoke-provide-liquidity.json`,
+`deployment/tx/uni-7/first-pool-smoke-tiny-swap.json`, and
+`deployment/tx/uni-7/first-pool-smoke-router-tiny-swap.json`. Also save the
+query/simulation evidence the helper redirects to
+`deployment/tx/uni-7/first-pool-smoke-pair-lookup.json`,
+`deployment/tx/uni-7/first-pool-smoke-pool-after-provide.json`,
+`deployment/tx/uni-7/first-pool-smoke-pair-simulation.json`,
+`deployment/tx/uni-7/first-pool-smoke-router-simulation.json`, and
+`deployment/tx/uni-7/first-pool-smoke-pool-after-swaps.json`.
+
+Do not run the open-XYK helper until these pass.
 
 Only after those checks pass, broadcast `update_pair_config` with the same pair
 code ID and fees to set `permissioned=false`. Generate the message and

@@ -14,7 +14,7 @@ helper that reads a rendered `deployment/juno-v1-testnet.json` and emits guarded
 1. creating only the official XYK first pool from `pair_create_msg_template`,
 2. querying the factory `pair` endpoint and exporting the pair address,
 3. seeding non-zero native liquidity and saving the provide-liquidity tx JSON,
-4. querying `pool`,
+4. querying `pool` and saving the post-provide evidence,
 5. simulating and broadcasting one tiny native swap directly through the pair,
 6. simulating and broadcasting the same single-hop native swap through the
    router, and
@@ -28,6 +28,9 @@ pre-Rust CI launch guards plus the CI wiring self-check.
 - Requires factory instantiate config to stay `permissioned=true` during smoke.
 - Requires `pair_create_msg_template` to stay XYK-only with exactly two native
   assets and no init params.
+- Saves factory pair lookup, post-provide pool, pair simulation, router
+  simulation, and post-swap pool query evidence beside the tx JSON under
+  `deployment/tx/<chain>/first-pool-smoke-*.json`.
 - Requires the rendered router address and emits router smoke evidence at
   `deployment/tx/<chain>/first-pool-smoke-router-tiny-swap.json`.
 - Emits commands only; it never broadcasts transactions.

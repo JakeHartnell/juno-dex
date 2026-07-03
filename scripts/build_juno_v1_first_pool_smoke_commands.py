@@ -199,22 +199,22 @@ def main() -> None:
     print("# Permissioned first-pool smoke commands. Do not run the open-XYK helper until these pass.")
     print("# 1. Create only the official first XYK pool from the rendered template.")
     print(shell(["junod", "tx", "wasm", "execute", factory, compact_json(create_pair_msg), *tx_common], output_prefix.with_name(output_prefix.name + "-create-pair.json")))
-    print("\n# 2. Query factory pair discovery and export PAIR_ADDR from the response contract_addr.")
-    print(shell(["junod", "query", "wasm", "contract-state", "smart", factory, compact_json(pair_query_msg), "--chain-id", chain_id, "--output", "json"]))
+    print("\n# 2. Query factory pair discovery, save the response, and export PAIR_ADDR from contract_addr.")
+    print(shell(["junod", "query", "wasm", "contract-state", "smart", factory, compact_json(pair_query_msg), "--chain-id", chain_id, "--output", "json"], output_prefix.with_name(output_prefix.name + "-pair-lookup.json")))
     print("\n# 3. Seed non-zero native liquidity into the official pair.")
     print(shell(["junod", "tx", "wasm", "execute", pair_address, compact_json(provide_msg), "--amount", f"{seed_a}{denom_a},{seed_b}{denom_b}", *tx_common], output_prefix.with_name(output_prefix.name + "-provide-liquidity.json")))
-    print("\n# 4. Verify pool balances are non-zero.")
-    print(shell(["junod", "query", "wasm", "contract-state", "smart", pair_address, compact_json(pool_query_msg), "--chain-id", chain_id, "--output", "json"]))
+    print("\n# 4. Verify pool balances are non-zero and save the query evidence.")
+    print(shell(["junod", "query", "wasm", "contract-state", "smart", pair_address, compact_json(pool_query_msg), "--chain-id", chain_id, "--output", "json"], output_prefix.with_name(output_prefix.name + "-pool-after-provide.json")))
     print("\n# 5. Simulate and then broadcast one tiny native swap directly through the pair.")
-    print(shell(["junod", "query", "wasm", "contract-state", "smart", pair_address, compact_json(simulation_msg), "--chain-id", chain_id, "--output", "json"]))
+    print(shell(["junod", "query", "wasm", "contract-state", "smart", pair_address, compact_json(simulation_msg), "--chain-id", chain_id, "--output", "json"], output_prefix.with_name(output_prefix.name + "-pair-simulation.json")))
     print(shell(["junod", "tx", "wasm", "execute", pair_address, compact_json(swap_msg), "--amount", f"{swap_amount}{denom_a}", *tx_common], output_prefix.with_name(output_prefix.name + "-tiny-swap.json")))
 
     print("\n# 6. Simulate and broadcast the same single-hop native swap through the router.")
-    print(shell(["junod", "query", "wasm", "contract-state", "smart", router, compact_json(router_simulation_msg), "--chain-id", chain_id, "--output", "json"]))
+    print(shell(["junod", "query", "wasm", "contract-state", "smart", router, compact_json(router_simulation_msg), "--chain-id", chain_id, "--output", "json"], output_prefix.with_name(output_prefix.name + "-router-simulation.json")))
     print(shell(["junod", "tx", "wasm", "execute", router, compact_json(router_swap_msg), "--amount", f"{swap_amount}{denom_a}", *tx_common], output_prefix.with_name(output_prefix.name + "-router-tiny-swap.json")))
 
-    print("\n# 7. Re-query the pool, then run build_juno_v1_open_pair_config_tx.py only after the smoke evidence is saved.")
-    print(shell(["junod", "query", "wasm", "contract-state", "smart", pair_address, compact_json(pool_query_msg), "--chain-id", chain_id, "--output", "json"]))
+    print("\n# 7. Re-query the pool, save the final evidence, then run build_juno_v1_open_pair_config_tx.py only after every smoke file is reviewed.")
+    print(shell(["junod", "query", "wasm", "contract-state", "smart", pair_address, compact_json(pool_query_msg), "--chain-id", chain_id, "--output", "json"], output_prefix.with_name(output_prefix.name + "-pool-after-swaps.json")))
     print(
         "first_pool_smoke_commands=ready "
         f"chain_id={chain_id} factory={factory} router={router} denoms={denom_a},{denom_b} pair_address={pair_address} permissioned=true"

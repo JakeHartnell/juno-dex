@@ -121,10 +121,16 @@ python3 scripts/build_juno_v1_first_pool_smoke_commands.py \
 
 The helper prints the permissioned `create_pair` tx, factory `pair` lookup,
 native `provide_liquidity`, `pool`/`simulation` queries, and tiny `swap` tx. It
-saves suggested tx outputs under `deployment/tx/uni-7/first-pool-smoke-*.json`,
-including `first-pool-smoke-create-pair.json` and
-`first-pool-smoke-tiny-swap.json`. Do not run the open-XYK helper until these pass
-and the pool query confirms non-zero liquidity.
+saves suggested tx outputs and query evidence under
+`deployment/tx/uni-7/first-pool-smoke-*.json`, including
+`first-pool-smoke-create-pair.json`, `first-pool-smoke-pair-lookup.json`,
+`first-pool-smoke-provide-liquidity.json`,
+`first-pool-smoke-pool-after-provide.json`,
+`first-pool-smoke-pair-simulation.json`, `first-pool-smoke-tiny-swap.json`,
+`first-pool-smoke-router-simulation.json`,
+`first-pool-smoke-router-tiny-swap.json`, and
+`first-pool-smoke-pool-after-swaps.json`. Do not run the open-XYK helper until
+these pass and the pool query confirms non-zero liquidity.
 
 ## Post-smoke open-XYK command
 
