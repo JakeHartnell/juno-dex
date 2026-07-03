@@ -178,7 +178,51 @@ async function insertSwap(client: PgClient, chainId: string, event: SwapEvent): 
   await upsertCandlesForSwap(client, chainId, event);
 }
 
+const MAX_ASSET_DECIMALS = 36;
+const assetDecimalsCache = new Map<string, number>();
+
+function decimalsCacheKey(chainId: string, asset: string) {
+  return `${chainId}:${asset}`;
+}
+
+function isValidAssetDecimals(value: unknown): value is number | string {
+  if (value === null || value === undefined || value === "") return false;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= MAX_ASSET_DECIMALS;
+}
+
+function hasCompleteDecimals(decimals: Record<string, number>, assets: Array<string | undefined>): boolean {
+  return assets.every((asset) => Boolean(asset) && decimals[asset!] !== undefined);
+}
+
+async function loadAssetDecimals(client: PgClient, chainId: string, assets: Array<string | undefined>): Promise<Record<string, number>> {
+  const uniqueAssets = [...new Set(assets.filter((asset): asset is string => Boolean(asset)))];
+  if (uniqueAssets.length === 0) return {};
+  const decimals: Record<string, number> = {};
+  const missing: string[] = [];
+  for (const asset of uniqueAssets) {
+    const cached = assetDecimalsCache.get(decimalsCacheKey(chainId, asset));
+    if (cached === undefined) missing.push(asset);
+    else decimals[asset] = cached;
+  }
+  if (missing.length > 0) {
+    const result = await client.query<{ asset: string; decimals: number | string | null }>(
+      `SELECT asset, decimals FROM asset_metadata WHERE chain_id = $1 AND asset = ANY($2::text[])`,
+      [chainId, missing],
+    );
+    for (const row of result.rows) {
+      if (!row.asset || !isValidAssetDecimals(row.decimals)) continue;
+      const parsed = Number(row.decimals);
+      assetDecimalsCache.set(decimalsCacheKey(chainId, row.asset), parsed);
+      decimals[row.asset] = parsed;
+    }
+  }
+  return decimals;
+}
+
 async function upsertCandlesForSwap(client: PgClient, chainId: string, event: SwapEvent): Promise<void> {
+  const decimals = await loadAssetDecimals(client, chainId, [event.offerAsset, event.askAsset]);
+  if (!hasCompleteDecimals(decimals, [event.offerAsset, event.askAsset])) return;
   const derived = deriveCanonicalSwapPrice({
     pairAddress: event.pairAddress,
     blockTime: event.blockTime,
@@ -186,7 +230,7 @@ async function upsertCandlesForSwap(client: PgClient, chainId: string, event: Sw
     offerAmount: event.offerAmount,
     askAsset: event.askAsset,
     returnAmount: event.returnAmount,
-  });
+  }, decimals);
   if (!derived) return;
   const pool = await client.query<{ id: string }>(`SELECT id FROM pools WHERE chain_id = $1 AND pair_address = $2`, [chainId, event.pairAddress]);
   const poolId = pool.rows[0]?.id ?? null;
@@ -240,8 +284,10 @@ export async function backfillTokenCandles(
     const pool = await client.query<{ id: string }>(`SELECT id FROM pools WHERE chain_id = $1 AND pair_address = $2`, [params.chainId, row.pair_address]);
     poolIds.set(row.pair_address, pool.rows[0]?.id ?? null);
   }
+  const decimals = await loadAssetDecimals(client, params.chainId, swaps.flatMap((swap) => [swap.offerAsset, swap.askAsset]));
+  const swapsWithDecimals = swaps.filter((swap) => hasCompleteDecimals(decimals, [swap.offerAsset, swap.askAsset]));
   for (const interval of SUPPORTED_CANDLE_INTERVALS) {
-    const candles = aggregateSwapsToCandles(swaps, interval);
+    const candles = aggregateSwapsToCandles(swapsWithDecimals, interval, decimals);
     for (const candle of candles) {
       await client.query(
         `INSERT INTO token_candles(chain_id, pool_id, pair_address, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, volume_usd, trade_count, source)
