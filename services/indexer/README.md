@@ -138,10 +138,10 @@ npm run migrate
 psql "$DATABASE_URL" -c "select id, last_height, updated_at from indexer_cursors order by updated_at desc limit 5;"
 ```
 
-Expose `GET /health` and `GET /ready` at the same stable origin used by `VITE_DEX_INDEXER_URL`. The frontend client probes `/health` before reading `/stats`, `/pools`, `/prices`, `/wallets/:address/*`, and candle endpoints. The health response is JSON with at least:
+Expose `GET /health`, `GET /ready`, and `GET /metrics` at the same stable origin used by `VITE_DEX_INDEXER_URL`. The frontend client probes `/health` before reading `/stats`, `/pools`, `/prices`, `/wallets/:address/*`, and candle endpoints. Prometheus-compatible scrapers should use `/metrics` for readiness, cursor height, head height, confirmed target height, lag, confirmed lag, cursor age, RPC configured/reachable state, and migration count gauges. Treat `juno_indexer_rpc_reachable` as meaningful when `juno_indexer_rpc_configured` is `1`; local tests may omit RPC while production config should set `JUNO_RPC_URL`. The health response is JSON with at least:
 
 ```json
-{ "status": "ok", "chainId": "juno-1", "cursorHeight": 123456, "headHeight": 123500, "lag": 44 }
+{ "status": "ok", "chainId": "juno-1", "confirmationDepth": 2, "cursorHeight": 123456, "headHeight": 123500, "confirmedTargetHeight": 123498, "lag": 44, "confirmedLag": 42 }
 ```
 
 Alert on:

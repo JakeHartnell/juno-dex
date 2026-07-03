@@ -45,6 +45,7 @@ In another shell/container with the same network access:
 curl -fsS http://127.0.0.1:8787/health | jq .
 curl -fsS http://127.0.0.1:8787/ready | jq .
 curl -fsS http://127.0.0.1:8787/openapi.json | jq '.paths | keys'
+curl -fsS http://127.0.0.1:8787/metrics | grep '^juno_indexer_'
 curl -fsS 'http://127.0.0.1:8787/pools?limit=10' | jq .
 curl -fsS 'http://127.0.0.1:8787/pools/juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv/candles?interval=1h&limit=10' | jq .
 curl -fsS 'http://127.0.0.1:8787/wallets/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/history?limit=10' | jq .

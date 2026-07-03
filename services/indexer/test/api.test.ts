@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type http from "node:http";
 import { createIndexerApi } from "../src/api.js";
 import { PostgresApiStore } from "../src/api-store.js";
@@ -52,6 +52,7 @@ async function start(db = new FakeDb()) {
 
 let openServer: http.Server | undefined;
 afterEach(async () => {
+  vi.restoreAllMocks();
   if (openServer) await new Promise<void>((resolve, reject) => openServer!.close((error) => (error ? reject(error) : resolve())));
   openServer = undefined;
 });
@@ -61,13 +62,62 @@ describe("production API", () => {
     const { server, baseUrl } = await start();
     openServer = server;
     const health = await (await fetch(`${baseUrl}/health`)).json();
-    expect(health).toMatchObject({ status: "ok", service: "astroport-juno-indexer", dataSource: "indexer", isMock: false, cursorHeight: 42 });
+    expect(health).toMatchObject({ status: "ok", service: "astroport-juno-indexer", dataSource: "indexer", isMock: false, confirmationDepth: 0, cursorHeight: 42, confirmedTargetHeight: null, confirmedLag: null, rpcConfigured: false, rpcReachable: false });
     const ready = await (await fetch(`${baseUrl}/ready`)).json();
     expect(ready).toMatchObject({ status: "ready", database: "ok", migrationsApplied: 3, checks: { database: true, migrations: true, rpc: true } });
     const stats = await (await fetch(`${baseUrl}/stats`)).json();
     expect(stats).toMatchObject({ poolCount: 1, tvlUsd: null, tvlJuno: 1000, volume24hUsd: null, volume24hJuno: 25, incentivizedPools: 1, isMock: false });
     const openapi = await (await fetch(`${baseUrl}/openapi.json`)).json();
     expect(openapi.paths["/ready"]).toBeTruthy();
+    expect(openapi.paths["/metrics"]).toBeTruthy();
+  });
+
+  it("serves Prometheus metrics for readiness, cursor, RPC, and migrations", async () => {
+    const { server, baseUrl } = await start();
+    openServer = server;
+
+    const response = await fetch(`${baseUrl}/metrics`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/plain");
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const body = await response.text();
+    expect(body).toContain("# HELP juno_indexer_ready");
+    expect(body).toContain('juno_indexer_ready{chain_id="juno-1"} 1');
+    expect(body).toContain('juno_indexer_rpc_configured{chain_id="juno-1"} 0');
+    expect(body).toContain('juno_indexer_rpc_reachable{chain_id="juno-1"} 0');
+    expect(body).toContain('juno_indexer_cursor_height{chain_id="juno-1"} 42');
+    expect(body).toContain('juno_indexer_cursor_age_ms{chain_id="juno-1"}');
+    expect(body).toContain('juno_indexer_migrations_applied{chain_id="juno-1"} 3');
+  });
+
+  it("uses one shared RPC head check per metrics scrape", async () => {
+    const originalFetch = globalThis.fetch.bind(globalThis);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input) === "http://rpc.example/status") {
+        return {
+          ok: true,
+          json: async () => ({ result: { sync_info: { latest_block_height: "50", latest_block_hash: "head-hash" } } }),
+        } as Response;
+      }
+      return originalFetch(input, init);
+    });
+    const store = new PostgresApiStore(new FakeDb() as never, "juno-1", "cursor", { rpcUrl: "http://rpc.example", confirmationDepth: 2 });
+    const server = createIndexerApi(store);
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    openServer = server;
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("missing port");
+
+    const body = await (await fetch(`http://127.0.0.1:${address.port}/metrics`)).text();
+
+    const rpcCalls = fetchSpy.mock.calls.filter(([input]) => String(input) === "http://rpc.example/status");
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0]?.[0]).toBe("http://rpc.example/status");
+    expect(body).toContain('juno_indexer_rpc_configured{chain_id="juno-1"} 1');
+    expect(body).toContain('juno_indexer_rpc_reachable{chain_id="juno-1"} 1');
+    expect(body).toContain('juno_indexer_head_height{chain_id="juno-1"} 50');
+    expect(body).toContain('juno_indexer_confirmed_target_height{chain_id="juno-1"} 48');
+    expect(body).toContain('juno_indexer_confirmed_lag_blocks{chain_id="juno-1"} 6');
   });
 
   it("returns frontend-compatible pool, price and candle responses from Postgres rows", async () => {

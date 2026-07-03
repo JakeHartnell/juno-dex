@@ -16,6 +16,7 @@ export type PaginationQuery = {
 export type IndexerApiStore = {
   health(): Promise<Record<string, unknown>>;
   ready(): Promise<Record<string, unknown>>;
+  opsStatus(): Promise<{ health: Record<string, unknown>; ready: Record<string, unknown> }>;
   stats(): Promise<Record<string, unknown>>;
   prices(assets: string[]): Promise<Record<string, unknown>[]>;
   pools(query: PaginationQuery): Promise<Record<string, unknown>>;
@@ -26,17 +27,32 @@ export type IndexerApiStore = {
   walletHistory(addr: string, query: PaginationQuery): Promise<Record<string, unknown>>;
 };
 
-function jsonResponse(res: http.ServerResponse, status: number, body: unknown, extraHeaders: Record<string, string> = {}) {
-  const payload = status === 204 ? "" : JSON.stringify(body);
-  res.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
+function baseHeaders(extraHeaders: Record<string, string> = {}) {
+  return {
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET, OPTIONS",
     "access-control-allow-headers": "content-type, authorization",
+    ...extraHeaders,
+  };
+}
+
+function jsonResponse(res: http.ServerResponse, status: number, body: unknown, extraHeaders: Record<string, string> = {}) {
+  const payload = status === 204 ? "" : JSON.stringify(body);
+  res.writeHead(status, baseHeaders({
+    "content-type": "application/json; charset=utf-8",
     "cache-control": status === 200 ? "public, max-age=15, stale-while-revalidate=30" : "no-store",
     ...extraHeaders,
-  });
+  }));
   res.end(payload);
+}
+
+function textResponse(res: http.ServerResponse, status: number, body: string, extraHeaders: Record<string, string> = {}) {
+  res.writeHead(status, baseHeaders({
+    "content-type": "text/plain; version=0.0.4; charset=utf-8",
+    "cache-control": "no-store",
+    ...extraHeaders,
+  }));
+  res.end(body);
 }
 
 function query(searchParams: URLSearchParams): PaginationQuery {
@@ -62,6 +78,59 @@ function assets(searchParams: URLSearchParams, pathAsset?: string): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
+function metricHelp(name: string, help: string, type = "gauge") {
+  return [`# HELP ${name} ${help}`, `# TYPE ${name} ${type}`];
+}
+
+function metricValue(value: unknown): number | null {
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function labelValue(value: unknown): string {
+  return String(value ?? "unknown").replace(/[\\"\n]/g, "_");
+}
+
+function metricLine(name: string, value: unknown, labels: Record<string, unknown> = {}) {
+  const number = metricValue(value);
+  if (number === null) return null;
+  const labelEntries = Object.entries(labels);
+  const renderedLabels = labelEntries.length > 0 ? `{${labelEntries.map(([key, label]) => `${key}="${labelValue(label)}"`).join(",")}}` : "";
+  return `${name}${renderedLabels} ${number}`;
+}
+
+async function metricsBody(store: IndexerApiStore): Promise<string> {
+  const { health, ready } = await store.opsStatus();
+  const labels = { chain_id: health.chainId ?? "unknown" };
+  const lines = [
+    ...metricHelp("juno_indexer_ready", "Indexer readiness status: 1 when /ready is ready, otherwise 0."),
+    metricLine("juno_indexer_ready", ready.status === "ready", labels),
+    ...metricHelp("juno_indexer_rpc_configured", "Whether this API store has an RPC endpoint configured for chain head checks."),
+    metricLine("juno_indexer_rpc_configured", health.rpcConfigured, labels),
+    ...metricHelp("juno_indexer_rpc_reachable", "RPC reachability; meaningful when juno_indexer_rpc_configured is 1."),
+    metricLine("juno_indexer_rpc_reachable", health.rpcReachable, labels),
+    ...metricHelp("juno_indexer_cursor_height", "Last block height committed to the indexer cursor."),
+    metricLine("juno_indexer_cursor_height", health.cursorHeight, labels),
+    ...metricHelp("juno_indexer_head_height", "Latest chain head height observed by the indexer API."),
+    metricLine("juno_indexer_head_height", health.headHeight, labels),
+    ...metricHelp("juno_indexer_confirmed_target_height", "Latest chain height considered safe after confirmation depth."),
+    metricLine("juno_indexer_confirmed_target_height", health.confirmedTargetHeight, labels),
+    ...metricHelp("juno_indexer_lag_blocks", "Difference between observed chain head and indexer cursor height."),
+    metricLine("juno_indexer_lag_blocks", health.lag, labels),
+    ...metricHelp("juno_indexer_confirmed_lag_blocks", "Difference between confirmed target height and indexer cursor height."),
+    metricLine("juno_indexer_confirmed_lag_blocks", health.confirmedLag, labels),
+    ...metricHelp("juno_indexer_cursor_age_ms", "Milliseconds since the indexer cursor row was last updated."),
+    metricLine("juno_indexer_cursor_age_ms", health.cursorAgeMs, labels),
+    ...metricHelp("juno_indexer_migrations_applied", "Number of schema migrations recorded as applied."),
+    metricLine("juno_indexer_migrations_applied", ready.migrationsApplied, labels),
+    ...metricHelp("juno_indexer_expected_migrations", "Expected schema migration count when configured."),
+    metricLine("juno_indexer_expected_migrations", ready.expectedMigrations, labels),
+  ];
+  return `${lines.filter((line): line is string => line !== null).join("\n")}\n`;
+}
+
 export function createIndexerApi(store: IndexerApiStore): http.Server {
   return http.createServer(async (req, res) => {
     if (req.method === "OPTIONS") return jsonResponse(res, 204, {});
@@ -75,6 +144,7 @@ export function createIndexerApi(store: IndexerApiStore): http.Server {
         const body = await store.ready();
         return jsonResponse(res, body.status === "ready" ? 200 : 503, body, { "cache-control": "no-store" });
       }
+      if (url.pathname === "/metrics") return textResponse(res, 200, await metricsBody(store));
       if (url.pathname === "/openapi.json") return jsonResponse(res, 200, openApiDocument);
       if (url.pathname === "/stats") return jsonResponse(res, 200, await store.stats());
       if (parts[0] === "prices" && parts.length <= 2) {

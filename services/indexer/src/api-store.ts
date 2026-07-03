@@ -8,7 +8,7 @@ const MAX_CANDLE_LIMIT = 500;
 const CANDLE_INTERVALS = new Set(["5m", "1h", "1d"]);
 
 type Queryable = Pick<PgPool, "query">;
-type StoreOptions = { rpcUrl?: string; expectedMigrationCount?: number };
+type StoreOptions = { rpcUrl?: string; expectedMigrationCount?: number; confirmationDepth?: number };
 
 function limit(query: PaginationQuery, max = MAX_LIMIT): number {
   const parsed = Number.parseInt(query.limit ?? String(DEFAULT_LIMIT), 10);
@@ -93,10 +93,12 @@ function normalizePrice(row: Record<string, unknown> | undefined, asset: string)
 export class PostgresApiStore implements IndexerApiStore {
   private readonly rpc?: JunoRpcClient;
   private readonly expectedMigrationCount?: number;
+  private readonly confirmationDepth: number;
 
   constructor(private readonly db: Queryable, private readonly chainId: string, private readonly cursorId = "astroport-juno-v1", options: StoreOptions = {}) {
     this.rpc = options.rpcUrl ? new JunoRpcClient(options.rpcUrl) : undefined;
     this.expectedMigrationCount = options.expectedMigrationCount;
+    this.confirmationDepth = Math.max(0, options.confirmationDepth ?? 0);
   }
 
   private async chainHead(): Promise<{ height: number; hash: string } | null> {
@@ -108,30 +110,32 @@ export class PostgresApiStore implements IndexerApiStore {
     }
   }
 
-  async health() {
-    const cursor = await this.db.query(`SELECT last_height, last_block_hash, updated_at FROM indexer_cursors WHERE id = $1`, [this.cursorId]);
-    const cursorHeight = toNumber(cursor.rows[0]?.last_height);
-    const head = await this.chainHead();
+  private healthFrom(cursorRow: Record<string, unknown> | undefined, head: { height: number; hash: string } | null) {
+    const cursorHeight = toNumber(cursorRow?.last_height);
+    const cursorUpdatedAt = iso(cursorRow?.updated_at);
+    const cursorAgeMs = cursorUpdatedAt ? Math.max(0, Date.now() - new Date(cursorUpdatedAt).getTime()) : null;
+    const confirmedTargetHeight = head ? Math.max(0, head.height - this.confirmationDepth) : null;
     return {
       status: "ok",
       service: "astroport-juno-indexer",
       chainId: this.chainId,
+      confirmationDepth: this.confirmationDepth,
       cursorHeight,
-      cursorBlockHash: cursor.rows[0]?.last_block_hash ? String(cursor.rows[0].last_block_hash) : null,
-      cursorUpdatedAt: iso(cursor.rows[0]?.updated_at),
+      cursorBlockHash: cursorRow?.last_block_hash ? String(cursorRow.last_block_hash) : null,
+      cursorUpdatedAt,
+      cursorAgeMs,
       headHeight: head?.height ?? null,
+      confirmedTargetHeight,
       lag: head && cursorHeight !== null ? Math.max(0, head.height - cursorHeight) : null,
+      confirmedLag: confirmedTargetHeight !== null && cursorHeight !== null ? Math.max(0, confirmedTargetHeight - cursorHeight) : null,
+      rpcConfigured: Boolean(this.rpc),
       rpcReachable: head !== null,
       dataSource: "indexer",
       isMock: false,
     };
   }
 
-  async ready() {
-    await this.db.query("SELECT 1");
-    const migrations = await this.db.query(`SELECT count(*)::int AS count FROM schema_migrations`);
-    const migrationsApplied = Number(migrations.rows[0]?.count ?? 0);
-    const head = await this.chainHead();
+  private readyFrom(migrationsApplied: number, head: { height: number; hash: string } | null) {
     const migrationsCurrent = this.expectedMigrationCount === undefined || migrationsApplied >= this.expectedMigrationCount;
     const rpcRequired = Boolean(this.rpc);
     const rpcOk = !rpcRequired || head !== null;
@@ -141,11 +145,43 @@ export class PostgresApiStore implements IndexerApiStore {
       database: "ok",
       migrationsApplied,
       expectedMigrations: this.expectedMigrationCount ?? null,
+      rpcConfigured: rpcRequired,
       rpcReachable: head !== null,
       headHeight: head?.height ?? null,
       dataSource: "indexer",
       isMock: false,
     };
+  }
+
+  async health() {
+    const [cursor, head] = await Promise.all([
+      this.db.query(`SELECT last_height, last_block_hash, updated_at FROM indexer_cursors WHERE id = $1`, [this.cursorId]),
+      this.chainHead(),
+    ]);
+    return this.healthFrom(cursor.rows[0], head);
+  }
+
+  async ready() {
+    await this.db.query("SELECT 1");
+    const [migrations, head] = await Promise.all([
+      this.db.query(`SELECT count(*)::int AS count FROM schema_migrations`),
+      this.chainHead(),
+    ]);
+    const migrationsApplied = Number(migrations.rows[0]?.count ?? 0);
+    return this.readyFrom(migrationsApplied, head);
+  }
+
+  async opsStatus() {
+    const [cursor, migrations, head] = await Promise.all([
+      this.db.query(`SELECT last_height, last_block_hash, updated_at FROM indexer_cursors WHERE id = $1`, [this.cursorId]),
+      (async () => {
+        await this.db.query("SELECT 1");
+        return this.db.query(`SELECT count(*)::int AS count FROM schema_migrations`);
+      })(),
+      this.chainHead(),
+    ]);
+    const migrationsApplied = Number(migrations.rows[0]?.count ?? 0);
+    return { health: this.healthFrom(cursor.rows[0], head), ready: this.readyFrom(migrationsApplied, head) };
   }
 
   async stats() {
