@@ -128,21 +128,25 @@ export async function upsertPoolStateSnapshot(
   );
 }
 
-export async function writeNormalizedEvents(client: PgClient, chainId: string, events: NormalizedEvent[]): Promise<void> {
+export type WriteNormalizedEventsOptions = {
+  writeCandlesInline?: boolean;
+};
+
+export async function writeNormalizedEvents(client: PgClient, chainId: string, events: NormalizedEvent[], options: WriteNormalizedEventsOptions = {}): Promise<void> {
   for (const event of events) {
     if (event.kind === "pool_created") await upsertPool(client, chainId, event);
   }
   for (const event of events) {
-    if (event.kind !== "pool_created") await writeNormalizedEvent(client, chainId, event);
+    if (event.kind !== "pool_created") await writeNormalizedEvent(client, chainId, event, options);
   }
 }
 
-export async function writeNormalizedEvent(client: PgClient, chainId: string, event: NormalizedEvent): Promise<void> {
+export async function writeNormalizedEvent(client: PgClient, chainId: string, event: NormalizedEvent, options: WriteNormalizedEventsOptions = {}): Promise<void> {
   switch (event.kind) {
     case "pool_created":
       return upsertPool(client, chainId, event);
     case "swap":
-      return insertSwap(client, chainId, event);
+      return insertSwap(client, chainId, event, options);
     case "provide":
     case "withdraw":
       return insertLiquidityEvent(client, chainId, event);
@@ -169,7 +173,7 @@ async function poolIdForPair(client: PgClient, chainId: string, pairAddress: str
   return pool.rows[0]?.id ?? null;
 }
 
-async function insertSwap(client: PgClient, chainId: string, event: SwapEvent): Promise<void> {
+async function insertSwap(client: PgClient, chainId: string, event: SwapEvent, options: WriteNormalizedEventsOptions): Promise<void> {
   const poolId = await poolIdForPair(client, chainId, event.pairAddress);
   if (!poolId) return;
   const inserted = await client.query<{ id: string; pool_id: string | null }>(
@@ -198,7 +202,7 @@ async function insertSwap(client: PgClient, chainId: string, event: SwapEvent): 
     ],
   );
   if (inserted.rowCount === 0) return;
-  await upsertCandlesForSwap(client, chainId, event, poolId);
+  if (options.writeCandlesInline !== false) await upsertCandlesForSwap(client, chainId, event, poolId);
 }
 
 const MAX_ASSET_DECIMALS = 36;
