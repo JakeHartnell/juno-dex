@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { IndexerMetrics } from "../src/metrics.js";
 import { JunoRestClient, JunoRpcClient } from "../src/rpc.js";
 
 afterEach(() => vi.restoreAllMocks());
@@ -54,6 +55,25 @@ describe("JunoRpcClient", () => {
       "https://rpc.example/status",
       "https://rpc.example/status",
     ]);
+  });
+
+  it("honors timeout/retry options while recording RPC metrics", async () => {
+    const metrics = new IndexerMetrics();
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(503, "Service Unavailable", {}))
+      .mockResolvedValueOnce(response(200, "OK", {
+        result: { sync_info: { latest_block_height: "123", latest_block_hash: "ABC" } },
+      }));
+
+    const head = await new JunoRpcClient("https://rpc.example", { timeoutMs: 1_000, maxRetries: 1, metrics }).head();
+
+    expect(head).toEqual({ height: 123, hash: "ABC" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    const snapshot = metrics.snapshot();
+    expect(snapshot.rpcRequestsInFlight).toBe(0);
+    expect(snapshot.rpcErrors.get("503")).toBe(1);
   });
 
   it("does not retry permanent RPC statuses and fails clearly", async () => {
@@ -120,6 +140,22 @@ describe("JunoRpcClient", () => {
     expect(block).toMatchObject({ height: 9, hash: "HASH9", txCount: 0, txEvents: [] });
     expect(fetchSpy).toHaveBeenCalledTimes(3);
     expect(blockResultsAttempts).toBe(2);
+  });
+
+  it("records fetched blocks only after both block RPC responses succeed", async () => {
+    const metrics = new IndexerMetrics();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "https://rpc.example/block?height=9") return response(200, "OK", blockResponse(9));
+      if (url === "https://rpc.example/block_results?height=9") return response(500, "Internal Server Error", {});
+      throw new Error(`unexpected URL ${url}`);
+    });
+
+    await expect(new JunoRpcClient("https://rpc.example", { maxRetries: 0, metrics }).block(9)).rejects.toThrow(
+      "RPC /block_results?height=9 failed: 500 Internal Server Error",
+    );
+
+    expect(metrics.snapshot().fetchBlocksTotal).toBe(0);
   });
 });
 

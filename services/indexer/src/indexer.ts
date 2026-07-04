@@ -3,6 +3,7 @@ import type { IndexerConfig } from "./config.js";
 import { fetchBlockRange } from "./block-fetcher.js";
 import { advanceCursor, createPool, enqueueSnapshotJobs, getCursor, recordProcessedBlock, stageAndMergeBatch, upsertPoolStateSnapshot, writeNormalizedEvents, type PgClient, type PgPool } from "./db.js";
 import { normalizeBlockEvents, type NormalizedEvent } from "./events.js";
+import type { IndexerMetrics, WriterEventKind } from "./metrics.js";
 import { JunoRestClient, JunoRpcClient, type BlockBundle, type ChainHead } from "./rpc.js";
 import { nextBlockRange } from "./ranges.js";
 
@@ -15,8 +16,8 @@ export class Indexer {
   private readonly pool?: PgPool;
   private readonly ownsPool: boolean;
 
-  constructor(private readonly config: IndexerConfig, pool?: PgPool) {
-    this.rpc = new JunoRpcClient(config.rpcUrl, { timeoutMs: config.rpcTimeoutMs, maxRetries: config.rpcMaxRetries });
+  constructor(private readonly config: IndexerConfig, pool?: PgPool, private readonly metrics?: IndexerMetrics) {
+    this.rpc = new JunoRpcClient(config.rpcUrl, { metrics, timeoutMs: config.rpcTimeoutMs, maxRetries: config.rpcMaxRetries });
     this.rest = new JunoRestClient(config.restUrl);
     this.pool = pool ?? (config.dryRun ? undefined : createPool(config));
     this.ownsPool = !pool && !config.dryRun;
@@ -30,11 +31,47 @@ export class Indexer {
     const planned = await this.planRange(maxHeight);
     if (planned.empty) return { processed: 0, head: planned.head.height, target: planned.target, cursorHeight: planned.lastHeight };
 
+    const rangeStartedAt = Date.now();
     const blocks = await this.fetchRange(planned.from, planned.to);
     const decoded = blocks.map((block) => this.normalizeBlock(block));
-    const processed = this.shouldUseBulkStaging()
-      ? await this.writeBulkStagingBatch(decoded)
-      : await this.writeBlocksInOrder(decoded);
+    for (const _block of decoded) this.metrics?.recordDecodedBlock();
+    const eventCounts = countRangeEvents(decoded);
+
+    let dbDurationMs = 0;
+    const writeStartedAt = Date.now();
+    let processed = 0;
+    try {
+      processed = this.shouldUseBulkStaging()
+        ? await this.writeBulkStagingBatch(decoded)
+        : await this.writeBlocksInOrder(decoded);
+      dbDurationMs = Date.now() - writeStartedAt;
+    } catch (error) {
+      dbDurationMs = Date.now() - writeStartedAt;
+      if (isReorgHaltError(error)) this.metrics?.setReorgHalt(true);
+      throw error;
+    }
+
+    if (!this.config.dryRun) {
+      this.metrics?.recordWriterEvents(eventCounts);
+      if (processed > 0) this.metrics?.recordWriterBlock(dbDurationMs / 1000);
+    }
+    this.metrics?.setReorgHalt(false);
+    console.log(JSON.stringify({
+      msg: "indexer_range_processed",
+      role: "indexer",
+      rangeFrom: planned.from,
+      rangeTo: planned.to,
+      cursor: planned.to,
+      head: planned.head.height,
+      target: planned.target,
+      lag: Math.max(0, planned.target - planned.to),
+      blocks: processed,
+      swaps: eventCounts.swap ?? 0,
+      liquidityEvents: (eventCounts.provide ?? 0) + (eventCounts.withdraw ?? 0),
+      incentiveEvents: eventCounts.incentive ?? 0,
+      durationMs: Date.now() - rangeStartedAt,
+      dbDurationMs,
+    }));
 
     return { processed, head: planned.head.height, target: planned.target, cursorHeight: planned.to };
   }
@@ -216,6 +253,19 @@ function touchedPairAddresses(events: NormalizedEvent[]): string[] {
 
 function isPairStateEvent(event: NormalizedEvent): event is Extract<NormalizedEvent, { kind: "swap" | "provide" | "withdraw" }> {
   return event.kind === "swap" || event.kind === "provide" || event.kind === "withdraw";
+}
+
+function countRangeEvents(blocks: DecodedBlock[]): Partial<Record<WriterEventKind, number>> {
+  const counts: Partial<Record<WriterEventKind, number>> = {};
+  for (const { events } of blocks) {
+    for (const event of events) counts[event.kind] = (counts[event.kind] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function isReorgHaltError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /processed block (hash mismatch|parent hash mismatch|conflict)/.test(message);
 }
 
 async function withClient<T>(pool: PgPool, fn: (client: PgClient) => Promise<T>): Promise<T> {

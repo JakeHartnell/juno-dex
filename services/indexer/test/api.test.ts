@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type http from "node:http";
 import { createIndexerApi } from "../src/api.js";
 import { PostgresApiStore } from "../src/api-store.js";
+import { IndexerMetrics } from "../src/metrics.js";
 
 type QueryCall = { text: string; values?: unknown[] };
 
@@ -109,6 +110,39 @@ describe("production API", () => {
     expect(body).toContain('juno_indexer_cursor_height{chain_id="juno-1"} 42');
     expect(body).toContain('juno_indexer_cursor_age_ms{chain_id="juno-1"}');
     expect(body).toContain('juno_indexer_migrations_applied{chain_id="juno-1"} 3');
+  });
+
+  it("serves in-process ingestion throughput metrics when a collector is attached", async () => {
+    const store = new PostgresApiStore(new FakeDb() as never, "juno-1", "cursor");
+    const metrics = new IndexerMetrics();
+    metrics.recordFetchBlock();
+    metrics.recordFetchBlock();
+    metrics.beginRpcRequest();
+    metrics.recordRpcError(429);
+    metrics.recordDecodedBlock();
+    metrics.recordWriterBlock(0.125);
+    metrics.recordWriterEvents({ swap: 2, provide: 1, incentive: 1 });
+    metrics.setReorgHalt(true);
+    const server = createIndexerApi(store, metrics);
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    openServer = server;
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("missing port");
+
+    const body = await (await fetch(`http://127.0.0.1:${address.port}/metrics`)).text();
+
+    expect(body).toContain("# HELP juno_indexer_fetch_blocks_total");
+    expect(body).toContain("juno_indexer_fetch_blocks_total 2");
+    expect(body).toMatch(/juno_indexer_fetch_blocks_per_second \d/);
+    expect(body).toContain("juno_indexer_fetch_rpc_requests_in_flight 1");
+    expect(body).toContain('juno_indexer_fetch_rpc_error_total{status="429"} 1');
+    expect(body).toContain("juno_indexer_decode_blocks_total 1");
+    expect(body).toContain("juno_indexer_writer_blocks_total 1");
+    expect(body).toContain("juno_indexer_writer_commit_seconds 0.125");
+    expect(body).toContain('juno_indexer_writer_events_total{kind="swap"} 2');
+    expect(body).toContain('juno_indexer_writer_events_total{kind="provide"} 1');
+    expect(body).toContain('juno_indexer_writer_events_total{kind="incentive"} 1');
+    expect(body).toContain("juno_indexer_reorg_halt 1");
   });
 
   it("uses one shared RPC head check per metrics scrape", async () => {

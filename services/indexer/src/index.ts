@@ -3,12 +3,13 @@ import { PostgresApiStore } from "./api-store.js";
 import { loadConfig } from "./config.js";
 import { createPool, listMigrationFiles } from "./db.js";
 import { Indexer } from "./indexer.js";
+import { indexerMetrics } from "./metrics.js";
 
 const config = loadConfig();
 const pool = createPool(config);
 const expectedMigrationVersions = await listMigrationFiles();
-const api = createIndexerApi(new PostgresApiStore(pool, config.chainId, config.cursorId, { rpcUrl: config.rpcUrl, expectedMigrationVersions, confirmationDepth: config.confirmationDepth }));
-const indexer = new Indexer(config, pool);
+const api = createIndexerApi(new PostgresApiStore(pool, config.chainId, config.cursorId, { rpcUrl: config.rpcUrl, expectedMigrationVersions, confirmationDepth: config.confirmationDepth }), indexerMetrics);
+const indexer = new Indexer(config, pool, indexerMetrics);
 
 await new Promise<void>((resolve) => api.listen(config.apiPort, resolve));
 console.log(`astroport juno indexer api listening on :${config.apiPort}`);

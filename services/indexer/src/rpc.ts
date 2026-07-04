@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { TendermintEvent } from "./events.js";
+import type { IndexerMetrics } from "./metrics.js";
 
 export type ChainHead = { height: number; hash: string };
 export type BlockBundle = {
@@ -54,10 +55,12 @@ export class JunoRestClient {
 }
 
 export class JunoRpcClient {
+  private readonly metrics?: IndexerMetrics;
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
 
-  constructor(private readonly rpcUrl: string, options: { timeoutMs?: number; maxRetries?: number } = {}) {
+  constructor(private readonly rpcUrl: string, options: { metrics?: IndexerMetrics; timeoutMs?: number; maxRetries?: number } = {}) {
+    this.metrics = options.metrics;
     this.timeoutMs = options.timeoutMs ?? 10_000;
     this.maxRetries = options.maxRetries ?? 5;
   }
@@ -79,7 +82,7 @@ export class JunoRpcClient {
     const results = resultsJson.result as Json;
     const txsResults = (results.txs_results ?? []) as Json[];
     const txs = (data.txs ?? []) as string[];
-    return {
+    const bundle = {
       height,
       hash: String((blockJson.result as Json).block_id ? ((blockJson.result as Json).block_id as Json).hash : header.last_block_id ?? ""),
       parentHash: String((((header.last_block_id as Json | undefined)?.hash) ?? "")) || undefined,
@@ -90,6 +93,8 @@ export class JunoRpcClient {
         events: convertEvents((tx.events ?? []) as Json[]),
       })),
     };
+    this.metrics?.recordFetchBlock();
+    return bundle;
   }
 
   private async get(path: string): Promise<unknown> {
@@ -97,17 +102,21 @@ export class JunoRpcClient {
     for (let attempt = 0; attempt <= this.maxRetries; attempt += 1) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+      this.metrics?.beginRpcRequest();
       try {
         const response = await fetch(`${this.rpcUrl}${path}`, { signal: controller.signal });
-        if (response.ok) return response.json();
+        if (response.ok) return await response.json();
         const error = new Error(`RPC ${path} failed: ${response.status} ${response.statusText}`);
+        this.metrics?.recordRpcError(response.status);
         if (!isTransientStatus(response.status) || attempt === this.maxRetries) throw error;
         lastError = error;
       } catch (error) {
         lastError = error;
+        if (!(error instanceof Error && error.message.startsWith(`RPC ${path} failed:`))) this.metrics?.recordRpcError("network");
         if (attempt === this.maxRetries || !isTransientFetchError(error)) throw error;
       } finally {
         clearTimeout(timeout);
+        this.metrics?.endRpcRequest();
       }
       await delay(100 * 2 ** attempt);
     }

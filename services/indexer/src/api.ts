@@ -1,5 +1,6 @@
 import http from "node:http";
 import { URL } from "node:url";
+import type { IndexerMetrics } from "./metrics.js";
 import { openApiDocument } from "./openapi.js";
 
 export type PaginationQuery = {
@@ -101,7 +102,7 @@ function metricLine(name: string, value: unknown, labels: Record<string, unknown
   return `${name}${renderedLabels} ${number}`;
 }
 
-async function metricsBody(store: IndexerApiStore): Promise<string> {
+async function metricsBody(store: IndexerApiStore, metrics?: IndexerMetrics): Promise<string> {
   const { health, ready } = await store.opsStatus();
   const labels = { chain_id: health.chainId ?? "unknown" };
   const lines = [
@@ -128,10 +129,37 @@ async function metricsBody(store: IndexerApiStore): Promise<string> {
     ...metricHelp("juno_indexer_expected_migrations", "Expected schema migration count when configured."),
     metricLine("juno_indexer_expected_migrations", ready.expectedMigrations, labels),
   ];
+  if (metrics) {
+    const snapshot = metrics.snapshot();
+    lines.push(
+      ...metricHelp("juno_indexer_fetch_blocks_total", "Blocks fetched by the in-process indexer fetcher.", "counter"),
+      metricLine("juno_indexer_fetch_blocks_total", snapshot.fetchBlocksTotal),
+      ...metricHelp("juno_indexer_fetch_blocks_per_second", "Average block fetch throughput since process start."),
+      metricLine("juno_indexer_fetch_blocks_per_second", snapshot.fetchBlocksPerSecond),
+      ...metricHelp("juno_indexer_fetch_rpc_requests_in_flight", "RPC requests currently in flight."),
+      metricLine("juno_indexer_fetch_rpc_requests_in_flight", snapshot.rpcRequestsInFlight),
+      ...metricHelp("juno_indexer_fetch_rpc_error_total", "RPC fetch errors by low-cardinality status.", "counter"),
+    );
+    for (const [status, count] of snapshot.rpcErrors) lines.push(metricLine("juno_indexer_fetch_rpc_error_total", count, { status }));
+    lines.push(
+      ...metricHelp("juno_indexer_decode_blocks_total", "Blocks decoded by the in-process indexer.", "counter"),
+      metricLine("juno_indexer_decode_blocks_total", snapshot.decodeBlocksTotal),
+      ...metricHelp("juno_indexer_writer_blocks_total", "Blocks committed by the indexer writer.", "counter"),
+      metricLine("juno_indexer_writer_blocks_total", snapshot.writerBlocksTotal),
+      ...metricHelp("juno_indexer_writer_commit_seconds", "Most recent block writer commit duration in seconds."),
+      metricLine("juno_indexer_writer_commit_seconds", snapshot.writerCommitSeconds),
+      ...metricHelp("juno_indexer_writer_events_total", "Events committed by the indexer writer by normalized kind.", "counter"),
+    );
+    for (const [kind, count] of snapshot.writerEvents) lines.push(metricLine("juno_indexer_writer_events_total", count, { kind }));
+    lines.push(
+      ...metricHelp("juno_indexer_reorg_halt", "Whether ingestion is halted because of reorg protection."),
+      metricLine("juno_indexer_reorg_halt", snapshot.reorgHalt),
+    );
+  }
   return `${lines.filter((line): line is string => line !== null).join("\n")}\n`;
 }
 
-export function createIndexerApi(store: IndexerApiStore): http.Server {
+export function createIndexerApi(store: IndexerApiStore, metrics?: IndexerMetrics): http.Server {
   return http.createServer(async (req, res) => {
     if (req.method === "OPTIONS") return jsonResponse(res, 204, {});
     if (req.method !== "GET") return jsonResponse(res, 405, { error: "method_not_allowed" });
@@ -144,7 +172,7 @@ export function createIndexerApi(store: IndexerApiStore): http.Server {
         const body = await store.ready();
         return jsonResponse(res, body.status === "ready" ? 200 : 503, body, { "cache-control": "no-store" });
       }
-      if (url.pathname === "/metrics") return textResponse(res, 200, await metricsBody(store));
+      if (url.pathname === "/metrics") return textResponse(res, 200, await metricsBody(store, metrics));
       if (url.pathname === "/openapi.json") return jsonResponse(res, 200, openApiDocument);
       if (url.pathname === "/stats") return jsonResponse(res, 200, await store.stats());
       if (parts[0] === "prices" && parts.length <= 2) {

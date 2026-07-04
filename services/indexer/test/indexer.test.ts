@@ -204,6 +204,7 @@ describe("Indexer fetch/decode/ordered writer pipeline", () => {
 
 describe("Indexer reserve snapshots", () => {
   it("queries pair pool state at the processed height and writes one lcd snapshot per touched pair", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === "https://rpc.example/status") {
@@ -237,9 +238,27 @@ describe("Indexer reserve snapshots", () => {
     expect(snapshot?.values).toEqual(["pool-1", 11, "2026-07-01T03:01:00Z", JSON.stringify([{ denom: "ujuno", amount: "123" }, { denom: "uusdc", amount: "456" }]), "789", "lcd"]);
     const lcdCalls = fetchSpy.mock.calls.filter(([input]) => String(input).startsWith("https://lcd.example/cosmwasm/wasm/v1/contract/juno1pair/smart/"));
     expect(lcdCalls).toHaveLength(1);
+    const rangeLog = JSON.parse(String(logSpy.mock.calls.at(-1)?.[0]));
+    expect(rangeLog).toMatchObject({
+      msg: "indexer_range_processed",
+      role: "indexer",
+      rangeFrom: 11,
+      rangeTo: 11,
+      cursor: 11,
+      head: 13,
+      target: 11,
+      lag: 0,
+      blocks: 1,
+      swaps: 1,
+      liquidityEvents: 0,
+      incentiveEvents: 0,
+    });
+    expect(rangeLog.durationMs).toEqual(expect.any(Number));
+    expect(rangeLog.dbDurationMs).toEqual(expect.any(Number));
   });
 
   it("keeps cursor progress when LCD reserve snapshots fail", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
