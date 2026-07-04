@@ -14,7 +14,9 @@
     "backfill:candles": "tsx src/backfill-candles.ts",
     "backfill:range": "tsx src/backfill-range.ts",
     "worker:snapshots": "tsx src/snapshot-worker.ts",
-    "worker:candles": "tsx src/candle-worker.ts"
+    "worker:candles": "tsx src/candle-worker.ts",
+    "refresh:read-models": "node dist/src/refresh-read-models.js",
+    "refresh:read-models:dev": "tsx src/refresh-read-models.ts"
   },
   "dependencies": {
     "pg": "^8.13.1"

@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { backfillTokenCandles, claimSnapshotJobs, enqueueSnapshotJobs, listMigrationFiles, markSnapshotJobFailed, markSnapshotJobSucceeded, processNextCandleJob, recordProcessedBlock, runMigrations, stageAndMergeBatch, upsertPoolStateSnapshot, writeNormalizedEvent, writeNormalizedEvents } from "../src/db.js";
+import { backfillTokenCandles, claimSnapshotJobs, enqueueSnapshotJobs, listMigrationFiles, markSnapshotJobFailed, markSnapshotJobSucceeded, processNextCandleJob, recordProcessedBlock, refreshApiReadModels, runMigrations, stageAndMergeBatch, upsertPoolStateSnapshot, writeNormalizedEvent, writeNormalizedEvents } from "../src/db.js";
 
 type Query = { text: string; values?: unknown[] };
 
@@ -112,6 +112,7 @@ describe("migration runner", () => {
       "005_snapshot_jobs.sql",
       "006_candle_jobs.sql",
       "007_bulk_staging.sql",
+      "008_read_models.sql",
     ]);
   });
 
@@ -569,5 +570,23 @@ describe("pool state snapshots", () => {
       blockTime: "2026-07-01T03:01:00Z",
       reserves: [],
     })).rejects.toThrow(/unknown pair juno1missing/i);
+  });
+});
+
+describe("API read model refresh", () => {
+  it("calls the SQL refresh helper and maps affected rows", async () => {
+    const client = {
+      queries: [] as Query[],
+      async query<T = Record<string, unknown>>(text: string, values?: unknown[]): Promise<{ rows: T[]; rowCount: number }> {
+        this.queries.push({ text, values });
+        return { rows: [{ model: "latest_pool_state", rows_affected: "1" }, { model: "protocol_stats_latest", rows_affected: 1 }] as T[], rowCount: 2 };
+      },
+    };
+
+    await expect(refreshApiReadModels(client as never, { chainId: "juno-1" })).resolves.toEqual([
+      { model: "latest_pool_state", rowsAffected: 1 },
+      { model: "protocol_stats_latest", rowsAffected: 1 },
+    ]);
+    expect(client.queries[0]).toEqual({ text: "SELECT model, rows_affected FROM refresh_api_read_models($1::text)", values: ["juno-1"] });
   });
 });

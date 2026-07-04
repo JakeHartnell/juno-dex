@@ -859,6 +859,14 @@ export async function processNextCandleJob(client: PgClient, params: { chainId: 
   }
 }
 
+export async function refreshApiReadModels(client: PgClient, params: { chainId?: string } = {}): Promise<Array<{ model: string; rowsAffected: number }>> {
+  const result = await client.query<{ model: string; rows_affected: string | number }>(
+    `SELECT model, rows_affected FROM refresh_api_read_models($1::text)`,
+    [params.chainId ?? null],
+  );
+  return result.rows.map((row) => ({ model: row.model, rowsAffected: Number(row.rows_affected) }));
+}
+
 async function insertLiquidityEvent(client: PgClient, chainId: string, event: LiquidityEvent): Promise<void> {
   const poolId = await poolIdForPair(client, chainId, event.pairAddress);
   if (!poolId) return;

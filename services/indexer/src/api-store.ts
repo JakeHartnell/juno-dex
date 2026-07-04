@@ -217,22 +217,11 @@ export class PostgresApiStore implements IndexerApiStore {
 
   async stats() {
     const result = await this.db.query(
-      `SELECT count(DISTINCT p.id)::int AS pool_count,
-              count(DISTINCT ie.lp_token_address)::int AS incentivized_pools,
-              max(COALESCE(lps.state_updated_at, p.updated_at)) AS updated_at,
-              sum(lps.tvl_usd) FILTER (WHERE lps.tvl_usd IS NOT NULL) AS tvl_usd,
-              sum(lps.tvl_juno) FILTER (WHERE lps.tvl_juno IS NOT NULL) AS tvl_juno,
-              sum(lps.volume_24h_usd) FILTER (WHERE lps.volume_24h_usd IS NOT NULL) AS volume_24h_usd,
-              sum(lps.volume_24h_juno) FILTER (WHERE lps.volume_24h_juno IS NOT NULL) AS volume_24h_juno,
-              sum(lps.volume_7d_usd) FILTER (WHERE lps.volume_7d_usd IS NOT NULL) AS volume_7d_usd,
-              sum(lps.volume_7d_juno) FILTER (WHERE lps.volume_7d_juno IS NOT NULL) AS volume_7d_juno,
-              sum(lps.fees_24h_usd) FILTER (WHERE lps.fees_24h_usd IS NOT NULL) AS fees_24h_usd,
-              sum(lps.fees_24h_juno) FILTER (WHERE lps.fees_24h_juno IS NOT NULL) AS fees_24h_juno
-       FROM pools p
-       LEFT JOIN latest_pool_states lps ON lps.chain_id = p.chain_id AND lps.pair_address = p.pair_address
-       LEFT JOIN (SELECT DISTINCT chain_id, lp_token_address FROM incentive_events WHERE lp_token_address IS NOT NULL) ie
-         ON ie.chain_id = p.chain_id AND ie.lp_token_address = p.liquidity_token_address
-       WHERE p.chain_id = $1`,
+      `SELECT pool_count, incentivized_pools, updated_at, tvl_usd, tvl_juno,
+              volume_24h_usd, volume_24h_juno, volume_7d_usd, volume_7d_juno,
+              fees_24h_usd, fees_24h_juno
+       FROM protocol_stats_latest
+       WHERE chain_id = $1`,
       [this.chainId],
     );
     const row = result.rows[0] ?? {};
@@ -267,13 +256,13 @@ export class PostgresApiStore implements IndexerApiStore {
   async pools(query: PaginationQuery) {
     const safeLimit = limit(query);
     const result = await this.db.query(
-      `SELECT p.*, lps.reserves, lps.total_share, lps.tvl_usd, lps.tvl_juno, lps.volume_24h_usd, lps.volume_24h_juno,
-              lps.volume_7d_usd, lps.volume_7d_juno, lps.fees_24h_usd, lps.fees_24h_juno,
-              lps.state_updated_at
-       FROM pools p
-       LEFT JOIN latest_pool_states lps ON lps.chain_id = p.chain_id AND lps.pair_address = p.pair_address
-       WHERE p.chain_id = $1 AND ($2::text IS NULL OR p.pair_address = $2)
-       ORDER BY COALESCE(lps.tvl_usd, 0) DESC, p.created_height DESC NULLS LAST
+      `SELECT pool_id AS id, chain_id, pair_address, liquidity_token_address, pool_type,
+              asset_infos, created_height, created_tx_hash, first_seen_at, pool_updated_at AS updated_at,
+              reserves, total_share, tvl_usd, tvl_juno, volume_24h_usd, volume_24h_juno,
+              volume_7d_usd, volume_7d_juno, fees_24h_usd, fees_24h_juno, state_updated_at
+       FROM latest_pool_state
+       WHERE chain_id = $1 AND ($2::text IS NULL OR pair_address = $2)
+       ORDER BY COALESCE(tvl_usd, 0) DESC, created_height DESC NULLS LAST
        LIMIT $3 OFFSET $4`,
       [this.chainId, query.pair ?? null, safeLimit, offset(query)],
     );
@@ -281,6 +270,17 @@ export class PostgresApiStore implements IndexerApiStore {
   }
 
   async pool(id: string) {
+    const readModel = await this.db.query(
+      `SELECT pool_id AS id, chain_id, pair_address, liquidity_token_address, pool_type,
+              asset_infos, created_height, created_tx_hash, first_seen_at, pool_updated_at AS updated_at,
+              reserves, total_share, tvl_usd, tvl_juno, volume_24h_usd, volume_24h_juno,
+              volume_7d_usd, volume_7d_juno, fees_24h_usd, fees_24h_juno, state_updated_at
+       FROM latest_pool_state
+       WHERE chain_id = $1 AND (pool_id::text = $2 OR pair_address = $2) LIMIT 1`,
+      [this.chainId, id],
+    );
+    if (readModel.rows[0]) return normalizePool(readModel.rows[0]);
+
     const result = await this.db.query(
       `SELECT p.*, lps.reserves, lps.total_share, lps.tvl_usd, lps.tvl_juno, lps.volume_24h_usd, lps.volume_24h_juno,
               lps.volume_7d_usd, lps.volume_7d_juno, lps.fees_24h_usd, lps.fees_24h_juno,
@@ -302,7 +302,7 @@ export class PostgresApiStore implements IndexerApiStore {
     const safeLimit = limit(query, MAX_CANDLE_LIMIT);
     const result = await this.db.query(
       `SELECT pair_address, pool_id, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, trade_count
-       FROM token_candles
+       FROM pool_candle_buckets
        WHERE chain_id = $1 AND pair_address = $2 AND interval = $3
          AND ($4::text IS NULL OR asset = $4)
          AND ($5::text IS NULL OR quote_asset = $5)
@@ -316,12 +316,12 @@ export class PostgresApiStore implements IndexerApiStore {
   }
 
   async poolPositions(id: string, query: PaginationQuery) {
-    const result = await this.db.query(`SELECT * FROM positions WHERE chain_id = $1 AND (pool_id::text = $2 OR pair_address = $2) ORDER BY updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, id, limit(query), offset(query)]);
+    const result = await this.db.query(`SELECT wallet_address AS owner_address, pool_id, pair_address, lp_token_address, lp_balance, bonded_balance, updated_at FROM wallet_position_latest WHERE chain_id = $1 AND (pool_id::text = $2 OR pair_address = $2) ORDER BY updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, id, limit(query), offset(query)]);
     return page(result.rows.map(normalizePosition), query);
   }
 
   async walletPositions(addr: string, query: PaginationQuery) {
-    const result = await this.db.query(`SELECT * FROM positions WHERE chain_id = $1 AND owner_address = $2 ORDER BY updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, addr, limit(query), offset(query)]);
+    const result = await this.db.query(`SELECT wallet_address AS owner_address, pool_id, pair_address, lp_token_address, lp_balance, bonded_balance, updated_at FROM wallet_position_latest WHERE chain_id = $1 AND wallet_address = $2 ORDER BY updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, addr, limit(query), offset(query)]);
     return page(result.rows.map(normalizePosition), query);
   }
 
@@ -329,31 +329,8 @@ export class PostgresApiStore implements IndexerApiStore {
     const result = await this.db.query(
       `SELECT tx_hash, wallet_address, pair_address, type, height, timestamp,
               offer_asset, ask_asset, amount_usd, fee_usd, success
-       FROM (
-         SELECT tx_hash, trader AS wallet_address, pair_address, 'swap'::text AS type, height, block_time AS timestamp,
-                jsonb_build_object('denom', offer_asset, 'amount', offer_amount::text) AS offer_asset,
-                jsonb_build_object('denom', ask_asset, 'amount', return_amount::text) AS ask_asset,
-                NULL::numeric AS amount_usd,
-                NULL::numeric AS fee_usd,
-                true AS success
-         FROM swaps WHERE chain_id = $1 AND trader = $2
-         UNION ALL
-         SELECT tx_hash, provider AS wallet_address, pair_address, kind::text AS type, height, block_time AS timestamp,
-                NULL::jsonb AS offer_asset,
-                NULL::jsonb AS ask_asset,
-                NULL::numeric AS amount_usd,
-                NULL::numeric AS fee_usd,
-                true AS success
-         FROM liquidity_events WHERE chain_id = $1 AND provider = $2
-         UNION ALL
-         SELECT tx_hash, user_address AS wallet_address, NULL::text AS pair_address, action AS type, height, block_time AS timestamp,
-                NULL::jsonb AS offer_asset,
-                CASE WHEN reward_asset IS NOT NULL OR reward_amount IS NOT NULL THEN jsonb_build_object('denom', reward_asset, 'amount', reward_amount::text) ELSE NULL::jsonb END AS ask_asset,
-                NULL::numeric AS amount_usd,
-                NULL::numeric AS fee_usd,
-                true AS success
-         FROM incentive_events WHERE chain_id = $1 AND user_address = $2
-       ) events
+       FROM wallet_history_flat
+       WHERE chain_id = $1 AND wallet_address = $2
        ORDER BY height DESC, timestamp DESC LIMIT $3 OFFSET $4`,
       [this.chainId, addr, limit(query), offset(query)],
     );

@@ -12,17 +12,36 @@ class FakeDb {
     if (text === "SELECT 1") return { rows: [{ "?column?": 1 }] };
     if (text.includes("FROM schema_migrations")) return { rows: [{ version: "001_init.sql" }, { version: "002_pool_candles.sql" }, { version: "003_api_pricing_readiness.sql" }] };
     if (text.includes("FROM indexer_cursors")) return { rows: [{ last_height: "42", updated_at: "2026-07-03T00:00:00.000Z" }] };
-    if (text.includes("pool_count") && text.includes("latest_pool_states")) return { rows: [{ pool_count: 1, incentivized_pools: 1, updated_at: "2026-07-03T00:00:00.000Z", tvl_usd: null, tvl_juno: "1000", volume_24h_usd: null, volume_24h_juno: "25", volume_7d_usd: null, volume_7d_juno: "100", fees_24h_usd: null, fees_24h_juno: "0.3" }] };
+    if (text.includes("FROM protocol_stats_latest")) return { rows: [{ pool_count: 1, incentivized_pools: 1, updated_at: "2026-07-03T00:00:00.000Z", tvl_usd: null, tvl_juno: "1000", volume_24h_usd: null, volume_24h_juno: "25", volume_7d_usd: null, volume_7d_juno: "100", fees_24h_usd: null, fees_24h_juno: "0.3" }] };
     if (text.includes("FROM token_prices")) return { rows: [{ asset: "ujuno", price_usd: null, price_juno: "1", source: "pool", status: "fresh", observed_at: "2026-07-03T00:00:00.000Z" }] };
-    if (text.includes("FROM pools p") && text.includes("LIMIT 1")) {
+    if (text.includes("FROM latest_pool_state") && text.includes("LIMIT 1")) {
       return { rows: [poolRow()] };
     }
+    if (text.includes("FROM latest_pool_state")) return { rows: [poolRow()] };
+    if (text.includes("FROM pools p") && text.includes("LIMIT 1")) return { rows: [poolRow()] };
     if (text.includes("FROM pools p")) return { rows: [poolRow()] };
-    if (text.includes("FROM token_candles")) {
+    if (text.includes("FROM pool_candle_buckets")) {
       return { rows: [{ pool_id: "pool-1", pair_address: "juno1pair", asset: "ujuno", quote_asset: "uusdc", interval: "1h", bucket_start: "2026-07-03T00:00:00.000Z", open: "1", high: "1.2", low: "0.9", close: "1.1", volume: "10", volume_quote: "11", trade_count: 2 }] };
     }
-    if (text.includes("FROM positions")) return { rows: [] };
-    if (text.includes("FROM liquidity_events")) return { rows: [] };
+    if (text.includes("FROM wallet_position_latest")) return { rows: [{ wallet_address: "juno1wallet", owner_address: "juno1wallet", pool_id: "pool-1", pair_address: "juno1pair", lp_token_address: "factory/juno1pair/astroport/share", lp_balance: "7", bonded_balance: "2", updated_at: "2026-07-03T00:00:00.000Z" }] };
+    if (text.includes("FROM wallet_history_flat")) return { rows: [{ tx_hash: "tx-1", wallet_address: "juno1wallet", pair_address: "juno1pair", type: "swap", height: "42", timestamp: "2026-07-03T00:00:00.000Z", offer_asset: { denom: "ujuno", amount: "1" }, ask_asset: { denom: "uusdc", amount: "2" }, amount_usd: null, fee_usd: null, success: true }] };
+    throw new Error(`unexpected query: ${text}`);
+  }
+}
+
+class EmptyReadModelDb {
+  calls: QueryCall[] = [];
+  async query(text: string, values?: unknown[]) {
+    this.calls.push({ text, values });
+    if (text === "SELECT 1") return { rows: [{ "?column?": 1 }] };
+    if (text.includes("FROM schema_migrations")) return { rows: [{ version: "001_init.sql" }, { version: "002_pool_candles.sql" }, { version: "003_api_pricing_readiness.sql" }] };
+    if (text.includes("FROM indexer_cursors")) return { rows: [] };
+    if (text.includes("FROM protocol_stats_latest")) return { rows: [] };
+    if (text.includes("FROM latest_pool_state")) return { rows: [] };
+    if (text.includes("FROM pools p")) return { rows: [] };
+    if (text.includes("FROM pool_candle_buckets")) return { rows: [] };
+    if (text.includes("FROM wallet_position_latest")) return { rows: [] };
+    if (text.includes("FROM wallet_history_flat")) return { rows: [] };
     throw new Error(`unexpected query: ${text}`);
   }
 }
@@ -123,7 +142,7 @@ describe("production API", () => {
   });
 
   it("returns frontend-compatible pool, price and candle responses from Postgres rows", async () => {
-    const { server, baseUrl } = await start();
+    const { db, server, baseUrl } = await start();
     openServer = server;
     const pools = await (await fetch(`${baseUrl}/pools`)).json();
     expect(pools.data[0]).toMatchObject({ id: "pool-1", pairAddress: "juno1pair", tvlUsd: null, tvlJuno: 1000, totalShare: "789", isMock: false });
@@ -142,8 +161,48 @@ describe("production API", () => {
     expect(candles.pagination.limit).toBe(500);
     expect(candles.meta).toMatchObject({ pairAddress: "juno1pair", dataSource: "indexer", isMock: false });
     expect(candles.data[0]).toMatchObject({ baseAsset: "ujuno", quoteAsset: "uusdc", close: 1.1, volumeQuote: 11 });
+    expect(db.calls.some((call) => call.text.includes("FROM latest_pool_state"))).toBe(true);
+    expect(db.calls.some((call) => call.text.includes("FROM pool_candle_buckets"))).toBe(true);
+    expect(db.calls.some((call) => call.text.includes("FROM token_candles"))).toBe(false);
   });
 
+  it("serves wallet history and positions from read models", async () => {
+    const { db, server, baseUrl } = await start();
+    openServer = server;
+
+    const history = await (await fetch(`${baseUrl}/wallets/juno1wallet/history`)).json();
+    expect(history.data[0]).toMatchObject({ txHash: "tx-1", walletAddress: "juno1wallet", pairAddress: "juno1pair", type: "swap", height: 42, isMock: false });
+    expect(history.data[0].offerAsset).toEqual({ denom: "ujuno", amount: "1" });
+
+    const positions = await (await fetch(`${baseUrl}/wallets/juno1wallet/positions`)).json();
+    expect(positions.data[0]).toMatchObject({ walletAddress: "juno1wallet", poolId: "pool-1", pairAddress: "juno1pair", lpBalance: "7", bondedBalance: "2" });
+    expect(db.calls.some((call) => call.text.includes("FROM wallet_history_flat"))).toBe(true);
+    expect(db.calls.some((call) => call.text.includes("FROM wallet_position_latest"))).toBe(true);
+    expect(db.calls.some((call) => call.text.includes("FROM swaps"))).toBe(false);
+    expect(db.calls.some((call) => call.text.includes("FROM positions"))).toBe(false);
+  });
+
+  it("returns honest empty API responses when read models have no production rows", async () => {
+    const { db, server, baseUrl } = await start(new EmptyReadModelDb() as never);
+    openServer = server;
+
+    const stats = await (await fetch(`${baseUrl}/stats`)).json();
+    expect(stats).toMatchObject({ poolCount: 0, tvlUsd: null, tvlJuno: null, incentivizedPools: 0, isMock: false });
+
+    const pools = await (await fetch(`${baseUrl}/pools`)).json();
+    expect(pools).toMatchObject({ data: [], pagination: { limit: 50, nextCursor: null } });
+
+    const history = await (await fetch(`${baseUrl}/wallets/juno1empty/history`)).json();
+    expect(history).toMatchObject({ data: [], pagination: { limit: 50, nextCursor: null } });
+
+    const positions = await (await fetch(`${baseUrl}/wallets/juno1empty/positions`)).json();
+    expect(positions).toMatchObject({ data: [], pagination: { limit: 50, nextCursor: null } });
+
+    const poolDetail = await fetch(`${baseUrl}/pools/juno1missing`);
+    expect(poolDetail.status).toBe(404);
+    expect(db.calls.some((call) => call.text.includes("FROM protocol_stats_latest"))).toBe(true);
+    expect(db.calls.some((call) => call.text.includes("FROM latest_pool_state"))).toBe(true);
+  });
 
   it("returns HTTP 503 when readiness checks report not_ready", async () => {
     const db = new FakeDb();
