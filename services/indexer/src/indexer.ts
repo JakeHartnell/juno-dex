@@ -1,6 +1,6 @@
 import type { IndexerConfig } from "./config.js";
 import { fetchBlockRange } from "./block-fetcher.js";
-import { advanceCursor, createPool, getCursor, recordProcessedBlock, upsertPoolStateSnapshot, writeNormalizedEvents, type PgClient, type PgPool } from "./db.js";
+import { advanceCursor, createPool, enqueueSnapshotJobs, getCursor, recordProcessedBlock, upsertPoolStateSnapshot, writeNormalizedEvents, type PgClient, type PgPool } from "./db.js";
 import { normalizeBlockEvents, type NormalizedEvent } from "./events.js";
 import { JunoRestClient, JunoRpcClient, type BlockBundle, type ChainHead } from "./rpc.js";
 import { nextBlockRange } from "./ranges.js";
@@ -111,6 +111,15 @@ export class Indexer {
           txCount: block.txCount,
         });
         await writeNormalizedEvents(client, this.config.chainId, events, { writeCandlesInline: this.config.ingestCandlesInline });
+        if (!this.config.ingestReserveSnapshotsInline) {
+          await enqueueSnapshotJobs(client, {
+            chainId: this.config.chainId,
+            pairAddresses: touchedPairAddresses(events),
+            height: block.height,
+            blockTime: block.time,
+            reason: "touched",
+          });
+        }
         await advanceCursor(client, { cursorId: this.config.cursorId, height: block.height, blockHash: block.hash });
         await client.query("COMMIT");
       } catch (error) {
@@ -121,10 +130,7 @@ export class Indexer {
   }
 
   private async writeReserveSnapshots(events: NormalizedEvent[], height: number, blockTime: string): Promise<void> {
-    const touchedPairs = Array.from(new Set(events
-      .filter(isPairStateEvent)
-      .map((event) => event.pairAddress)
-      .filter(Boolean)));
+    const touchedPairs = touchedPairAddresses(events);
     if (touchedPairs.length === 0) return;
 
     const knownPairs = await withClient(this.pool!, async (client) => {
@@ -153,6 +159,13 @@ export class Indexer {
       }
     }
   }
+}
+
+function touchedPairAddresses(events: NormalizedEvent[]): string[] {
+  return Array.from(new Set(events
+    .filter(isPairStateEvent)
+    .map((event) => event.pairAddress)
+    .filter(Boolean)));
 }
 
 function isPairStateEvent(event: NormalizedEvent): event is Extract<NormalizedEvent, { kind: "swap" | "provide" | "withdraw" }> {

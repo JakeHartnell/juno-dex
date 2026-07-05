@@ -12,7 +12,8 @@
     "dev": "tsx src/index.ts",
     "migrate": "tsx src/migrate.ts",
     "backfill:candles": "tsx src/backfill-candles.ts",
-    "backfill:range": "tsx src/backfill-range.ts"
+    "backfill:range": "tsx src/backfill-range.ts",
+    "worker:snapshots": "tsx src/snapshot-worker.ts"
   },
   "dependencies": {
     "pg": "^8.13.1"

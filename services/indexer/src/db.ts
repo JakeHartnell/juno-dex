@@ -9,6 +9,18 @@ const { Pool } = pg;
 export type PgPool = InstanceType<typeof Pool>;
 export type PgClient = pg.PoolClient;
 
+export type SnapshotJobStatus = "pending" | "leased" | "succeeded" | "failed";
+export type SnapshotJob = {
+  id: string;
+  chainId: string;
+  pairAddress: string;
+  height: number;
+  blockTime: string;
+  reason: string;
+  status: SnapshotJobStatus;
+  attempts: number;
+};
+
 export function createPool(config: IndexerConfig): PgPool {
   return new Pool({ connectionString: config.databaseUrl, max: 5 });
 }
@@ -125,6 +137,99 @@ export async function upsertPoolStateSnapshot(
          reserves = EXCLUDED.reserves,
          total_share = EXCLUDED.total_share`,
     [poolId, params.height, params.blockTime, JSON.stringify(params.reserves), params.totalShare ?? null, params.source ?? "event"],
+  );
+}
+
+export async function enqueueSnapshotJobs(
+  client: PgClient,
+  params: { chainId: string; pairAddresses: string[]; height: number; blockTime: string; reason: string },
+): Promise<number> {
+  const pairAddresses = [...new Set(params.pairAddresses.filter(Boolean))];
+  if (pairAddresses.length === 0) return 0;
+  const result = await client.query(
+    `INSERT INTO snapshot_jobs(chain_id, pair_address, height, block_time, reason)
+     SELECT $1, p.pair_address, $3, $4, $5
+     FROM pools p
+     WHERE p.chain_id = $1
+       AND p.pair_address = ANY($2::text[])
+     ON CONFLICT (chain_id, pair_address, height, reason) DO NOTHING`,
+    [params.chainId, pairAddresses, params.height, params.blockTime, params.reason],
+  );
+  return result.rowCount ?? 0;
+}
+
+export async function claimSnapshotJobs(
+  client: PgClient,
+  params: { chainId: string; limit: number; leaseSeconds: number; maxAttempts: number },
+): Promise<SnapshotJob[]> {
+  const result = await client.query<{
+    id: string;
+    chain_id: string;
+    pair_address: string;
+    height: string | number;
+    block_time: string;
+    reason: string;
+    status: SnapshotJobStatus;
+    attempts: string | number;
+  }>(
+    `WITH claimable AS (
+       SELECT id
+       FROM snapshot_jobs
+       WHERE chain_id = $1
+         AND status IN ('pending', 'leased')
+         AND attempts < $4
+         AND (status = 'pending' OR leased_until <= now() OR leased_until IS NULL)
+       ORDER BY id ASC
+       LIMIT $2
+       FOR UPDATE SKIP LOCKED
+     )
+     UPDATE snapshot_jobs j
+     SET status = 'leased',
+         attempts = j.attempts + 1,
+         leased_until = now() + ($3::text)::interval,
+         updated_at = now()
+     FROM claimable
+     WHERE j.id = claimable.id
+     RETURNING j.id, j.chain_id, j.pair_address, j.height, j.block_time, j.reason, j.status, j.attempts`,
+    [params.chainId, params.limit, `${params.leaseSeconds} seconds`, params.maxAttempts],
+  );
+  return result.rows.map((row) => ({
+    id: String(row.id),
+    chainId: row.chain_id,
+    pairAddress: row.pair_address,
+    height: Number(row.height),
+    blockTime: row.block_time,
+    reason: row.reason,
+    status: row.status,
+    attempts: Number(row.attempts),
+  }));
+}
+
+export async function markSnapshotJobSucceeded(client: PgClient, params: { jobId: string; attempt: number }): Promise<void> {
+  await client.query(
+    `UPDATE snapshot_jobs
+     SET status = 'succeeded', leased_until = NULL, last_error = NULL, updated_at = now()
+     WHERE id = $1
+       AND status = 'leased'
+       AND attempts = $2`,
+    [params.jobId, params.attempt],
+  );
+}
+
+export async function markSnapshotJobFailed(
+  client: PgClient,
+  params: { jobId: string; attempt: number; error: string; permanent: boolean; maxAttempts: number },
+): Promise<void> {
+  await client.query(
+    `UPDATE snapshot_jobs
+     SET status = CASE WHEN $3::boolean OR attempts >= $5 THEN 'failed' ELSE 'pending' END,
+         leased_until = NULL,
+         last_error = $4,
+         updated_at = now()
+     WHERE id = $1
+       AND status = 'leased'
+       AND attempts = $2`,
+    [params.jobId, params.attempt, params.permanent, params.error.slice(0, 2_000), params.maxAttempts],
   );
 }
 

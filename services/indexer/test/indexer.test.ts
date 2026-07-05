@@ -28,6 +28,7 @@ class FakeIndexerClient {
     if (text.includes("FROM pools") && text.includes("pair_address")) return { rows: [{ id: "pool-1", pair_address: "juno1pair" }] as T[], rowCount: 1 };
     if (text.includes("INSERT INTO token_candles")) return { rows: [] as T[], rowCount: 1 };
     if (text.includes("INSERT INTO pool_state_snapshots")) return { rows: [] as T[], rowCount: 1 };
+    if (text.includes("INSERT INTO snapshot_jobs")) return { rows: [] as T[], rowCount: 1 };
     if (text.includes("UPDATE indexer_cursors")) return { rows: [] as T[], rowCount: 1 };
     return { rows: [] as T[], rowCount: 0 };
   }
@@ -251,6 +252,8 @@ describe("Indexer reserve snapshots", () => {
     await expect(new Indexer({ ...baseConfig, ingestReserveSnapshotsInline: false }, pool as never).runOnce()).resolves.toMatchObject({ processed: 1, cursorHeight: 11 });
 
     expect(pool.client.queries.some((query) => query.text.includes("INSERT INTO pool_state_snapshots"))).toBe(false);
+    const jobInsert = pool.client.queries.find((query) => query.text.includes("INSERT INTO snapshot_jobs"));
+    expect(jobInsert?.values).toEqual(["juno-1", ["juno1pair"], 11, "2026-07-01T03:00:11Z", "touched"]);
     expect(fetchSpy.mock.calls.some(([input]) => String(input).startsWith("https://lcd.example/cosmwasm/wasm/v1/contract/juno1pair/smart/"))).toBe(false);
   });
 });

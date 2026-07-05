@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { backfillTokenCandles, listMigrationFiles, recordProcessedBlock, runMigrations, upsertPoolStateSnapshot, writeNormalizedEvent, writeNormalizedEvents } from "../src/db.js";
+import { backfillTokenCandles, claimSnapshotJobs, enqueueSnapshotJobs, listMigrationFiles, markSnapshotJobFailed, markSnapshotJobSucceeded, recordProcessedBlock, runMigrations, upsertPoolStateSnapshot, writeNormalizedEvent, writeNormalizedEvents } from "../src/db.js";
 
 type Query = { text: string; values?: unknown[] };
 
@@ -39,11 +39,14 @@ class FakeBlockClient {
       return { rows, rowCount: rows.length };
     }
     if (text.includes("INSERT INTO processed_blocks")) return { rows: [], rowCount: this.nextWriteRowCount };
+    if (text.includes("INSERT INTO pool_state_snapshots")) return { rows: [], rowCount: 1 };
+    if (text.includes("INSERT INTO snapshot_jobs")) return { rows: [], rowCount: 1 };
+    if (text.includes("WITH claimable")) return { rows: [{ id: "7", chain_id: "juno-1", pair_address: "juno1pair", height: "39381355", block_time: "2026-07-01T03:01:00Z", reason: "touched", status: "leased", attempts: 1 }] as T[], rowCount: 1 };
+    if (text.includes("UPDATE snapshot_jobs")) return { rows: [], rowCount: 1 };
     if (text.includes("FROM pools") && text.includes("pair_address")) {
       const rows = (this.rowsByKey.get(`pool:${String(values?.[1])}`) ?? []) as T[];
       return { rows, rowCount: rows.length };
     }
-    if (text.includes("INSERT INTO pool_state_snapshots")) return { rows: [], rowCount: 1 };
     return { rows: [], rowCount: 1 };
   }
 }
@@ -87,6 +90,7 @@ describe("migration runner", () => {
       "002_pool_candles.sql",
       "003_api_pricing_readiness.sql",
       "004_pool_state_source_precedence.sql",
+      "005_snapshot_jobs.sql",
     ]);
   });
 
@@ -364,6 +368,45 @@ describe("swap candle writes", () => {
 });
 
 describe("pool state snapshots", () => {
+  it("enqueues reserve snapshot jobs idempotently for known pools only", async () => {
+    const client = new FakeBlockClient();
+
+    await expect(enqueueSnapshotJobs(client as never, {
+      chainId: "juno-1",
+      pairAddresses: ["juno1pair", "juno1pair", "juno1missing"],
+      height: 39381355,
+      blockTime: "2026-07-01T03:01:00Z",
+      reason: "touched",
+    })).resolves.toBe(1);
+
+    const insert = client.queries.find((query) => query.text.includes("INSERT INTO snapshot_jobs"));
+    expect(insert?.text).toContain("FROM pools p");
+    expect(insert?.text).toContain("ON CONFLICT (chain_id, pair_address, height, reason) DO NOTHING");
+    expect(insert?.values).toEqual(["juno-1", ["juno1pair", "juno1missing"], 39381355, "2026-07-01T03:01:00Z", "touched"]);
+  });
+
+  it("claims snapshot jobs with skip-locked leases and updates terminal state", async () => {
+    const client = new FakeBlockClient();
+
+    await expect(claimSnapshotJobs(client as never, { chainId: "juno-1", limit: 10, leaseSeconds: 30, maxAttempts: 5 })).resolves.toEqual([
+      { id: "7", chainId: "juno-1", pairAddress: "juno1pair", height: 39381355, blockTime: "2026-07-01T03:01:00Z", reason: "touched", status: "leased", attempts: 1 },
+    ]);
+    await markSnapshotJobSucceeded(client as never, { jobId: "7", attempt: 1 });
+    await markSnapshotJobFailed(client as never, { jobId: "8", attempt: 2, error: "temporary", permanent: false, maxAttempts: 5 });
+
+    const claim = client.queries.find((query) => query.text.includes("WITH claimable"));
+    expect(claim?.text).toContain("FOR UPDATE SKIP LOCKED");
+    expect(claim?.values).toEqual(["juno-1", 10, "30 seconds", 5]);
+    const success = client.queries.find((query) => query.text.includes("status = 'succeeded'"));
+    expect(success?.text).toContain("AND status = 'leased'");
+    expect(success?.text).toContain("AND attempts = $2");
+    expect(success?.values).toEqual(["7", 1]);
+    const failure = client.queries.find((query) => query.text.includes("last_error = $4"));
+    expect(failure?.text).toContain("AND status = 'leased'");
+    expect(failure?.text).toContain("AND attempts = $2");
+    expect(failure?.values).toEqual(["8", 2, false, "temporary", 5]);
+  });
+
   it("upserts reserve snapshots idempotently by pool, height, and source", async () => {
     const client = new FakeBlockClient();
     client.rowsByKey.set("pool:juno1pair", [{ id: "pool-1" }]);
