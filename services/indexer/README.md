@@ -46,6 +46,16 @@ Copy `.env.example` to `.env` or export variables:
 | `POLL_INTERVAL_MS` | `5000` | Poll cadence. |
 | `BATCH_SIZE` | `20` | Max blocks per polling loop. |
 | `DRY_RUN` | `false` | If true, normalizes and logs without DB writes. |
+| `INDEXER_MODE` | `realtime` | Runtime mode selector. Use `realtime` for the live poller path or `catchup` for bounded/backfill catch-up orchestration. |
+| `RANGE_SIZE` | `5000` | Catch-up process range size for future high-throughput orchestration. Must be at least `1`. |
+| `FETCH_WINDOW_SIZE` | `250` | Maximum block fetch scheduling window for future high-throughput RPC fetchers. Must be at least `1`. |
+| `FETCH_CONCURRENCY` | `32` | Catch-up RPC fetch concurrency for future high-throughput fetchers. Must be at least `1` and no greater than `FETCH_WINDOW_SIZE`. |
+| `REALTIME_FETCH_CONCURRENCY` | `8` | Realtime RPC fetch concurrency for future live-mode fetchers. Must be at least `1`. |
+| `RPC_TIMEOUT_MS` | `10000` | RPC request timeout budget in milliseconds for high-performance fetch clients. Must be non-negative. |
+| `RPC_MAX_RETRIES` | `5` | Maximum RPC retry attempts for high-performance fetch clients. Must be non-negative. |
+| `INGEST_CANDLES_INLINE` | `true` | Whether the process should run candle ingestion inline when that runtime path is enabled. |
+| `INGEST_RESERVE_SNAPSHOTS_INLINE` | `true` | Whether the process should run reserve snapshot ingestion inline when that runtime path is enabled. |
+| `INGEST_AGGREGATES_INLINE` | `false` | Whether the process should run aggregate ingestion inline when that runtime path is enabled. |
 | `API_PORT` | `8787` | Port for the HTTP API served by the same production process as the poller. |
 | `PRICE_PROVIDER_BASE_URL` | unset | Reserved for a future provider worker. Current API only serves persisted `token_prices` rows. |
 | `PRICE_PROVIDER_API_KEY` | unset | Reserved for future provider credentials; never commit real keys. |
