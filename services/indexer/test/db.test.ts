@@ -192,6 +192,30 @@ describe("swap candle writes", () => {
     expect(candleInsert?.values?.slice(3, 10)).toEqual(["factory/token18", "ujuno", "5m", "2026-07-01T03:00:00.000Z", "1.5", "2", "3"]);
   });
 
+  it("skips candle writes when inline candle option is disabled", async () => {
+    const client = new FakeCandleClient();
+
+    await writeNormalizedEvent(client as never, "juno-1", {
+      kind: "swap",
+      chainId: "juno-1",
+      height: 39381355,
+      blockTime: "2026-07-01T03:01:00Z",
+      txHash: "tx",
+      msgIndex: 0,
+      eventIndex: 0,
+      pairAddress: "juno1pair",
+      offerAsset: "factory/token18",
+      offerAmount: "2000000000000000000",
+      askAsset: "ujuno",
+      returnAmount: "3000000",
+      raw: {},
+    }, { writeCandlesInline: false });
+
+    expect(client.queries.some((query) => query.text.includes("INSERT INTO swaps"))).toBe(true);
+    expect(client.queries.some((query) => query.text.includes("FROM asset_metadata"))).toBe(false);
+    expect(client.queries.some((query) => query.text.includes("INSERT INTO token_candles"))).toBe(false);
+  });
+
   it("skips candle writes when either swap asset lacks valid decimals", async () => {
     const client = new FakeCandleClient([{ asset: "factory/missing18", decimals: 18 }, { asset: "ujuno-missing", decimals: null }]);
 
