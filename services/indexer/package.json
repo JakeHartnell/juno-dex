@@ -16,7 +16,8 @@
     "worker:snapshots": "tsx src/snapshot-worker.ts",
     "worker:candles": "tsx src/candle-worker.ts",
     "refresh:read-models": "node dist/src/refresh-read-models.js",
-    "refresh:read-models:dev": "tsx src/refresh-read-models.ts"
+    "refresh:read-models:dev": "tsx src/refresh-read-models.ts",
+    "benchmark:range": "tsx src/benchmark-range.ts"
   },
   "dependencies": {
     "pg": "^8.13.1"
