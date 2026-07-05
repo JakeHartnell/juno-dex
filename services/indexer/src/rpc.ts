@@ -54,7 +54,13 @@ export class JunoRestClient {
 }
 
 export class JunoRpcClient {
-  constructor(private readonly rpcUrl: string) {}
+  private readonly timeoutMs: number;
+  private readonly maxRetries: number;
+
+  constructor(private readonly rpcUrl: string, options: { timeoutMs?: number; maxRetries?: number } = {}) {
+    this.timeoutMs = options.timeoutMs ?? 10_000;
+    this.maxRetries = options.maxRetries ?? 5;
+  }
 
   async head(): Promise<ChainHead> {
     const json = await this.get("/status") as Json;
@@ -87,9 +93,25 @@ export class JunoRpcClient {
   }
 
   private async get(path: string): Promise<unknown> {
-    const response = await fetch(`${this.rpcUrl}${path}`);
-    if (!response.ok) throw new Error(`RPC ${path} failed: ${response.status} ${response.statusText}`);
-    return response.json();
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+      try {
+        const response = await fetch(`${this.rpcUrl}${path}`, { signal: controller.signal });
+        if (response.ok) return response.json();
+        const error = new Error(`RPC ${path} failed: ${response.status} ${response.statusText}`);
+        if (!isTransientStatus(response.status) || attempt === this.maxRetries) throw error;
+        lastError = error;
+      } catch (error) {
+        lastError = error;
+        if (attempt === this.maxRetries || !isTransientFetchError(error)) throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+      await delay(100 * 2 ** attempt);
+    }
+    throw lastError instanceof Error ? lastError : new Error(`RPC ${path} failed`);
   }
 }
 

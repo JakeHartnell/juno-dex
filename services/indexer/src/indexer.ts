@@ -11,7 +11,7 @@ export class Indexer {
   private readonly ownsPool: boolean;
 
   constructor(private readonly config: IndexerConfig, pool?: PgPool) {
-    this.rpc = new JunoRpcClient(config.rpcUrl);
+    this.rpc = new JunoRpcClient(config.rpcUrl, { timeoutMs: config.rpcTimeoutMs, maxRetries: config.rpcMaxRetries });
     this.rest = new JunoRestClient(config.restUrl);
     this.pool = pool ?? (config.dryRun ? undefined : createPool(config));
     this.ownsPool = !pool && !config.dryRun;
