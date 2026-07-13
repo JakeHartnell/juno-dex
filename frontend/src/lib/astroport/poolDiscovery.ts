@@ -99,13 +99,13 @@ export function mergeDiscoveredPools(
       featured: curated?.featured,
       notes: curated?.notes ?? "Discovered from the factory. Metadata is unverified; review the assets before trading or providing liquidity.",
       source: curated ? "registry" : "factory",
-      verified: Boolean(curated),
+      verified: curated?.verified ?? Boolean(curated),
     });
   }
 
   for (const curated of curatedPools) {
     if (!merged.has(curated.pair)) {
-      merged.set(curated.pair, { ...curated, source: "registry", verified: true });
+      merged.set(curated.pair, { ...curated, source: "registry", verified: curated.verified ?? true });
     }
   }
 

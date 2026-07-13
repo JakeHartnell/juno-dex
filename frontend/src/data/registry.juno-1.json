@@ -9,7 +9,7 @@
   "router": "juno1fppwfa2efpsahvwlqprrshjth2mfqyd8n80yd7z5kpjspq30s8ksrapa8s",
   "incentives": "juno1h0auy2knfyhkcn877cqun0fu00safgsjwvt82d4cvd0slv8q7wtsk59598",
   "oracle": "juno1szsxu32r7rnu5wq7yqlxq4x46g0fq7qpzyggcvgsh2cq554mcuqql6jw4p",
-  "updatedAt": "2026-07-01T00:00:00Z",
+  "updatedAt": "2026-07-13T00:00:00Z",
   "pools": [
     {
       "id": "juno-agent-preview-xyk-1",
@@ -37,6 +37,128 @@
       "enabled": true,
       "featured": true,
       "notes": "Preview/test TokenFactory pool from PR #9. Treat as experimental thin-liquidity infrastructure, not a public launch market."
+    },
+    {
+      "id": "season0-twolf-juno",
+      "label": "TWOLF / JUNO",
+      "pair": "juno1cpvfjvx96eqj7lnksk7e83kpy8nmpnnz55ukzw6vg9c3ymt9j8gscr5lk9",
+      "lpToken": "factory/juno1cpvfjvx96eqj7lnksk7e83kpy8nmpnnz55ukzw6vg9c3ymt9j8gscr5lk9/astroport/share",
+      "type": "xyk",
+      "feeBps": 30,
+      "assets": [
+        {
+          "kind": "native",
+          "id": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/twolf",
+          "symbol": "TWOLF",
+          "name": "Juno Meme Season 0 Test Wolf",
+          "display": "twolf",
+          "decimals": 6,
+          "verified": false
+        },
+        {
+          "kind": "native",
+          "id": "ujuno",
+          "symbol": "JUNO",
+          "decimals": 6,
+          "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
+        }
+      ],
+      "explorer": "https://ping.pub/juno/wasm/contract/juno1cpvfjvx96eqj7lnksk7e83kpy8nmpnnz55ukzw6vg9c3ymt9j8gscr5lk9",
+      "enabled": true,
+      "verified": false,
+      "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
+    },
+    {
+      "id": "season0-traw-juno",
+      "label": "TRAW / JUNO",
+      "pair": "juno193yw4e925qdkh3pv6k2uw2m9gq0kx2p5760kup26ryw45pdzkcfqdv2nnm",
+      "lpToken": "factory/juno193yw4e925qdkh3pv6k2uw2m9gq0kx2p5760kup26ryw45pdzkcfqdv2nnm/astroport/share",
+      "type": "xyk",
+      "feeBps": 30,
+      "assets": [
+        {
+          "kind": "native",
+          "id": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/traw",
+          "symbol": "TRAW",
+          "name": "Juno Meme Season 0 Test RAW",
+          "display": "traw",
+          "decimals": 6,
+          "verified": false
+        },
+        {
+          "kind": "native",
+          "id": "ujuno",
+          "symbol": "JUNO",
+          "decimals": 6,
+          "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
+        }
+      ],
+      "explorer": "https://ping.pub/juno/wasm/contract/juno193yw4e925qdkh3pv6k2uw2m9gq0kx2p5760kup26ryw45pdzkcfqdv2nnm",
+      "enabled": true,
+      "verified": false,
+      "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
+    },
+    {
+      "id": "season0-tahab-juno",
+      "label": "TAHAB / JUNO",
+      "pair": "juno1fckcyn7ww8tmj4p60qlfv4y7dxzlnj3hk22nhafm9875lcll5cmqvwnm77",
+      "lpToken": "factory/juno1fckcyn7ww8tmj4p60qlfv4y7dxzlnj3hk22nhafm9875lcll5cmqvwnm77/astroport/share",
+      "type": "xyk",
+      "feeBps": 30,
+      "assets": [
+        {
+          "kind": "native",
+          "id": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/tahab",
+          "symbol": "TAHAB",
+          "name": "Juno Meme Season 0 Test AHAB",
+          "display": "tahab",
+          "decimals": 6,
+          "verified": false
+        },
+        {
+          "kind": "native",
+          "id": "ujuno",
+          "symbol": "JUNO",
+          "decimals": 6,
+          "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
+        }
+      ],
+      "explorer": "https://ping.pub/juno/wasm/contract/juno1fckcyn7ww8tmj4p60qlfv4y7dxzlnj3hk22nhafm9875lcll5cmqvwnm77",
+      "enabled": true,
+      "verified": false,
+      "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
+    },
+    {
+      "id": "season0-tahab-tfud",
+      "label": "TAHAB / TFUD",
+      "pair": "juno1mqkzf02hjlkzcnjn0yv9lr6d9j3tmx65qwfs0hcxy5ul4pfequ4s8n9hnn",
+      "lpToken": "factory/juno1mqkzf02hjlkzcnjn0yv9lr6d9j3tmx65qwfs0hcxy5ul4pfequ4s8n9hnn/astroport/share",
+      "type": "xyk",
+      "feeBps": 30,
+      "assets": [
+        {
+          "kind": "native",
+          "id": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/tahab",
+          "symbol": "TAHAB",
+          "name": "Juno Meme Season 0 Test AHAB",
+          "display": "tahab",
+          "decimals": 6,
+          "verified": false
+        },
+        {
+          "kind": "native",
+          "id": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/tfud",
+          "symbol": "TFUD",
+          "name": "Juno Meme Season 0 Test FUD",
+          "display": "tfud",
+          "decimals": 6,
+          "verified": false
+        }
+      ],
+      "explorer": "https://ping.pub/juno/wasm/contract/juno1mqkzf02hjlkzcnjn0yv9lr6d9j3tmx65qwfs0hcxy5ul4pfequ4s8n9hnn",
+      "enabled": true,
+      "verified": false,
+      "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
     }
   ]
 }

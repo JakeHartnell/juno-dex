@@ -22,7 +22,7 @@ export function useDexRegistry() {
   const pools = useMemo(
     () => discovery.data
       ? mergeDiscoveredPools(discovery.data.pairs, enabledPools, discovery.data.feeBpsByPairType)
-      : enabledPools.map((pool) => ({ ...pool, source: "registry" as const, verified: true })),
+      : enabledPools.map((pool) => ({ ...pool, source: "registry" as const, verified: pool.verified ?? true })),
     [discovery.data],
   );
 

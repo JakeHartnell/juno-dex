@@ -5,6 +5,38 @@
   "generatedAt": "2026-07-02T15:19:15.138Z",
   "assets": [
     {
+      "denom": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/twolf",
+      "kind": "factory",
+      "symbol": "TWOLF",
+      "name": "Juno Meme Season 0 Test Wolf",
+      "display": "twolf",
+      "decimals": 6
+    },
+    {
+      "denom": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/traw",
+      "kind": "factory",
+      "symbol": "TRAW",
+      "name": "Juno Meme Season 0 Test RAW",
+      "display": "traw",
+      "decimals": 6
+    },
+    {
+      "denom": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/tahab",
+      "kind": "factory",
+      "symbol": "TAHAB",
+      "name": "Juno Meme Season 0 Test AHAB",
+      "display": "tahab",
+      "decimals": 6
+    },
+    {
+      "denom": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/tfud",
+      "kind": "factory",
+      "symbol": "TFUD",
+      "name": "Juno Meme Season 0 Test FUD",
+      "display": "tfud",
+      "decimals": 6
+    },
+    {
       "denom": "factory/juno16uprl38e4ljj5ctuha9ehpvp2l93z3d5jmwj2cttt6jkhlrhscpqgglalk/wind.ash",
       "kind": "factory",
       "symbol": "ashWIND",

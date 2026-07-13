@@ -59,13 +59,13 @@ describe("factory pool discovery", () => {
   });
 
   it("keeps curated pools as fallback when factory discovery misses them and skips unsupported custom types", () => {
-    const curated = dexRegistry.pools[0];
+    const curated = { ...dexRegistry.pools[0], verified: false };
     const pools = mergeDiscoveredPools([
       pair("juno1skip000000000000000000000000000000000000", [native("ujuno"), native("uskip")], { custom: "other" }),
       pair("juno1cl00000000000000000000000000000000000000", [native("ujuno"), native("ucl")], { custom: "concentrated" }),
     ], [curated]);
 
-    expect(pools.some((pool) => pool.pair === curated.pair && pool.verified)).toBe(true);
+    expect(pools.some((pool) => pool.pair === curated.pair && pool.verified === false)).toBe(true);
     expect(pools.some((pool) => pool.pair === "juno1skip000000000000000000000000000000000000")).toBe(false);
     expect(pools.find((pool) => pool.pair === "juno1cl00000000000000000000000000000000000000")?.type).toBe("concentrated");
   });

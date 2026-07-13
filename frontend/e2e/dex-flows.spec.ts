@@ -72,7 +72,7 @@ test.describe("Juno DEX mocked wallet E2E", () => {
     await page.goto("/portfolio");
     await expectConnected(page);
     await expect(page.getByRole("heading", { name: "Wallet portfolio" })).toBeVisible();
-    await expect(page.getByText("Position found")).toBeVisible();
+    await expect(page.getByText("Position found").first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Playwright Wallet balances" })).toBeVisible();
 
     await page.goto(`/pools/${PAIR_ADDRESS}`);

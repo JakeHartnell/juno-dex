@@ -4,8 +4,14 @@ import { applyDexRegistryEnvOverrides, dexRegistry, parseDexRegistry } from "./r
 describe("dex registry", () => {
   it("loads the committed juno-1 registry", () => {
     expect(dexRegistry.chainId).toBe("juno-1");
-    expect(dexRegistry.pools).toHaveLength(1);
+    expect(dexRegistry.pools).toHaveLength(5);
     expect(dexRegistry.pools[0].type).toBe("xyk");
+    expect(dexRegistry.pools.map((pool) => pool.id)).toEqual(expect.arrayContaining([
+      "season0-twolf-juno",
+      "season0-traw-juno",
+      "season0-tahab-juno",
+      "season0-tahab-tfud",
+    ]));
   });
 
   it("rejects placeholder contract addresses", () => {
