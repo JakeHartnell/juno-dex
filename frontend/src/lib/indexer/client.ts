@@ -79,6 +79,7 @@ export function createIndexerClient({ baseUrl, fetcher = fetch, timeoutMs }: Ind
     pool: (id: string) => getJson<IndexerPoolMetrics>(fetcher, `${root}/pools/${encodeURIComponent(id)}`, timeoutMs),
     poolCandles: (id: string, params?: { interval?: IndexerCandleInterval; from?: string; to?: string; baseAsset?: string; quoteAsset?: string; limit?: number; cursor?: string }) => getJson<IndexerPoolCandlesResponse>(fetcher, `${root}${candlesPath(id, params)}`, timeoutMs),
     poolPositions: (id: string, params?: { limit?: number; cursor?: string }) => getJson<IndexerPage<IndexerPoolPosition>>(fetcher, `${root}${withPagination(`/pools/${encodeURIComponent(id)}/positions`, params)}`, timeoutMs),
+    poolHistory: (id: string, params?: { limit?: number; cursor?: string }) => getJson<IndexerPage<IndexerWalletTransaction>>(fetcher, `${root}${withPagination(`/pools/${encodeURIComponent(id)}/history`, params)}`, timeoutMs),
     walletPositions: (address: string, params?: { limit?: number; cursor?: string }) => getJson<IndexerPage<IndexerPoolPosition>>(fetcher, `${root}${withPagination(`/wallets/${encodeURIComponent(address)}/positions`, params)}`, timeoutMs),
     walletHistory: (address: string, params?: { limit?: number; cursor?: string }) => getJson<IndexerPage<IndexerWalletTransaction>>(fetcher, `${root}${withPagination(`/wallets/${encodeURIComponent(address)}/history`, params)}`, timeoutMs),
   };

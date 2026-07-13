@@ -68,6 +68,21 @@ function reserveAmountFor(asset, reserves) {
     }
     return null;
 }
+function baseAmount(value) {
+    const raw = String(value ?? "0");
+    return /^\d+$/.test(raw) ? BigInt(raw) : 0n;
+}
+function decimalRatio(numerator, denominator) {
+    if (denominator <= 0n)
+        return 0;
+    const scaled = (numerator * 1000000000000n) / denominator;
+    return Number(scaled) / 1_000_000_000_000;
+}
+function prorateBaseAmount(amount, numerator, denominator) {
+    if (denominator <= 0n)
+        return "0";
+    return ((baseAmount(amount) * numerator) / denominator).toString();
+}
 function normalizePool(row) {
     const assetInfos = Array.isArray(row.asset_infos) ? row.asset_infos : [];
     const reserves = jsonArray(row.reserves);
@@ -277,23 +292,57 @@ export class PostgresApiStore {
             return null;
         const pairAddress = String(pool.pairAddress);
         const safeLimit = limit(query, MAX_CANDLE_LIMIT);
-        const result = await this.db.query(`SELECT pair_address, pool_id, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, trade_count
+        const values = [this.chainId, pairAddress, interval, query.baseAsset ?? null, query.quoteAsset ?? null, query.from ?? null, query.to ?? null, safeLimit, offset(query)];
+        let result = await this.db.query(`SELECT pair_address, pool_id, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, trade_count
        FROM pool_candle_buckets
        WHERE chain_id = $1 AND pair_address = $2 AND interval = $3
          AND ($4::text IS NULL OR asset = $4)
          AND ($5::text IS NULL OR quote_asset = $5)
          AND ($6::timestamptz IS NULL OR bucket_start >= $6)
          AND ($7::timestamptz IS NULL OR bucket_start <= $7)
-       ORDER BY bucket_start DESC LIMIT $8 OFFSET $9`, [this.chainId, pairAddress, interval, query.baseAsset ?? null, query.quoteAsset ?? null, query.from ?? null, query.to ?? null, safeLimit, offset(query)]);
+       ORDER BY bucket_start DESC LIMIT $8 OFFSET $9`, values);
+        const filterFallback = result.rows.length === 0 && Boolean(query.baseAsset || query.quoteAsset);
+        if (filterFallback) {
+            result = await this.db.query(`SELECT pair_address, pool_id, asset, quote_asset, interval, bucket_start, open, high, low, close, volume, volume_quote, trade_count
+         FROM pool_candle_buckets
+         WHERE chain_id = $1 AND pair_address = $2 AND interval = $3
+           AND ($4::timestamptz IS NULL OR bucket_start >= $4)
+           AND ($5::timestamptz IS NULL OR bucket_start <= $5)
+         ORDER BY bucket_start DESC LIMIT $6 OFFSET $7`, [this.chainId, pairAddress, interval, query.from ?? null, query.to ?? null, safeLimit, offset(query)]);
+        }
         const data = result.rows.map((row) => ({ poolId: row.pool_id ? String(row.pool_id) : String(pool.id), pairAddress: String(row.pair_address), baseAsset: String(row.asset), quoteAsset: String(row.quote_asset), interval: String(row.interval), bucketStart: iso(row.bucket_start), open: toNumber(row.open), high: toNumber(row.high), low: toNumber(row.low), close: toNumber(row.close), volume: toNumber(row.volume), volumeQuote: toNumber(row.volume_quote), tradeCount: Number(row.trade_count ?? 0), dataSource: "indexer", isMock: false }));
-        return { ...page(data, query, MAX_CANDLE_LIMIT), meta: { poolId: String(pool.id), pairAddress, interval, baseAsset: query.baseAsset ?? null, quoteAsset: query.quoteAsset ?? null, from: query.from ?? null, to: query.to ?? null, dataSource: "indexer", isMock: false } };
+        return { ...page(data, query, MAX_CANDLE_LIMIT), meta: { poolId: String(pool.id), pairAddress, interval, baseAsset: filterFallback ? null : query.baseAsset ?? null, quoteAsset: filterFallback ? null : query.quoteAsset ?? null, requestedBaseAsset: query.baseAsset ?? null, requestedQuoteAsset: query.quoteAsset ?? null, filterFallback, from: query.from ?? null, to: query.to ?? null, dataSource: "indexer", isMock: false } };
     }
     async poolPositions(id, query) {
-        const result = await this.db.query(`SELECT wallet_address AS owner_address, pool_id, pair_address, lp_token_address, lp_balance, bonded_balance, updated_at FROM wallet_position_latest WHERE chain_id = $1 AND (pool_id::text = $2 OR pair_address = $2) ORDER BY updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, id, limit(query), offset(query)]);
+        const result = await this.db.query(`SELECT w.wallet_address AS owner_address, w.pool_id, w.pair_address, w.lp_token_address,
+              w.lp_balance, w.bonded_balance, w.updated_at,
+              lps.asset_infos, lps.reserves, lps.total_share, lps.tvl_usd, lps.tvl_juno
+       FROM wallet_position_latest w
+       LEFT JOIN latest_pool_state lps ON lps.chain_id = w.chain_id AND lps.pair_address = w.pair_address
+       WHERE w.chain_id = $1 AND (w.pool_id::text = $2 OR w.pair_address = $2)
+       ORDER BY w.updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, id, limit(query), offset(query)]);
         return page(result.rows.map(normalizePosition), query);
     }
+    async poolHistory(id, query) {
+        const pool = await this.pool(id);
+        if (!pool)
+            return page([], query);
+        const pairAddress = String(pool.pairAddress);
+        const result = await this.db.query(`SELECT tx_hash, wallet_address, pair_address, type, height, timestamp,
+              offer_asset, ask_asset, amount_usd, fee_usd, success
+       FROM wallet_history_flat
+       WHERE chain_id = $1 AND pair_address = $2
+       ORDER BY height DESC, timestamp DESC LIMIT $3 OFFSET $4`, [this.chainId, pairAddress, limit(query), offset(query)]);
+        return page(result.rows.map(normalizeTx), query);
+    }
     async walletPositions(addr, query) {
-        const result = await this.db.query(`SELECT wallet_address AS owner_address, pool_id, pair_address, lp_token_address, lp_balance, bonded_balance, updated_at FROM wallet_position_latest WHERE chain_id = $1 AND wallet_address = $2 ORDER BY updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, addr, limit(query), offset(query)]);
+        const result = await this.db.query(`SELECT w.wallet_address AS owner_address, w.pool_id, w.pair_address, w.lp_token_address,
+              w.lp_balance, w.bonded_balance, w.updated_at,
+              lps.asset_infos, lps.reserves, lps.total_share, lps.tvl_usd, lps.tvl_juno
+       FROM wallet_position_latest w
+       LEFT JOIN latest_pool_state lps ON lps.chain_id = w.chain_id AND lps.pair_address = w.pair_address
+       WHERE w.chain_id = $1 AND w.wallet_address = $2
+       ORDER BY w.updated_at DESC LIMIT $3 OFFSET $4`, [this.chainId, addr, limit(query), offset(query)]);
         return page(result.rows.map(normalizePosition), query);
     }
     async walletHistory(addr, query) {
@@ -306,7 +355,43 @@ export class PostgresApiStore {
     }
 }
 function normalizePosition(row) {
-    return { walletAddress: String(row.owner_address), poolId: String(row.pool_id ?? row.pair_address), pairAddress: String(row.pair_address), lpToken: row.lp_token_address ? String(row.lp_token_address) : null, lpBalance: String(row.lp_balance ?? "0"), bondedBalance: String(row.bonded_balance ?? "0"), shareBps: 0, valueUsd: null, valueJuno: null, assets: [], updatedAt: iso(row.updated_at) ?? new Date(0).toISOString(), dataSource: "indexer", isMock: false };
+    const lpBalance = String(row.lp_balance ?? "0");
+    const bondedBalance = String(row.bonded_balance ?? "0");
+    const totalPositionLp = baseAmount(lpBalance) + baseAmount(bondedBalance);
+    const totalShare = baseAmount(row.total_share);
+    const share = decimalRatio(totalPositionLp, totalShare);
+    const assetInfos = Array.isArray(row.asset_infos) ? row.asset_infos : [];
+    const reserves = jsonArray(row.reserves);
+    const assets = assetInfos.map((asset) => {
+        const denom = normalizeAssetInfo(asset);
+        return {
+            denom,
+            reserve: reserveAmountFor(denom, reserves),
+            amount: prorateBaseAmount(reserveAmountFor(denom, reserves), totalPositionLp, totalShare),
+            valueUsd: null,
+            valueJuno: null,
+            priceUsd: null,
+            priceJuno: null,
+            priceStatus: "missing",
+        };
+    });
+    const tvlUsd = toNumber(row.tvl_usd);
+    const tvlJuno = toNumber(row.tvl_juno);
+    return {
+        walletAddress: String(row.owner_address),
+        poolId: String(row.pool_id ?? row.pair_address),
+        pairAddress: String(row.pair_address),
+        lpToken: row.lp_token_address ? String(row.lp_token_address) : null,
+        lpBalance,
+        bondedBalance,
+        shareBps: Math.round(share * 10_000),
+        valueUsd: tvlUsd === null || share <= 0 ? null : tvlUsd * share,
+        valueJuno: tvlJuno === null || share <= 0 ? null : tvlJuno * share,
+        assets,
+        updatedAt: iso(row.updated_at) ?? new Date(0).toISOString(),
+        dataSource: "indexer",
+        isMock: false,
+    };
 }
 function normalizeTx(row) {
     return { txHash: String(row.tx_hash), walletAddress: row.wallet_address ? String(row.wallet_address) : null, poolId: row.pair_address ? String(row.pair_address) : null, pairAddress: row.pair_address ? String(row.pair_address) : null, type: String(row.type), height: Number(row.height), timestamp: iso(row.timestamp) ?? new Date(0).toISOString(), offerAsset: row.offer_asset ?? null, askAsset: row.ask_asset ?? null, amountUsd: toNumber(row.amount_usd), feeUsd: toNumber(row.fee_usd), success: Boolean(row.success), dataSource: "indexer", isMock: false };

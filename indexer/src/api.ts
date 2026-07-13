@@ -24,6 +24,7 @@ export type IndexerApiStore = {
   pool(id: string): Promise<Record<string, unknown> | null>;
   candles(id: string, query: PaginationQuery): Promise<Record<string, unknown> | null>;
   poolPositions(id: string, query: PaginationQuery): Promise<Record<string, unknown>>;
+  poolHistory(id: string, query: PaginationQuery): Promise<Record<string, unknown>>;
   walletPositions(addr: string, query: PaginationQuery): Promise<Record<string, unknown>>;
   walletHistory(addr: string, query: PaginationQuery): Promise<Record<string, unknown>>;
 };
@@ -191,6 +192,7 @@ export function createIndexerApi(store: IndexerApiStore, metrics?: IndexerMetric
         return page ? jsonResponse(res, 200, page) : jsonResponse(res, 404, { error: "pool_not_found" });
       }
       if (parts[0] === "pools" && parts.length === 3 && parts[2] === "positions") return jsonResponse(res, 200, await store.poolPositions(parts[1], parsedQuery));
+      if (parts[0] === "pools" && parts.length === 3 && parts[2] === "history") return jsonResponse(res, 200, await store.poolHistory(parts[1], parsedQuery));
       if (parts[0] === "wallets" && parts.length === 3 && parts[2] === "positions") return jsonResponse(res, 200, await store.walletPositions(parts[1], parsedQuery));
       if (parts[0] === "wallets" && parts.length === 3 && parts[2] === "history") return jsonResponse(res, 200, await store.walletHistory(parts[1], parsedQuery));
       return jsonResponse(res, 404, { error: "not_found" });

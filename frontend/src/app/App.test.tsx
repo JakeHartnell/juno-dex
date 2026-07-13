@@ -72,6 +72,7 @@ describe("App wallet state", () => {
     renderApp();
 
     expect(screen.getByRole("button", { name: /connect wallet/i })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Portfolio" })).toBeNull();
     expect(await screen.findByText(/No wallet connected/i)).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -106,6 +107,7 @@ describe("App wallet state", () => {
 
     expect(screen.getAllByText(/QA wallet/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /disconnect/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Portfolio" }).getAttribute("href")).toBe("/portfolio");
     expect(screen.getAllByRole("button", { name: /copy wallet address/i }).length).toBeGreaterThan(0);
     expect(await screen.findByText(/Connected wallet:/i)).toBeTruthy();
     expect(screen.queryByText(/No wallet connected/i)).toBeNull();

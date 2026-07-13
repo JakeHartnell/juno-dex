@@ -11,13 +11,16 @@ import { EmptyState, ErrorState, RiskBadgeList, Skeleton } from "../common";
 type LpPositionPanelProps = {
   pool: RegistryPool;
   compact?: boolean;
+  onAdd?: () => void;
+  onRemove?: () => void;
+  onStake?: () => void;
 };
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function LpPositionPanel({ pool, compact = false }: LpPositionPanelProps) {
+export function LpPositionPanel({ pool, compact = false, onAdd, onRemove, onStake }: LpPositionPanelProps) {
   const { wallet } = useWallet();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, [pool]);
@@ -37,7 +40,7 @@ export function LpPositionPanel({ pool, compact = false }: LpPositionPanelProps)
           <p className="eyebrow">LP position</p>
           <h3>{pool.label}</h3>
           <p>{pool.assets.map((asset) => asset.symbol).join(" / ")} pool shares</p>
-          <RiskBadgeList assessment={risk} max={3} />
+          {!compact ? <RiskBadgeList assessment={risk} max={3} /> : null}
         </div>
         <span className={position.hasPosition ? "status-pill status-ok" : "status-pill status-warn"}>
           {position.hasPosition ? "Position found" : "No LP balance"}
@@ -62,7 +65,7 @@ export function LpPositionPanel({ pool, compact = false }: LpPositionPanelProps)
           <Skeleton width="85%" height="1.2rem" />
         </div>
       ) : !position.hasPosition ? (
-        <EmptyState title="No LP balance for this pool" action={<Link className="wallet-inline-action" to={poolHref}>Add liquidity</Link>}>
+        <EmptyState title="No LP balance for this pool" action={onAdd ? <button className="wallet-inline-action" type="button" onClick={onAdd}>Add liquidity</button> : <Link className="wallet-inline-action" to={poolHref}>Add liquidity</Link>}>
           Your wallet does not currently hold {lp.symbol}. Add liquidity to mint LP shares for this pool.
         </EmptyState>
       ) : (
@@ -99,9 +102,9 @@ export function LpPositionPanel({ pool, compact = false }: LpPositionPanelProps)
       )}
 
       <div className="lp-position-actions" aria-label="LP quick actions">
-        <Link className="wallet-inline-action" to={poolHref}>Add liquidity</Link>
-        <Link className="wallet-inline-action" to={poolHref}>Remove liquidity</Link>
-        <Link className="wallet-inline-action" to={`${poolHref}#incentives`}>Stake / claim</Link>
+        {onAdd ? <button className="wallet-inline-action" type="button" onClick={onAdd}>Add liquidity</button> : <Link className="wallet-inline-action" to={poolHref}>Add liquidity</Link>}
+        {onRemove ? <button className="wallet-inline-action" type="button" onClick={onRemove}>Remove liquidity</button> : <Link className="wallet-inline-action" to={poolHref}>Remove liquidity</Link>}
+        {onStake ? <button className="wallet-inline-action" type="button" onClick={onStake}>Stake / claim</button> : <Link className="wallet-inline-action" to={`${poolHref}#incentives`}>Stake / claim</Link>}
       </div>
     </section>
   );

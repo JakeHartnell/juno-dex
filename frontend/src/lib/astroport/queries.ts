@@ -5,6 +5,7 @@ import type { QueryMsg as RouterQueryMsg, SimulateSwapOperationsResponse, SwapOp
 import { dexRegistry } from "../../config/registry";
 import { e2ePoolResponse, e2eReverseSwapSimulation, e2eRouterSimulation, e2eSwapSimulation, isE2EMode } from "../../e2e/mocks";
 import { toAsset } from "./assetInfo";
+import { getReadonlyCosmWasmClient } from "../cosmjs/clients";
 
 export type PoolAssetResponse = { info: unknown; amount: string };
 export type { PoolResponse, ReverseSimulationResponse, SimulationResponse } from "../generated/Pair.types";
@@ -36,14 +37,22 @@ export async function queryContractSmart<T>(contractAddress: string, message: un
   try {
     response = await fetch(`${dexRegistry.restEndpoint}/cosmwasm/wasm/v1/contract/${contractAddress}/smart/${encoded}`, { signal: controller.signal });
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw new Error(`REST smart query timed out after ${timeoutMs}ms`);
-    throw error;
+    return queryContractSmartRpc<T>(contractAddress, message, error instanceof DOMException && error.name === "AbortError" ? `REST timed out after ${timeoutMs}ms` : "REST unavailable");
   } finally {
     clearTimeout(timeout);
   }
-  if (!response.ok) throw new Error(`REST smart query failed: ${response.status}`);
+  if (!response.ok) return queryContractSmartRpc<T>(contractAddress, message, `REST returned ${response.status}`);
   const payload = await response.json() as { data: T };
   return payload.data;
+}
+
+async function queryContractSmartRpc<T>(contractAddress: string, message: unknown, restFailure: string): Promise<T> {
+  try {
+    const client = await getReadonlyCosmWasmClient();
+    return await client.queryContractSmart(contractAddress, message) as T;
+  } catch {
+    throw new Error(`Smart query unavailable (${restFailure}; RPC fallback failed)`);
+  }
 }
 
 export async function queryPairPool(pairAddress: string): Promise<PoolResponse> {

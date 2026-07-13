@@ -3,10 +3,12 @@ import type { Coin } from "@cosmjs/stargate";
 import type { ExecuteResult } from "@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient.js";
 import type { StargateClient as ReadonlyStargateClient } from "@cosmjs/stargate/build/stargateclient.js";
 import { dexRegistry } from "../../config/registry";
+import type { CosmWasmClient as ReadonlyCosmWasmClient } from "@cosmjs/cosmwasm-stargate/build/cosmwasmclient.js";
 
 type SigningCosmWasmClientModule = typeof import("@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient.js");
 type StargateClientModule = typeof import("@cosmjs/stargate/build/stargateclient.js");
 type StargateFeeModule = typeof import("@cosmjs/stargate/build/fee.js");
+type CosmWasmClientModule = typeof import("@cosmjs/cosmwasm-stargate/build/cosmwasmclient.js");
 
 export type ExecuteClient = {
   execute: (
@@ -23,6 +25,7 @@ export type SigningClientGetter = () => Promise<ExecuteClient>;
 export type SigningClientSource = OfflineSigner | SigningClientGetter | undefined;
 
 let readonlyStargateClientPromise: Promise<ReadonlyStargateClient> | undefined;
+let readonlyCosmWasmClientPromise: Promise<ReadonlyCosmWasmClient> | undefined;
 
 function cjsExport<T>(module: unknown, key: string): T | undefined {
   if (!module || typeof module !== "object") return undefined;
@@ -56,6 +59,14 @@ export async function getReadonlyStargateClient() {
   }
   readonlyStargateClientPromise ??= StargateClient.connect(dexRegistry.rpcEndpoint);
   return readonlyStargateClientPromise;
+}
+
+export async function getReadonlyCosmWasmClient() {
+  const module = await import("@cosmjs/cosmwasm-stargate/build/cosmwasmclient.js");
+  const CosmWasmClient = cjsExport<CosmWasmClientModule["CosmWasmClient"]>(module, "CosmWasmClient");
+  if (!CosmWasmClient?.connect) throw new Error("CosmJS query client failed to initialize");
+  readonlyCosmWasmClientPromise ??= CosmWasmClient.connect(dexRegistry.rpcEndpoint);
+  return readonlyCosmWasmClientPromise;
 }
 
 export async function getSigningClient(signer: OfflineSigner) {

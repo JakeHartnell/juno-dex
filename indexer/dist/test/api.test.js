@@ -29,7 +29,7 @@ class FakeDb {
             return { rows: [{ pool_id: "pool-1", pair_address: "juno1pair", asset: "ujuno", quote_asset: "uusdc", interval: "1h", bucket_start: "2026-07-03T00:00:00.000Z", open: "1", high: "1.2", low: "0.9", close: "1.1", volume: "10", volume_quote: "11", trade_count: 2 }] };
         }
         if (text.includes("FROM wallet_position_latest"))
-            return { rows: [{ wallet_address: "juno1wallet", owner_address: "juno1wallet", pool_id: "pool-1", pair_address: "juno1pair", lp_token_address: "factory/juno1pair/astroport/share", lp_balance: "7", bonded_balance: "2", updated_at: "2026-07-03T00:00:00.000Z" }] };
+            return { rows: [{ wallet_address: "juno1wallet", owner_address: "juno1wallet", pool_id: "pool-1", pair_address: "juno1pair", lp_token_address: "factory/juno1pair/astroport/share", lp_balance: "7", bonded_balance: "2", total_share: "789", tvl_usd: null, tvl_juno: "1000", asset_infos: [{ native_token: { denom: "ujuno" } }, { native_token: { denom: "uusdc" } }], reserves: [{ denom: "ujuno", amount: "123" }, { denom: "uusdc", amount: "456" }], updated_at: "2026-07-03T00:00:00.000Z" }] };
         if (text.includes("FROM wallet_history_flat"))
             return { rows: [{ tx_hash: "tx-1", wallet_address: "juno1wallet", pair_address: "juno1pair", type: "swap", height: "42", timestamp: "2026-07-03T00:00:00.000Z", offer_asset: { denom: "ujuno", amount: "1" }, ask_asset: { denom: "uusdc", amount: "2" }, amount_usd: null, fee_usd: null, success: true }] };
         throw new Error(`unexpected query: ${text}`);
@@ -58,6 +58,18 @@ class EmptyReadModelDb {
         if (text.includes("FROM wallet_history_flat"))
             return { rows: [] };
         throw new Error(`unexpected query: ${text}`);
+    }
+}
+class CandleFilterFallbackDb extends FakeDb {
+    async query(text, values) {
+        this.calls.push({ text, values });
+        if (text.includes("FROM pool_candle_buckets")) {
+            if (values?.[3] || values?.[4])
+                return { rows: [] };
+            return { rows: [{ pool_id: "pool-1", pair_address: "juno1pair", asset: "ujuno", quote_asset: "uusdc", interval: "5m", bucket_start: "2026-07-03T00:00:00.000Z", open: "1", high: "1.2", low: "0.9", close: "1.1", volume: "10", volume_quote: "11", trade_count: 2 }] };
+        }
+        this.calls.pop();
+        return super.query(text, values);
     }
 }
 function poolRow() {
@@ -201,14 +213,35 @@ describe("production API", () => {
         expect(db.calls.some((call) => call.text.includes("FROM pool_candle_buckets"))).toBe(true);
         expect(db.calls.some((call) => call.text.includes("FROM token_candles"))).toBe(false);
     });
+    it("falls back to canonical pair candles when requested asset filters do not match", async () => {
+        const { db, server, baseUrl } = await start(new CandleFilterFallbackDb());
+        openServer = server;
+        const candles = await (await fetch(`${baseUrl}/pools/juno1pair/candles?interval=5m&baseAsset=uusdc&quoteAsset=ujuno&limit=20`)).json();
+        expect(candles.data[0]).toMatchObject({ baseAsset: "ujuno", quoteAsset: "uusdc", close: 1.1 });
+        expect(candles.meta).toMatchObject({
+            pairAddress: "juno1pair",
+            interval: "5m",
+            baseAsset: null,
+            quoteAsset: null,
+            requestedBaseAsset: "uusdc",
+            requestedQuoteAsset: "ujuno",
+            filterFallback: true,
+        });
+        expect(db.calls.filter((call) => call.text.includes("FROM pool_candle_buckets"))).toHaveLength(2);
+    });
     it("serves wallet history and positions from read models", async () => {
         const { db, server, baseUrl } = await start();
         openServer = server;
         const history = await (await fetch(`${baseUrl}/wallets/juno1wallet/history`)).json();
         expect(history.data[0]).toMatchObject({ txHash: "tx-1", walletAddress: "juno1wallet", pairAddress: "juno1pair", type: "swap", height: 42, isMock: false });
         expect(history.data[0].offerAsset).toEqual({ denom: "ujuno", amount: "1" });
+        const poolHistory = await (await fetch(`${baseUrl}/pools/juno1pair/history?limit=10`)).json();
+        expect(poolHistory.data[0]).toMatchObject({ txHash: "tx-1", pairAddress: "juno1pair", type: "swap" });
+        expect(poolHistory.pagination.limit).toBe(10);
         const positions = await (await fetch(`${baseUrl}/wallets/juno1wallet/positions`)).json();
-        expect(positions.data[0]).toMatchObject({ walletAddress: "juno1wallet", poolId: "pool-1", pairAddress: "juno1pair", lpBalance: "7", bondedBalance: "2" });
+        expect(positions.data[0]).toMatchObject({ walletAddress: "juno1wallet", poolId: "pool-1", pairAddress: "juno1pair", lpBalance: "7", bondedBalance: "2", shareBps: 114, valueUsd: null });
+        expect(positions.data[0].valueJuno).toBeCloseTo((9 / 789) * 1000, 6);
+        expect(positions.data[0].assets[0]).toMatchObject({ denom: "ujuno", reserve: "123", amount: "1" });
         expect(db.calls.some((call) => call.text.includes("FROM wallet_history_flat"))).toBe(true);
         expect(db.calls.some((call) => call.text.includes("FROM wallet_position_latest"))).toBe(true);
         expect(db.calls.some((call) => call.text.includes("FROM swaps"))).toBe(false);

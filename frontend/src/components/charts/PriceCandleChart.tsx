@@ -1,7 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import type { RegistryPool } from "../../config/registry";
 import { type PoolCandleRange } from "../../lib/data-access/indexerFallback";
-import type { DataAccessState } from "../../lib/data-access/indexerFallback";
 import type { IndexerCandleInterval, IndexerPoolCandle } from "../../lib/indexer/types";
 import { usePoolCandles } from "../../queries/usePools";
 import { EmptyState, ErrorState, Skeleton } from "../common";
@@ -49,7 +48,7 @@ export function PriceCandleChart({ pool, title = "Price chart", compact = false,
       {!candles.isLoading && !candles.access?.error && candles.data.length === 0 ? (
         <EmptyState title="No candles returned">The indexer did not return {interval} candles for {range}; no fake chart is displayed.</EmptyState>
       ) : null}
-      {candles.data.length > 0 ? <SvgCandleChart candles={candles.data} compact={compact} labelId={describedBy} access={candles.access} unit={pool.assets[1]?.symbol ?? "quote"} /> : null}
+      {candles.data.length > 0 ? <SvgCandleChart candles={candles.data} compact={compact} labelId={describedBy} unit={pool.assets[1]?.symbol ?? "quote"} /> : null}
     </section>
   );
 }
@@ -67,7 +66,7 @@ function ChartControls({ interval, range, onInterval, onRange }: { interval: Ind
   );
 }
 
-function SvgCandleChart({ candles, compact, labelId, access, unit }: { candles: IndexerPoolCandle[]; compact: boolean; labelId: string; access?: DataAccessState; unit: string }) {
+function SvgCandleChart({ candles, compact, labelId, unit }: { candles: IndexerPoolCandle[]; compact: boolean; labelId: string; unit: string }) {
   const width = compact ? 280 : 760;
   const height = compact ? 86 : 260;
   const pad = compact ? 8 : 18;
@@ -133,10 +132,6 @@ function SvgCandleChart({ candles, compact, labelId, access, unit }: { candles: 
             </div>
           </>
         ) : null}
-      </div>
-      <div className="chart-summary">
-        <span>{candles.length} candles</span>
-        {access?.rangeFallback ? <span>Latest available</span> : null}
       </div>
     </div>
   );

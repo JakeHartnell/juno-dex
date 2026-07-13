@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import type { DataAccessState } from "../../lib/data-access/indexerFallback";
 import type { IndexerAssetAmount, IndexerWalletTransaction } from "../../lib/indexer/types";
-import { EmptyState, Skeleton } from "../common";
+import type { RegistryPool } from "../../config/registry";
+import { formatAmount } from "../../lib/format/amounts";
+import { EmptyState, ExplorerLink, Skeleton } from "../common";
 
 export type WalletTransactionTypeFilter = "all" | "swap" | "provide_liquidity" | "withdraw_liquidity" | "claim_rewards";
 
@@ -29,6 +31,7 @@ type WalletTransactionHistoryProps = {
   pairAddress?: string;
   title?: string;
   emptyTitle?: string;
+  pool?: RegistryPool;
 };
 
 export function WalletTransactionHistory({
@@ -37,6 +40,8 @@ export function WalletTransactionHistory({
   walletConnected,
   isLoading = false,
   pairAddress,
+  explorerBaseUrl,
+  pool,
   title = "Wallet transaction history",
   emptyTitle,
 }: WalletTransactionHistoryProps) {
@@ -95,10 +100,11 @@ export function WalletTransactionHistory({
             <article className="wallet-history-row" role="row" key={`${tx.txHash}-${tx.type}-${tx.height}`}>
               <div role="cell"><strong>{formatTimestamp(tx.timestamp)}</strong><small>Height {tx.height.toLocaleString()}</small></div>
               <div role="cell"><span className="status-pill status-ok">{formatType(tx.type)}</span>{!tx.success ? <small className="error-text">failed</small> : null}</div>
-              <div role="cell"><strong>{formatAssetFlow(tx)}</strong><code>{tx.pairAddress ?? tx.poolId ?? "Pool unavailable"}</code></div>
-              <div role="cell"><strong>{formatUsd(tx.amountUsd) ?? "USD unavailable"}</strong><small>Fee {formatUsd(tx.feeUsd) ?? "unavailable"}</small></div>
+              <div role="cell"><strong>{formatAssetFlow(tx, pool)}</strong><small>{pool?.assets.map((asset) => asset.symbol).join(" / ") ?? "Pool"}</small></div>
+              <div role="cell"><strong>{formatUsd(tx.amountUsd) ?? "—"}</strong>{formatUsd(tx.feeUsd) ? <small>Fee {formatUsd(tx.feeUsd)}</small> : null}</div>
               <div role="cell" className="wallet-history-tx-cell">
-                <code>{shortHash(tx.txHash)}</code>
+                {explorerBaseUrl ? <ExplorerLink href={`${explorerBaseUrl}/tx/${tx.txHash}`}><code>{shortHash(tx.txHash)}</code></ExplorerLink> : <code>{shortHash(tx.txHash)}</code>}
+                <button className="tx-copy-button" type="button" aria-label={`Copy transaction hash ${shortHash(tx.txHash)}`} onClick={() => void navigator.clipboard?.writeText(tx.txHash)}>Copy</button>
               </div>
             </article>
           ))}
@@ -119,20 +125,31 @@ function txAssets(tx: IndexerWalletTransaction): IndexerAssetAmount[] {
   return [tx.offerAsset, tx.askAsset].filter((asset): asset is IndexerAssetAmount => Boolean(asset));
 }
 
-export function formatAssetFlow(tx: IndexerWalletTransaction) {
+export function formatAssetFlow(tx: IndexerWalletTransaction, pool?: RegistryPool) {
   if (tx.type === "swap" && tx.offerAsset && tx.askAsset) {
-    return `${formatAssetAmount(tx.offerAsset)} → ${formatAssetAmount(tx.askAsset)}`;
+    return `${formatAssetAmount(tx.offerAsset, pool)} → ${formatAssetAmount(tx.askAsset, pool)}`;
   }
-  const assets = txAssets(tx).map(formatAssetAmount).filter(Boolean);
+  const assets = txAssets(tx).map((asset) => formatAssetAmount(asset, pool)).filter(Boolean);
   if (assets.length > 0) return assets.join(" + ");
   return "Assets unavailable";
 }
 
-export function formatAssetAmount(asset: IndexerAssetAmount) {
+export function formatAssetAmount(asset: IndexerAssetAmount, pool?: RegistryPool) {
   const amount = asset.amount ?? asset.reserve;
-  const symbol = asset.symbol ?? asset.denom;
+  const registryAsset = pool?.assets.find((candidate) => candidate.id === asset.denom || candidate.denomTrace === asset.denom);
+  const symbol = registryAsset?.symbol ?? asset.symbol ?? denomTicker(asset.denom);
   if (!amount) return symbol;
-  return `${formatCompactDecimal(amount)} ${symbol}`;
+  const displayAmount = registryAsset && /^\d+$/.test(amount)
+    ? formatAmount(amount, registryAsset.decimals)
+    : formatCompactDecimal(amount);
+  return `${displayAmount} ${symbol}`;
+}
+
+function denomTicker(denom: string) {
+  if (denom === "ujuno") return "JUNO";
+  if (denom.startsWith("factory/")) return denom.split("/").at(-1)?.replace(/^u/, "").toUpperCase() ?? "TOKEN";
+  if (/^u[a-z0-9]+$/i.test(denom)) return denom.slice(1).toUpperCase();
+  return denom.length > 16 ? "TOKEN" : denom.toUpperCase();
 }
 
 export function formatTimestamp(timestamp: string) {

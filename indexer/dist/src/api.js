@@ -151,6 +151,8 @@ export function createIndexerApi(store, metrics) {
             }
             if (parts[0] === "pools" && parts.length === 3 && parts[2] === "positions")
                 return jsonResponse(res, 200, await store.poolPositions(parts[1], parsedQuery));
+            if (parts[0] === "pools" && parts.length === 3 && parts[2] === "history")
+                return jsonResponse(res, 200, await store.poolHistory(parts[1], parsedQuery));
             if (parts[0] === "wallets" && parts.length === 3 && parts[2] === "positions")
                 return jsonResponse(res, 200, await store.walletPositions(parts[1], parsedQuery));
             if (parts[0] === "wallets" && parts.length === 3 && parts[2] === "history")

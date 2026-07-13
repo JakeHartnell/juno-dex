@@ -423,3 +423,22 @@ export async function loadWalletIndexerData(address: string | undefined, config 
     return { data: empty, state: fallbackState(accessError) };
   }
 }
+
+export async function loadPoolActivity(pool: RegistryPool | undefined, limit = 10, config = getIndexerRuntimeConfig()): Promise<DataAccessResult<IndexerWalletTransaction[]>> {
+  if (!pool) return { data: [], state: fallbackState({ code: "disabled", message: "Pool is not selected" }, "disabled") };
+  const earlyFallback = shouldUseFallback(config);
+  if (earlyFallback) return { data: [], state: earlyFallback };
+  try {
+    const client = createIndexerClient({ baseUrl: config.baseUrl!, timeoutMs: config.timeoutMs });
+    await withAttempts(config.retry, () => client.health());
+    const history = await withAttempts(config.retry, () => client.poolHistory(pool.pair, { limit }));
+    const first = history.data[0];
+    const isMock = Boolean(first?.isMock || first?.dataSource === "mock");
+    const updatedAt = first?.timestamp;
+    const isStale = updatedAt ? Date.now() - Date.parse(updatedAt) > config.staleAfterMs : false;
+    return { data: history.data.slice(0, limit), state: { source: isMock ? "mock" : "indexer", isFallback: false, isMock, isStale, updatedAt } };
+  } catch (error) {
+    const accessError = toAccessError(error, "network");
+    return { data: [], state: fallbackState(accessError) };
+  }
+}

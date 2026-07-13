@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { JUNO_CHAIN_INFO } from "../config/chains";
 import { junoAssetList, junoChain } from "../config/cosmosKit";
 import { dexRegistry } from "../config/registry";
+import { interchainJunoTheme } from "../theme/junoTheme";
 
 const walletConnectProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined;
 type ChainProviderProps = Parameters<typeof ChainProvider>[0];
@@ -27,6 +28,15 @@ export function CosmosKitProvider({ children }: { children: ReactNode }) {
       chains={[junoChain] as never}
       assetLists={[junoAssetList] as never}
       wallets={wallets}
+      modalTheme={{
+        defaultTheme: "dark",
+        customTheme: interchainJunoTheme.name,
+        themeDefs: [interchainJunoTheme],
+        modalContainerClassName: "juno-wallet-modal",
+        modalContentClassName: "juno-wallet-modal-content",
+        modalChildrenClassName: "juno-wallet-modal-children",
+        modalContentStyles: { background: "#230A0C", border: "1px solid rgba(255, 123, 124, 0.35)", borderRadius: "5px" },
+      }}
       walletConnectOptions={walletconnectOptions}
       throwErrors={false}
       endpointOptions={{

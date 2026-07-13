@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RegistryPool } from "../../config/registry";
@@ -47,7 +47,7 @@ vi.mock("../../queries/usePools", () => ({
   usePoolMetrics: () => ({ data: mocks.metrics, access: mocks.access, isError: false }),
   usePoolReserves: () => mocks.reserves,
   usePoolCandles: () => ({ data: [], access: mocks.access, isLoading: false, isFetching: false, refetch: vi.fn() }),
-  useWalletIndexerData: () => ({ data: { positions: [], history: [] }, access: mocks.access, isLoading: false }),
+  usePoolActivity: () => ({ data: [], access: mocks.access, isLoading: false }),
 }));
 
 vi.mock("../../wallet/WalletContext", () => ({
@@ -117,6 +117,8 @@ describe("PoolDetailPage", () => {
     expect(screen.getByText(/Your pool share = wallet LP balance ÷ total LP shares/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: /back to pools/i }).getAttribute("href")).toBe("/pools");
     expect(screen.getByText("Show token ID")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add liquidity" }));
+    expect(screen.getByText("Add liquidity form")).toBeTruthy();
   });
 
   it("shows honest unavailable-metrics copy without fake TVL, volume, APR, charts, or transactions", () => {

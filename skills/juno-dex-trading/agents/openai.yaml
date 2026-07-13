@@ -1,0 +1,4 @@
+interface:
+  display_name: "Juno DEX Trading"
+  short_description: "Trade safely on Juno with verified live data"
+  default_prompt: "Use $juno-dex-trading to plan or execute a safe Juno DEX trade using current pool, quote, and wallet data."

@@ -62,7 +62,7 @@ describe("PriceCandleChart", () => {
     expect(screen.getByText("1.3 USDC")).toBeTruthy();
   });
 
-  it("labels latest available candles when the selected range is empty", () => {
+  it("keeps fallback-range implementation details out of the trader chart", () => {
     mocks.usePoolCandles.mockReturnValueOnce({
       data: candles,
       access: { source: "indexer", isFallback: false, isMock: false, isStale: true, updatedAt: candles[1].bucketStart, rangeFallback: true },
@@ -73,7 +73,8 @@ describe("PriceCandleChart", () => {
 
     render(<PriceCandleChart pool={pool} />);
 
-    expect(screen.getByText(/Latest available/i)).toBeTruthy();
+    expect(screen.queryByText(/Latest available/i)).toBeNull();
+    expect(screen.queryByText(/candles/i)).toBeNull();
   });
 
   it("shows honest empty and unavailable states without fake candles", () => {

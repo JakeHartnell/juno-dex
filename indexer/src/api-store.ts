@@ -358,6 +358,21 @@ export class PostgresApiStore implements IndexerApiStore {
     return page(result.rows.map(normalizePosition), query);
   }
 
+  async poolHistory(id: string, query: PaginationQuery) {
+    const pool = await this.pool(id);
+    if (!pool) return page([], query);
+    const pairAddress = String(pool.pairAddress);
+    const result = await this.db.query(
+      `SELECT tx_hash, wallet_address, pair_address, type, height, timestamp,
+              offer_asset, ask_asset, amount_usd, fee_usd, success
+       FROM wallet_history_flat
+       WHERE chain_id = $1 AND pair_address = $2
+       ORDER BY height DESC, timestamp DESC LIMIT $3 OFFSET $4`,
+      [this.chainId, pairAddress, limit(query), offset(query)],
+    );
+    return page(result.rows.map(normalizeTx), query);
+  }
+
   async walletPositions(addr: string, query: PaginationQuery) {
     const result = await this.db.query(
       `SELECT w.wallet_address AS owner_address, w.pool_id, w.pair_address, w.lp_token_address,

@@ -160,6 +160,7 @@ export const openApiDocument = {
     "/pools/{id}": { get: ok(pool, { parameters: [idPathParam] }) },
     "/pools/{id}/candles": { get: ok({ type: "object", properties: { data: { type: "array", items: candle }, pagination, meta: { type: "object" } }, required: ["data", "pagination", "meta"] }, { parameters: [idPathParam, limitParam, cursorParam, ...candleQueryParams] }) },
     "/pools/{id}/positions": { get: ok({ type: "object", properties: { data: { type: "array" }, pagination }, required: ["data", "pagination"] }, { parameters: [idPathParam, limitParam, cursorParam] }) },
+    "/pools/{id}/history": { get: ok({ type: "object", properties: { data: { type: "array", items: walletTransaction }, pagination }, required: ["data", "pagination"] }, { parameters: [idPathParam, limitParam, cursorParam] }) },
     "/wallets/{addr}/positions": { get: ok({ type: "object", properties: { data: { type: "array" }, pagination }, required: ["data", "pagination"] }, { parameters: [walletPathParam, limitParam, cursorParam] }) },
     "/wallets/{addr}/history": { get: ok({ type: "object", properties: { data: { type: "array", items: walletTransaction }, pagination }, required: ["data", "pagination"] }, { parameters: [walletPathParam, limitParam, cursorParam] }) },
   },

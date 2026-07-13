@@ -82,7 +82,7 @@ export function IncentivesPanel({ pool, metrics }: { pool: RegistryPool; metrics
             <div><dt>Staked LP</dt><dd className="quote-detail-value">{stakedBalance ? `${formatAmount(stakedBalance, lp.decimals)} ${lp.symbol}` : wallet.status === "connected" ? "0 or unavailable" : "Connect wallet"}</dd></div>
             <div><dt>Pool reward rate</dt><dd className="quote-detail-value">{rewardRps ? `${rewardRps} reward units/sec` : "No active reward rate reported"}</dd></div>
           </dl>
-          {incentives.data?.queryError ? <p className="error-text">Incentives query degraded: {incentives.data.queryError}</p> : null}
+          {incentives.data?.queryError ? <p className="pool-metrics-copy">Some incentive balances are temporarily unavailable. You can retry by reopening this panel.</p> : null}
           <RewardList rewards={incentives.data?.pendingRewards ?? []} title="Pending rewards" empty="No pending rewards reported for this wallet." />
           <RewardInfoList rewards={incentives.data?.rewardInfo ?? []} />
 

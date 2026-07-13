@@ -3,7 +3,7 @@ import type { RegistryAsset } from "../../config/registry";
 import { routeSymbols } from "../../lib/astroport/routes";
 import { formatAmount } from "../../lib/format/amounts";
 import { formatBpsPercent, getPriceImpact } from "../../lib/swap/slippage";
-import { EmptyState, ErrorState, Skeleton } from "../common";
+import { ErrorState } from "../common";
 
 const SLIPPAGE_PRESETS = [
   { label: "0.1%", bps: 10 },
@@ -66,11 +66,7 @@ export function QuoteCard({
 
   return (
     <section className="quote-card">
-      {isLoading ? (
-        <strong>
-          <Skeleton width="10rem" /> Querying route…
-        </strong>
-      ) : null}
+      <span className="sr-only" aria-live="polite">{isLoading ? "Updating quote" : ""}</span>
       {error ? (
         <ErrorState
           title="Route preview unavailable"

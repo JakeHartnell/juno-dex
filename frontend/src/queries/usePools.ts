@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { RegistryPool } from "../config/registry";
 import { queryPairPool } from "../lib/astroport/queries";
-import { loadPoolCandles, loadPoolMetrics, loadStatsDashboard, loadWalletIndexerData, type DataAccessState, type PoolCandleRange } from "../lib/data-access/indexerFallback";
+import { loadPoolActivity, loadPoolCandles, loadPoolMetrics, loadStatsDashboard, loadWalletIndexerData, type DataAccessState, type PoolCandleRange } from "../lib/data-access/indexerFallback";
 import type { IndexerCandleInterval } from "../lib/indexer/types";
 import type { PoolMetricsByPair } from "../lib/pools/poolList";
 import type { StatsDashboardData } from "../lib/stats/dashboard";
@@ -82,4 +82,15 @@ export function useWalletIndexerData(address: string | undefined) {
     data: query.data?.data ?? { positions: [], history: [] },
     access: query.data?.state as DataAccessState | undefined,
   };
+}
+
+export function usePoolActivity(pool: RegistryPool | undefined, limit = 10) {
+  const query = useQuery({
+    queryKey: ["pool-activity", pool?.pair, limit],
+    enabled: Boolean(pool),
+    staleTime: 15_000,
+    retry: 1,
+    queryFn: () => loadPoolActivity(pool, limit),
+  });
+  return { ...query, data: query.data?.data ?? [], access: query.data?.state as DataAccessState | undefined };
 }

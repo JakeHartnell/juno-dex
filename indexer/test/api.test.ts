@@ -239,6 +239,10 @@ describe("production API", () => {
     expect(history.data[0]).toMatchObject({ txHash: "tx-1", walletAddress: "juno1wallet", pairAddress: "juno1pair", type: "swap", height: 42, isMock: false });
     expect(history.data[0].offerAsset).toEqual({ denom: "ujuno", amount: "1" });
 
+    const poolHistory = await (await fetch(`${baseUrl}/pools/juno1pair/history?limit=10`)).json();
+    expect(poolHistory.data[0]).toMatchObject({ txHash: "tx-1", pairAddress: "juno1pair", type: "swap" });
+    expect(poolHistory.pagination.limit).toBe(10);
+
     const positions = await (await fetch(`${baseUrl}/wallets/juno1wallet/positions`)).json();
     expect(positions.data[0]).toMatchObject({ walletAddress: "juno1wallet", poolId: "pool-1", pairAddress: "juno1pair", lpBalance: "7", bondedBalance: "2", shareBps: 114, valueUsd: null });
     expect(positions.data[0].valueJuno).toBeCloseTo((9 / 789) * 1000, 6);

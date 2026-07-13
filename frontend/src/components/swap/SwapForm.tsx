@@ -12,13 +12,13 @@ import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
 import { RiskAcknowledgement, TokenAmountInput } from "../common";
 import { SettingsPanel } from "../settings/SettingsPanel";
-import { TxStatusDialog } from "../tx/TxStatusDialog";
 import { QuoteCard } from "./QuoteCard";
 import { TokenSelect } from "./TokenSelect";
 
 type SwapFormProps = {
   pool: RegistryPool;
   pools?: RegistryPool[];
+  onMarketPoolChange?: (pool: RegistryPool) => void;
 };
 
 function isPositiveBaseAmount(amount: string) {
@@ -42,7 +42,7 @@ function buildSelectableAssets(pools: RegistryPool[]) {
   return Array.from(byId.values()).sort((a, b) => a.symbol.localeCompare(b.symbol));
 }
 
-export function SwapForm({ pool, pools }: SwapFormProps) {
+export function SwapForm({ pool, pools, onMarketPoolChange }: SwapFormProps) {
   const allPools = useMemo(() => pools && pools.length > 0 ? pools : [pool], [pool, pools]);
   const selectableAssets = useMemo(() => buildSelectableAssets(allPools), [allPools]);
   const { wallet } = useWallet();
@@ -74,6 +74,9 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
   const quoteReady = quote.isSuccess && Boolean(quote.data) && !quote.isFetching && !quote.isError && !quote.isDebouncing;
   const priceImpact = quote.data && quote.data.source === "pair" ? getPriceImpact({ spreadAmount: quote.data.spread_amount, returnAmount: quote.data.return_amount }) : null;
   const selectedRoute = quote.data?.route;
+  useEffect(() => {
+    onMarketPoolChange?.(selectedRoute?.hops[0]?.pool ?? pool);
+  }, [onMarketPoolChange, pool, selectedRoute]);
   const routeRisk = assessRouteRisk(selectedRoute);
   const minimumReceive = quote.data ? calculateMinimumReceived(quote.data.return_amount, slippageBps) : "0";
   useEffect(() => setRiskAcknowledged(false), [quoteInputBaseAmount, quoteMode, offerAsset.id, askAsset.id, selectedRoute?.id]);
@@ -218,9 +221,6 @@ export function SwapForm({ pool, pools }: SwapFormProps) {
       <RiskAcknowledgement assessment={routeRisk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="swap route" />
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
       {validationError && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validationError}</Text> : null}
-      {swapTx.isError ? <Text as="p" className="error-text">{swapTx.error instanceof Error ? swapTx.error.message : "Swap failed"}</Text> : null}
-      {swapTx.isSuccess ? <Text as="p" className="success-text">Swap transaction broadcast. Balances, route quote, and pool reserves are refreshing.</Text> : null}
-      <TxStatusDialog state={swapTx.txState} />
       <Button intent="primary" className="primary-action" disabled={submitDisabled} fluidWidth onClick={handleSwap} domAttributes={{ type: "button" }}>{actionCopy}</Button>
     </Stack>
   );

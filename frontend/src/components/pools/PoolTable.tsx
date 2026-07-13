@@ -40,9 +40,9 @@ export function PoolTable({ pools }: { pools: RegistryPool[] }) {
       <div className="pool-table" role="table" aria-label="Juno pools">
         <div className="pool-table-header" role="row">
           <span role="columnheader">Pool node</span>
-          <button type="button" onClick={() => setControls((current) => toggleSort(current, "tvl"))}>TVL</button>
-          <button type="button" onClick={() => setControls((current) => toggleSort(current, "apr"))}>APR</button>
-          <button type="button" onClick={() => setControls((current) => toggleSort(current, "volume"))}>24h vol</button>
+          <span role="columnheader"><button type="button" onClick={() => setControls((current) => toggleSort(current, "tvl"))}>TVL</button></span>
+          <span role="columnheader"><button type="button" onClick={() => setControls((current) => toggleSort(current, "apr"))}>APR</button></span>
+          <span role="columnheader"><button type="button" onClick={() => setControls((current) => toggleSort(current, "volume"))}>24h vol</button></span>
           <span role="columnheader">Your position</span>
         </div>
         {visiblePools.map((pool) => (

@@ -1,17 +1,30 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import junoLogo from "../../assets/juno-logo-salmon.svg";
 import junoWordmark from "../../assets/juno-wordmark-salmon.svg";
-import { navigationItems } from "../../app/routes";
+import { navigationItems, walletNavigationItems } from "../../app/routes";
 import { WalletProvider } from "../../wallet/WalletContext";
 import { NetworkGuardBanner } from "../wallet/NetworkGuardBanner";
 import { WalletConnectButton } from "../wallet/WalletConnectButton";
 import { SlippageSettingsProvider } from "../../settings/SlippageSettingsContext";
 import { navIconByRoute } from "./NavIcons";
+import { useWallet } from "../../wallet/WalletContext";
 
 export function DexShell({ children }: { children: ReactNode }) {
+  return (
+    <WalletProvider>
+      <SlippageSettingsProvider>
+        <DexShellContent>{children}</DexShellContent>
+      </SlippageSettingsProvider>
+    </WalletProvider>
+  );
+}
+
+function DexShellContent({ children }: { children: ReactNode }) {
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const { wallet } = useWallet();
   const location = useLocation();
+  useEffect(() => setIsNavOpen(false), [location.pathname]);
   const currentRoute = navigationItems.find((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
   const pageTitle = currentRoute?.label ?? "Swap";
   const coordByPrefix: Array<[string, string]> = [
@@ -24,9 +37,9 @@ export function DexShell({ children }: { children: ReactNode }) {
   ];
   const topbarCoord = coordByPrefix.find(([prefix]) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))?.[1] ?? pageTitle;
 
+  const visibleNavigationItems = wallet.status === "connected" ? [...navigationItems, ...walletNavigationItems] : navigationItems;
+
   return (
-    <WalletProvider>
-      <SlippageSettingsProvider>
       <div className="dex-shell">
         <header className="app-header">
           <div className="header-inner">
@@ -39,10 +52,20 @@ export function DexShell({ children }: { children: ReactNode }) {
                 </h1>
               </span>
             </NavLink>
+            <button
+              className="mobile-nav-toggle"
+              type="button"
+              aria-controls="primary-navigation"
+              aria-expanded={isNavOpen}
+              onClick={() => setIsNavOpen((open) => !open)}
+            >
+              <span aria-hidden="true" className="mobile-nav-icon" />
+              <span className="sr-only">{isNavOpen ? "Close navigation" : "Open navigation"}</span>
+            </button>
           </div>
 
           <nav id="primary-navigation" className={`primary-nav ${isNavOpen ? "is-open" : ""}`} aria-label="Primary navigation">
-            {navigationItems.map((item) => {
+            {visibleNavigationItems.map((item) => {
               const NavIcon = navIconByRoute[item.to];
               return (
                 <NavLink
@@ -69,15 +92,6 @@ export function DexShell({ children }: { children: ReactNode }) {
           <span className="eyebrow topbar-coord">{topbarCoord}</span>
           <div className="topbar-actions">
             <WalletConnectButton />
-            <button
-              className="mobile-nav-toggle"
-              type="button"
-              aria-controls="primary-navigation"
-              aria-expanded={isNavOpen}
-              onClick={() => setIsNavOpen((open) => !open)}
-            >
-              Menu
-            </button>
           </div>
         </div>
 
@@ -85,7 +99,5 @@ export function DexShell({ children }: { children: ReactNode }) {
 
         <main className="app-main" tabIndex={-1}>{children}</main>
       </div>
-      </SlippageSettingsProvider>
-    </WalletProvider>
   );
 }
