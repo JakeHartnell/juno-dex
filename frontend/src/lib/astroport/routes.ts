@@ -1,6 +1,8 @@
-import type { RegistryAsset, RegistryPool } from "../../config/registry";
+import { isPoolTradeable, type RegistryAsset, type RegistryPool } from "../../config/registry";
+import { isAssetBlocked } from "../risk";
 import type { ExecuteMsg as RouterExecuteMsg, SwapOperation } from "../generated/Router.types";
 import { nativeFunds, toAssetInfo } from "./assetInfo";
+import { toBase64, toUtf8 } from "@cosmjs/encoding";
 
 export type SwapRouteHop = {
   pool: RegistryPool;
@@ -38,7 +40,7 @@ export function routeToOperations(hops: SwapRouteHop[]): SwapOperation[] {
 }
 
 export function findSwapRoutes(pools: RegistryPool[], offerAsset: RegistryAsset | undefined, askAsset: RegistryAsset | undefined, maxHops = 3): SwapRoute[] {
-  if (!offerAsset || !askAsset || offerAsset.id === askAsset.id || maxHops < 1) return [];
+  if (!offerAsset || !askAsset || isAssetBlocked(offerAsset) || isAssetBlocked(askAsset) || offerAsset.id === askAsset.id || maxHops < 1) return [];
 
   const routes: SwapRoute[] = [];
   const seenRoutes = new Set<string>();
@@ -47,7 +49,7 @@ export function findSwapRoutes(pools: RegistryPool[], offerAsset: RegistryAsset 
     if (hops.length >= maxHops) return;
 
     for (const pool of pools) {
-      if (!pool.enabled || usedPairs.has(pool.pair)) continue;
+      if (!isPoolTradeable(pool) || pool.assets.some(isAssetBlocked) || usedPairs.has(pool.pair)) continue;
       const nextAsset = getPoolNeighbor(pool, currentAsset.id);
       if (!nextAsset || visitedAssets.has(nextAsset.id)) continue;
 
@@ -87,5 +89,23 @@ export function createRouterSwapMessage(route: SwapRoute, offerAsset: RegistryAs
   return {
     msg,
     funds: nativeFunds(offerAsset, amount),
+  };
+}
+
+export function createCw20RouterSwapSendMessage(routerContract: string, route: SwapRoute, amount: string, maxSpread: string, minimumReceive?: string, to?: string) {
+  const hook = {
+    execute_swap_operations: {
+      operations: route.operations,
+      minimum_receive: minimumReceive,
+      max_spread: maxSpread,
+      to,
+    },
+  };
+  return {
+    send: {
+      contract: routerContract,
+      amount,
+      msg: toBase64(toUtf8(JSON.stringify(hook))),
+    },
   };
 }

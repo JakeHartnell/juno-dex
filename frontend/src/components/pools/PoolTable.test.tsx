@@ -49,6 +49,7 @@ function pool(overrides: Partial<RegistryPool> & Pick<RegistryPool, "id" | "labe
     source: "registry",
     notes: "Test pool",
     ...overrides,
+    status: overrides.status ?? "active",
   };
 }
 
@@ -143,6 +144,15 @@ describe("PoolTable", () => {
     expect(within(rows[1]).getByText("JUNO / USDC")).toBeTruthy();
     expect(screen.getByText("$500")).toBeTruthy();
     expect(screen.getByText("3%")).toBeTruthy();
+  });
+
+  it("exposes visible and programmatic sort direction on sortable columns", () => {
+    renderPoolTable();
+    const tvlHeader = screen.getByRole("columnheader", { name: /tvl/i });
+    expect(tvlHeader.getAttribute("aria-sort")).toBe("none");
+    fireEvent.click(within(tvlHeader).getByRole("button"));
+    expect(tvlHeader.getAttribute("aria-sort")).toBe("descending");
+    expect(within(tvlHeader).getByText("↓")).toBeTruthy();
   });
 
   it("shows and sorts by Juno metrics when USD metrics are unavailable", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RegistryAsset, RegistryPool } from "../../config/registry";
-import { createRouterSwapMessage, findSwapRoutes, routeSymbols } from "./routes";
+import { fromBase64, fromUtf8 } from "@cosmjs/encoding";
+import { createCw20RouterSwapSendMessage, createRouterSwapMessage, findSwapRoutes, routeSymbols } from "./routes";
 
 const juno: RegistryAsset = { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 };
 const usdc: RegistryAsset = { kind: "ibc", id: "ibc/usdc", symbol: "USDC", decimals: 6 };
@@ -18,6 +19,7 @@ function pool(id: string, assets: [RegistryAsset, RegistryAsset]): RegistryPool 
     assets,
     explorer: `https://ping.pub/juno/address/juno1${id}`,
     enabled: true,
+    status: "active",
   };
 }
 
@@ -47,6 +49,28 @@ describe("swap route graph", () => {
 
     expect(routes.map(routeSymbols)).toEqual(["JUNO → ATOM"]);
   });
+
+  it("excludes experimental, deprecated, blocked, and disabled pools", () => {
+    const active = pool("active", [juno, atom]);
+    const unavailable = [
+      { ...pool("experimental", [juno, atom]), status: "experimental" as const },
+      { ...pool("deprecated", [juno, atom]), status: "deprecated" as const },
+      { ...pool("blocked", [juno, atom]), status: "blocked" as const },
+      { ...pool("disabled", [juno, atom]), enabled: false },
+    ];
+
+    expect(findSwapRoutes(unavailable, juno, atom)).toEqual([]);
+    expect(findSwapRoutes([...unavailable, active], juno, atom).map((route) => route.hops[0].pool.id)).toEqual(["active"]);
+  });
+
+  it("never constructs a route through an explicitly blocked asset", () => {
+    const blockedUsdc = { ...usdc, blocked: true };
+    expect(findSwapRoutes([pool("blockedasset", [juno, blockedUsdc])], juno, blockedUsdc)).toEqual([]);
+    expect(findSwapRoutes([
+      pool("blockedhop", [juno, blockedUsdc]),
+      pool("blockedatom", [blockedUsdc, atom]),
+    ], juno, atom)).toEqual([]);
+  });
 });
 
 describe("createRouterSwapMessage", () => {
@@ -64,6 +88,15 @@ describe("createRouterSwapMessage", () => {
         },
       },
       funds: [{ denom: "ujuno", amount: "1000000" }],
+    });
+  });
+
+  it("uses an atomic CW20 send hook for multi-hop router swaps", () => {
+    const [route] = findSwapRoutes([pool("whaleusdc", [whale, usdc]), pool("usdcatom", [usdc, atom])], whale, atom, 2);
+    const msg = createCw20RouterSwapSendMessage("juno1router", route, "1000000", "0.005", "990000");
+    expect(msg.send).toMatchObject({ contract: "juno1router", amount: "1000000" });
+    expect(JSON.parse(fromUtf8(fromBase64(msg.send.msg)))).toEqual({
+      execute_swap_operations: { operations: route.operations, minimum_receive: "990000", max_spread: "0.005" },
     });
   });
 });

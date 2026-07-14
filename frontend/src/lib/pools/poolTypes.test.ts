@@ -15,6 +15,7 @@ const basePool: RegistryPool = {
   ],
   explorer: "https://example.com/pair",
   enabled: true,
+  status: "active",
 };
 
 describe("pool type metadata", () => {

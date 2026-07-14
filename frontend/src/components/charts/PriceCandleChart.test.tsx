@@ -24,6 +24,7 @@ const pool: RegistryPool = {
   ],
   explorer: "https://example.com/pool",
   enabled: true,
+  status: "active",
   verified: true,
   source: "registry",
 };
@@ -53,11 +54,14 @@ describe("PriceCandleChart", () => {
     expect(screen.getByText(/Price \(USDC\)/i)).toBeTruthy();
     expect(screen.getAllByText("1.3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("1.44")).toBeTruthy();
-    expect(screen.queryByText("High")).toBeNull();
-    expect(screen.queryByText("Low")).toBeNull();
+    expect(screen.getByRole("rowheader", { name: "High" })).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: "Low" })).toBeTruthy();
     expect(screen.getAllByText(/Jul 2/i).length).toBeGreaterThanOrEqual(1);
 
-    fireEvent.mouseEnter(screen.getByLabelText(/close 1.3 USDC/i));
+    const chart = screen.getByRole("img", { name: /latest 1.3 USDC/i });
+    expect(chart.getAttribute("tabindex")).toBe("0");
+    expect(screen.getByText("Accessible price summary")).toBeTruthy();
+    fireEvent.mouseEnter(document.querySelector('[data-point-label*="close 1.3 USDC"]') as Element);
 
     expect(screen.getByText("1.3 USDC")).toBeTruthy();
   });
@@ -73,7 +77,7 @@ describe("PriceCandleChart", () => {
 
     render(<PriceCandleChart pool={pool} />);
 
-    expect(screen.queryByText(/Latest available/i)).toBeNull();
+    expect(screen.getByText(/Last available/i)).toBeTruthy();
     expect(screen.queryByText(/candles/i)).toBeNull();
   });
 
@@ -87,8 +91,26 @@ describe("PriceCandleChart", () => {
     });
     render(<PriceCandleChart pool={pool} />);
 
-    expect(screen.getByText(/No candles returned/i)).toBeTruthy();
-    expect(screen.getByText(/no fake chart is displayed/i)).toBeTruthy();
+    expect(screen.getByText(/No price history yet/i)).toBeTruthy();
+    expect(screen.getByText(/Trading and pool actions are unaffected/i)).toBeTruthy();
+  });
+
+  it("keeps optional price-history failures quiet and retryable", () => {
+    const refetch = vi.fn();
+    mocks.usePoolCandles.mockReturnValueOnce({
+      data: [],
+      access: { source: "fallback", isFallback: true, isMock: false, isStale: false, error: { code: "network", message: "offline" } },
+      isLoading: false,
+      isFetching: false,
+      refetch,
+    });
+    render(<PriceCandleChart pool={pool} />);
+
+    expect(screen.getByText("Price history is unavailable")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByText("More information"));
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(refetch).toHaveBeenCalledOnce();
   });
 
   it("does not expose mock or stale source labels for preview candles", () => {

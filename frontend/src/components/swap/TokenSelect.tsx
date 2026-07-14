@@ -52,6 +52,12 @@ function assetBalance(asset: TokenSelectorAsset, balances?: readonly WalletBalan
   return balances?.find((balance) => balance.denom === asset.id)?.amount;
 }
 
+function assetOriginLabel(asset: TokenSelectorAsset) {
+  if (asset.kind === "ibc") return "IBC asset";
+  if (asset.kind === "cw20") return "CW20 token";
+  return "Juno native";
+}
+
 export function TokenSelect({ assets, value, onChange, label, balances, disabledIds = [], showIdentifier = true, hideLabel = false, onCreateCustomAsset }: TokenSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -61,6 +67,7 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
   const helpId = useId();
   const resultsId = useId();
   const selected = assets.find((asset) => asset.id === value) ?? assets[0];
+  const selectedAssessment = selected ? assessAssetRisk(selected) : undefined;
   const disabled = new Set(disabledIds);
 
   useEffect(() => {
@@ -107,13 +114,18 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
         <span className="token-selector-trigger-copy">
           <strong>{selected?.symbol ?? "Select"}</strong>
           {showIdentifier ? <small>{selected?.id ?? "Choose token"}</small> : null}
+          {selected && selectedAssessment ? (
+            <small className="selected-token-origin">
+              {selectedAssessment.verified ? "Verified" : "Unverified"} · {assetOriginLabel(selected)}
+            </small>
+          ) : null}
         </span>
         <span aria-hidden="true">▾</span>
       </button>
       <Modal open={isOpen} title={`Select ${label.toLowerCase()} token`} onClose={() => setIsOpen(false)}>
         <div className="token-selector-modal">
-          <input ref={searchRef} className="token-search-input" aria-label="Search tokens" aria-describedby={helpId} aria-controls={resultsId} placeholder="Search symbol, name, denom, or address" value={query} onChange={(event) => setQuery(event.target.value)} />
-          <div id={helpId} className="token-selector-help">Favorites are saved on this device. Unknown factory tokens are marked unverified.</div>
+          <input ref={searchRef} className="token-search-input" aria-label="Search tokens" aria-describedby={helpId} aria-controls={resultsId} placeholder="Search name, symbol, or asset identifier" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <div id={helpId} className="token-selector-help">Favorites are saved on this device. Assets that have not been reviewed are marked unverified.</div>
           <div id={resultsId} className="token-list" role="list" aria-label={`${label} token results`}>
             {visibleAssets.length === 0 ? (
               <div className="empty-token-results" role="listitem">
@@ -125,7 +137,7 @@ export function TokenSelect({ assets, value, onChange, label, balances, disabled
               const balance = assetBalance(asset, balances);
               const isFavorite = favorites.includes(asset.id);
               const isDisabled = disabled.has(asset.id);
-              const assessment = assessAssetRisk(asset, { inheritedVerified: asset.verified });
+              const assessment = assessAssetRisk(asset);
               return (
                 <div className={`token-row${asset.id === value ? " selected" : ""}${isDisabled ? " disabled" : ""}`} key={asset.id} role="listitem">
                   <button className="favorite-button" type="button" aria-label={`${isFavorite ? "Remove" : "Add"} ${asset.symbol} favorite`} aria-pressed={isFavorite} onClick={() => persistFavorite(asset.id)}>{isFavorite ? "★" : "☆"}</button>

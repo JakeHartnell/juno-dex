@@ -33,7 +33,7 @@
 /* --- Mono machine-voice labels across the form --- */
 .create-pool-page dt {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -47,7 +47,7 @@
 
 .create-pool-page .empty-state.compact strong {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;

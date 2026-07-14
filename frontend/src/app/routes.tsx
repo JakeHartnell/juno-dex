@@ -23,7 +23,7 @@ function LegacyLiquidityPage() {
 
 export function AppRoutes() {
   return (
-    <Suspense fallback={<main className="app-main" aria-busy="true"><div className="state-card"><strong>Loading route…</strong><p>Preparing the Juno DEX experience.</p></div></main>}>
+    <Suspense fallback={<div aria-busy="true"><div className="state-card"><strong>Loading route…</strong><p>Preparing the Juno DEX experience.</p></div></div>}>
       <Routes>
         <Route path="/" element={<Navigate to="/swap" replace />} />
         <Route path="/stats" element={<Navigate to="/pools" replace />} />

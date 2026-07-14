@@ -12,7 +12,8 @@ export const junoTokens = {
     borderStrong: "rgba(255, 123, 124, 0.35)",
     text: "#FFEBD2",
     textMuted: "#B69C82",
-    textSubtle: "#6E5C4A",
+    // Small labels must remain readable over every dark surface (WCAG AA).
+    textSubtle: "#B69C82",
     primary: "#FF7B7C",
     primaryStrong: "#E85F60",
     primarySoft: "rgba(255, 123, 124, 0.08)",
@@ -88,7 +89,7 @@ export const interchainJunoTheme: ThemeDef = {
       purple500: "#FF7B7C",
       purple600: "#E85F60",
       blue500: "#B69C82",
-      blue600: "#6E5C4A",
+      blue600: "#B69C82",
       gray800: "#230A0C",
       gray900: "#100405",
     },

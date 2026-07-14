@@ -15,6 +15,7 @@ const verifiedPool: RegistryPool = {
   ],
   explorer: "https://example.com/pair",
   enabled: true,
+  status: "active",
   source: "registry",
   verified: true,
 };
@@ -33,7 +34,7 @@ const factoryPool: RegistryPool = {
 
 describe("risk classification", () => {
   it("marks curated assets and pools verified", () => {
-    const assetRisk = assessAssetRisk(verifiedPool.assets[0], { inheritedVerified: true });
+    const assetRisk = assessAssetRisk(verifiedPool.assets[0]);
     expect(assetRisk.verified).toBe(true);
     expect(assetRisk.requiresAcknowledgement).toBe(false);
     expect(assetRisk.badges.map((badge) => badge.id)).toContain("verified");
@@ -79,5 +80,33 @@ describe("risk classification", () => {
       operations: [],
     });
     expect(risk.requiresAcknowledgement).toBe(true);
+  });
+
+  it("hard-blocks explicitly blocked assets without an acknowledgement override", () => {
+    const blockedAsset = { ...verifiedPool.assets[0], blocked: true };
+    const assetRisk = assessAssetRisk(blockedAsset);
+    const poolRisk = assessPoolRisk({ ...verifiedPool, assets: [blockedAsset, verifiedPool.assets[1]] });
+
+    expect(assetRisk.blocked).toBe(true);
+    expect(assetRisk.badges.map((badge) => badge.id)).toContain("denylisted");
+    expect(poolRisk.blocked).toBe(true);
+  });
+
+  it("defaults missing verification to unverified and surfaces lifecycle risk", () => {
+    const unknown = {
+      ...verifiedPool,
+      status: "experimental" as const,
+      verified: undefined,
+      assets: verifiedPool.assets.map((asset) => ({ ...asset, verified: undefined })) as RegistryPool["assets"],
+    };
+    const risk = assessPoolRisk(unknown);
+
+    expect(risk.verified).toBe(false);
+    expect(risk.requiresAcknowledgement).toBe(true);
+    expect(risk.badges.map((badge) => badge.id)).toEqual(expect.arrayContaining([
+      "unverified-pool",
+      "unverified-token",
+      "pool-status-experimental",
+    ]));
   });
 });

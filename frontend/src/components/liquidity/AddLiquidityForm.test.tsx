@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
     total_share: "1000000",
   },
   mutate: vi.fn(),
+  refetch: vi.fn(),
 }));
 
 vi.mock("../../wallet/WalletContext", () => ({
@@ -41,7 +42,7 @@ vi.mock("../../queries/useWalletBalances", () => ({
 }));
 
 vi.mock("../../queries/usePools", () => ({
-  usePoolReserves: () => ({ data: mocks.poolData }),
+  usePoolReserves: () => ({ data: mocks.poolData, refetch: mocks.refetch }),
 }));
 
 vi.mock("../../settings/SlippageSettingsContext", () => ({
@@ -49,7 +50,8 @@ vi.mock("../../settings/SlippageSettingsContext", () => ({
 }));
 
 vi.mock("../../mutations/useProvideLiquidityTx", () => ({
-  useProvideLiquidityTx: () => ({ mutate: mocks.mutate, isPending: false, isError: false, isSuccess: false }),
+  buildProvideLiquidityExecuteInstruction: () => ({ contractAddress: "juno1pair", msg: {} }),
+  useProvideLiquidityTx: () => ({ mutate: mocks.mutate, isPending: false, isError: false, isSuccess: false, txState: { status: "idle", label: "Ready" } }),
 }));
 
 const pool: RegistryPool = {
@@ -60,16 +62,20 @@ const pool: RegistryPool = {
   type: "xyk",
   feeBps: 30,
   assets: [
-    { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },
-    { kind: "ibc", id: "ibc/test", symbol: "TEST", decimals: 6 },
+    { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6, verified: true },
+    { kind: "ibc", id: "ibc/test", symbol: "TEST", decimals: 6, verified: true },
   ],
   explorer: "https://ping.pub/juno/address/juno1pair",
   enabled: true,
+  status: "active",
+  verified: true,
+  source: "registry",
 };
 
 describe("AddLiquidityForm", () => {
   beforeEach(() => {
     mocks.mutate.mockReset();
+    mocks.refetch.mockReset();
     mocks.poolData = {
       assets: [{ amount: "1000000" }, { amount: "2000000" }],
       total_share: "1000000",
@@ -83,9 +89,10 @@ describe("AddLiquidityForm", () => {
       isWrongNetwork: false,
       isJunoReady: true,
     };
+    mocks.refetch.mockImplementation(async () => ({ data: mocks.poolData }));
   });
 
-  it("auto-balances the second asset and submits proportional add liquidity", () => {
+  it("auto-balances, reviews fresh reserves, and submits proportional add liquidity", async () => {
     const { container } = render(<AddLiquidityForm pool={pool} />);
 
     fireEvent.change(screen.getByLabelText("JUNO amount · driving ratio amount"), { target: { value: "0.1" } });
@@ -93,7 +100,9 @@ describe("AddLiquidityForm", () => {
     expect((screen.getByLabelText("TEST amount · auto-balanced amount") as HTMLInputElement).value).toBe("0.2");
     expect(container.textContent).toContain("Expected LP tokens: 0.1");
 
-    fireEvent.click(screen.getByRole("button", { name: /^add liquidity$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^review add liquidity$/i }));
+    expect(mocks.refetch).toHaveBeenCalledOnce();
+    fireEvent.click(await screen.findByRole("button", { name: /confirm in wallet/i }));
 
     expect(mocks.mutate).toHaveBeenCalledWith({
       pool,
@@ -119,6 +128,15 @@ describe("AddLiquidityForm", () => {
     expect(screen.getByRole("button", { name: /PCL add liquidity is not supported in the UI yet/i }).hasAttribute("disabled")).toBe(true);
   });
 
+  it("disables CW20 liquidity deposits until exact allowances are implemented", () => {
+    const cw20Pool: RegistryPool = {
+      ...pool,
+      assets: [pool.assets[0], { kind: "cw20", id: "juno1cw20token000000000000000000000000000000000", symbol: "CW20", decimals: 6, verified: true }],
+    };
+    render(<AddLiquidityForm pool={cw20Pool} />);
+    expect(screen.getByRole("button", { name: /cw20 add liquidity is unavailable/i }).hasAttribute("disabled")).toBe(true);
+  });
+
   it("detects an empty XYK pool and shows first-provider guardrails", () => {
     mocks.poolData = { assets: [{ amount: "0" }, { amount: "0" }], total_share: "0" };
 
@@ -130,7 +148,7 @@ describe("AddLiquidityForm", () => {
     expect(screen.getByText(/Initial seeding requires both sides/i)).toBeTruthy();
   });
 
-  it("requires typed acknowledgement before first deposit", () => {
+  it("requires typed acknowledgement and review before first deposit", async () => {
     mocks.poolData = { assets: [{ amount: "0" }, { amount: "0" }], total_share: "0" };
     render(<AddLiquidityForm pool={pool} />);
 
@@ -141,7 +159,8 @@ describe("AddLiquidityForm", () => {
     expect(screen.getByRole("button", { name: /type seed to acknowledge/i }).hasAttribute("disabled")).toBe(true);
 
     fireEvent.change(screen.getByPlaceholderText("SEED"), { target: { value: "SEED" } });
-    fireEvent.click(screen.getByRole("button", { name: /^seed initial liquidity$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^review initial liquidity$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm in wallet/i }));
 
     expect(mocks.mutate).toHaveBeenCalledWith({
       pool,
@@ -158,6 +177,6 @@ describe("AddLiquidityForm", () => {
     fireEvent.change(screen.getByLabelText("JUNO amount · driving ratio amount"), { target: { value: "0.1" } });
 
     expect((screen.getByLabelText("TEST amount · auto-balanced amount") as HTMLInputElement).value).toBe("0.2");
-    expect(screen.getByRole("button", { name: /^add liquidity$/i }).hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: /^review add liquidity$/i }).hasAttribute("disabled")).toBe(false);
   });
 });

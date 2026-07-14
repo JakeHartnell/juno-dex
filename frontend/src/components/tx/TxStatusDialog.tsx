@@ -1,5 +1,5 @@
 import { decodeTxError, type DecodedTxError } from "../../tx/errors";
-import { txLifecycleLabel, type TxLifecycleState, type TxLifecycleStatus, type TxResult } from "../../tx/useTxRunner";
+import { TxHashLink, txLifecycleLabel, type TxLifecycleState, type TxLifecycleStatus, type TxResult } from "../../tx/useTxRunner";
 
 type LegacyTxStatusDialogProps = {
   status: TxLifecycleStatus | string;
@@ -31,7 +31,7 @@ export function TxStatusDialog(props: TxStatusDialogProps) {
   if (state.status === "idle") return null;
 
   const txHash = state.result?.transactionHash;
-  const canRetry = Boolean(state.retry && state.status !== "success");
+  const canRetry = Boolean(state.retry && state.status !== "confirmed");
 
   return (
     <section className={`tx-card tx-card-${state.status}`} role="status" aria-live="polite">
@@ -40,7 +40,7 @@ export function TxStatusDialog(props: TxStatusDialogProps) {
       {state.description ? <p>{state.description}</p> : null}
       {txHash ? (
         <p>
-          Tx hash: <code>{txHash}</code>
+          Tx hash: <TxHashLink txHash={txHash} />
         </p>
       ) : null}
       {state.error ? (
@@ -51,6 +51,7 @@ export function TxStatusDialog(props: TxStatusDialogProps) {
         </details>
       ) : null}
       {canRetry ? <button type="button" onClick={() => void state.retry?.()}>Retry transaction</button> : null}
+      {state.refresh ? <button type="button" onClick={() => void state.refresh?.()}>Refresh balances and data</button> : null}
     </section>
   );
 }

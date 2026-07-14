@@ -2,9 +2,13 @@ export const SLIPPAGE_STORAGE_KEY = "juno-dex.slippage-bps";
 export const DEFAULT_SLIPPAGE_BPS = 50;
 export const SLIPPAGE_PRESET_BPS = [10, 50, 100] as const;
 export const MIN_SLIPPAGE_BPS = 1;
-export const MAX_SLIPPAGE_BPS = 5_000;
+export const MAX_SLIPPAGE_BPS = 500;
+export const HIGH_SLIPPAGE_BPS = 100;
+export const DANGEROUS_SLIPPAGE_BPS = 300;
+export const HIGH_PRICE_IMPACT_BPS = 500;
+export const EXTREME_PRICE_IMPACT_BPS = 1_500;
 
-export type PriceImpactSeverity = "none" | "warning" | "high";
+export type PriceImpactSeverity = "none" | "warning" | "high" | "extreme";
 
 export type PriceImpact = {
   bps: number;
@@ -53,8 +57,9 @@ export function calculatePriceImpactBps({ spreadAmount, returnAmount }: { spread
 
 export function classifyPriceImpact(priceImpactBps: number | null): PriceImpactSeverity {
   if (priceImpactBps === null || priceImpactBps < 100) return "none";
-  if (priceImpactBps < 500) return "warning";
-  return "high";
+  if (priceImpactBps < HIGH_PRICE_IMPACT_BPS) return "warning";
+  if (priceImpactBps < EXTREME_PRICE_IMPACT_BPS) return "high";
+  return "extreme";
 }
 
 export function getPriceImpact(input: { spreadAmount?: string; returnAmount?: string }): PriceImpact | null {

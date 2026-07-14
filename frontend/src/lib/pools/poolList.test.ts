@@ -13,6 +13,7 @@ function pool(overrides: Partial<RegistryPool> & Pick<RegistryPool, "id" | "labe
     enabled: true,
     verified: true,
     ...overrides,
+    status: overrides.status ?? "active",
   };
 }
 

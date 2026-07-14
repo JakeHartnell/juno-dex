@@ -111,7 +111,7 @@ export function TokenAmountInput({
                   applyBaseAmount(halfBaseAmount(balanceBaseAmount), onHalf)
                 }
               >
-                Half
+                50% (Half)
               </button>
               <button
                 type="button"

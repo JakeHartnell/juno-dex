@@ -16,6 +16,7 @@ export type RiskAssessment = {
   verified: boolean;
   badges: RiskBadge[];
   requiresAcknowledgement: boolean;
+  blocked?: boolean;
 };
 
 export const THIN_LIQUIDITY_WHOLE_TOKEN_THRESHOLD = 1n;
@@ -34,17 +35,22 @@ function uniqueBadges(badges: RiskBadge[]): RiskBadge[] {
   });
 }
 
-function withRequiresAcknowledgement(badges: RiskBadge[], verified: boolean): RiskAssessment {
+function withRequiresAcknowledgement(badges: RiskBadge[], verified: boolean, blocked = false): RiskAssessment {
   const unique = uniqueBadges(badges);
   return {
     verified,
     badges: unique,
     requiresAcknowledgement: unique.some((badge) => badge.requiresAcknowledgement),
+    blocked,
   };
 }
 
 function hasKnownBadDenom(asset: RegistryAsset): boolean {
   return DENYLISTED_DENOMS.has(asset.id) || Boolean(asset.denomTrace && DENYLISTED_DENOMS.has(asset.denomTrace));
+}
+
+export function isAssetBlocked(asset: RegistryAsset): boolean {
+  return asset.blocked === true || hasKnownBadDenom(asset);
 }
 
 function hasDenomMismatch(asset: RegistryAsset): boolean {
@@ -54,8 +60,9 @@ function hasDenomMismatch(asset: RegistryAsset): boolean {
   return false;
 }
 
-export function assessAssetRisk(asset: RegistryAsset & { verified?: boolean }, options: { inheritedVerified?: boolean; factoryDiscovered?: boolean } = {}): RiskAssessment {
-  const verified = Boolean(asset.verified ?? options.inheritedVerified);
+export function assessAssetRisk(asset: RegistryAsset & { verified?: boolean }, options: { factoryDiscovered?: boolean } = {}): RiskAssessment {
+  const verified = asset.verified === true;
+  const blocked = isAssetBlocked(asset);
   const badges: RiskBadge[] = [];
 
   if (verified) {
@@ -65,11 +72,11 @@ export function assessAssetRisk(asset: RegistryAsset & { verified?: boolean }, o
   }
 
   if (options.factoryDiscovered && !verified) {
-    badges.push({ id: "factory-discovered", label: "Factory", severity: "info", description: "Discovered from factory state rather than curated metadata." });
+    badges.push({ id: "factory-discovered", label: "Discovered", severity: "info", description: "Found on-chain but not reviewed in the curated asset list." });
   }
 
-  if (hasKnownBadDenom(asset)) {
-    badges.push({ id: "denylisted", label: "Blocked denom", severity: "danger", description: "This denom is on the known-bad denylist.", requiresAcknowledgement: true });
+  if (blocked) {
+    badges.push({ id: "denylisted", label: "Blocked denom", severity: "danger", description: "This asset is explicitly blocked or its denom is on the known-bad denylist." });
   }
 
   if (hasDenomMismatch(asset)) {
@@ -84,7 +91,7 @@ export function assessAssetRisk(asset: RegistryAsset & { verified?: boolean }, o
     badges.push({ id: "decimals-fallback", label: "Decimals fallback", severity: "warning", description: "Decimals may be a 6-decimal fallback for unverified factory metadata." });
   }
 
-  return withRequiresAcknowledgement(badges, verified);
+  return withRequiresAcknowledgement(badges, verified, blocked);
 }
 
 function isThinReserve(amount: string | undefined, decimals: number): boolean {
@@ -93,13 +100,29 @@ function isThinReserve(amount: string | undefined, decimals: number): boolean {
 }
 
 export function assessPoolRisk(pool: RegistryPool, reserves?: { assets?: Array<{ amount?: string }> }): RiskAssessment {
-  const verified = pool.verified !== false && pool.source !== "factory";
+  const verified = pool.verified === true && pool.source !== "factory";
+  const blocked = pool.status === "blocked" || pool.assets.some(isAssetBlocked);
   const badges: RiskBadge[] = [];
   const poolType = getPoolTypeMetadata(pool.type);
 
   badges.push(verified
     ? { id: "verified-pool", label: "Verified pool", severity: "ok", description: "Pool is in the curated verified pool list." }
-    : { id: "unverified-pool", label: "Unverified pool", severity: "warning", description: "Factory-discovered or uncurated pool. Verify pair and denoms before transacting.", requiresAcknowledgement: true });
+    : { id: "unverified-pool", label: "Unverified pool", severity: "warning", description: "This pool has not been reviewed. Check the pool and asset identifiers before transacting.", requiresAcknowledgement: true });
+
+  if (pool.status !== "active") {
+    const lifecycleCopy = pool.status === "experimental"
+      ? "Experimental pool. It is excluded from normal trading and may contain test or thin-liquidity assets."
+      : pool.status === "deprecated"
+        ? "Deprecated pool. It is retained for reference but excluded from new trading routes."
+        : "Blocked pool. Transactions must not be offered by the interface.";
+    badges.push({
+      id: `pool-status-${pool.status}`,
+      label: pool.status === "experimental" ? "Experimental" : pool.status === "deprecated" ? "Deprecated" : "Blocked",
+      severity: pool.status === "blocked" ? "danger" : "warning",
+      description: lifecycleCopy,
+      requiresAcknowledgement: true,
+    });
+  }
 
   badges.push({
     id: `pool-type-${pool.type}`,
@@ -119,7 +142,7 @@ export function assessPoolRisk(pool: RegistryPool, reserves?: { assets?: Array<{
   }
 
   for (const asset of pool.assets) {
-    badges.push(...assessAssetRisk(asset, { inheritedVerified: verified, factoryDiscovered: pool.source === "factory" }).badges.filter((badge) => badge.id !== "verified"));
+    badges.push(...assessAssetRisk(asset, { factoryDiscovered: pool.source === "factory" }).badges.filter((badge) => badge.id !== "verified"));
   }
 
   if (reserves?.assets?.length) {
@@ -129,20 +152,21 @@ export function assessPoolRisk(pool: RegistryPool, reserves?: { assets?: Array<{
     }
   }
 
-  return withRequiresAcknowledgement(badges, verified);
+  return withRequiresAcknowledgement(badges, verified, blocked);
 }
 
 export function assessRouteRisk(route: SwapRoute | undefined, reservesByPair?: Record<string, { assets?: Array<{ amount?: string }> }>): RiskAssessment {
   if (!route) return { verified: false, badges: [], requiresAcknowledgement: false };
   const badges = route.hops.flatMap((hop) => assessPoolRisk(hop.pool, reservesByPair?.[hop.pool.pair]).badges);
-  const verified = route.hops.every((hop) => hop.pool.verified !== false && hop.pool.source !== "factory");
+  const verified = route.hops.every((hop) => hop.pool.verified === true && hop.pool.source !== "factory");
+  const blocked = route.hops.some((hop) => hop.pool.status === "blocked" || hop.pool.assets.some(isAssetBlocked));
   if (route.hops.length > 1) {
     badges.push({ id: "multi-hop", label: "Multi-hop", severity: "info", description: "Route touches multiple pools; review each hop." });
   }
   if (route.hops.some((hop) => !getPoolTypeMetadata(hop.pool.type).supportsLocalPriceImpact)) {
     badges.push({ id: "contract-simulated-impact", label: "Contract-simulated impact", severity: "info", description: "Stable/PCL routes rely on contract simulation for pricing; the UI does not recompute those invariants locally." });
   }
-  return withRequiresAcknowledgement(badges, verified);
+  return withRequiresAcknowledgement(badges, verified, blocked);
 }
 
 export function riskSummary(assessment: RiskAssessment): string {

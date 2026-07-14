@@ -11,7 +11,7 @@ import { useDexRegistry } from "../../queries/useDexRegistry";
 import { useWalletIndexerData } from "../../queries/usePools";
 import { useWalletBalances } from "../../queries/useWalletBalances";
 import { useWallet } from "../../wallet/WalletContext";
-import { EmptyState, ErrorState, Skeleton } from "../common";
+import { EmptyState, ErrorState, OptionalDataState, Skeleton } from "../common";
 
 function usd(value: number | null) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "USD price unavailable";
@@ -80,7 +80,7 @@ function PortfolioPositionCard({ position }: { position: PortfolioPosition }) {
         </div>
         <div>
           <dt>Staked LP</dt>
-          <dd className="quote-detail-value">{hasStaked ? `${formatAmount(position.stakedLpBalance ?? "0", 6)} ${lpSymbol}` : "Staked positions unavailable unless returned by indexer"}</dd>
+          <dd className="quote-detail-value">{hasStaked ? `${formatAmount(position.stakedLpBalance ?? "0", 6)} ${lpSymbol}` : "No staked balance reported"}</dd>
         </div>
         {position.assets.map((asset) => (
           <div key={asset.denom}>
@@ -94,13 +94,13 @@ function PortfolioPositionCard({ position }: { position: PortfolioPosition }) {
         <div>
           <dt>Claimable rewards</dt>
           <dd className="quote-detail-value">
-            {hasRewards ? position.rewards.map((reward) => `${formatAmount(reward.amount, 6)} ${reward.symbol} (${marketValue(reward.valueUsd, reward.valueJuno)})`).join(", ") : "No claimable rewards reported; incentives contract query is not available in this frontend yet"}
+            {hasRewards ? position.rewards.map((reward) => `${formatAmount(reward.amount, 6)} ${reward.symbol} (${marketValue(reward.valueUsd, reward.valueJuno)})`).join(", ") : "No claimable rewards reported"}
           </dd>
         </div>
       </dl>
       <div className="lp-position-actions" aria-label="Portfolio position actions">
         <Link className="wallet-inline-action" to={`/pools/${position.pool.pair}`}>Manage liquidity</Link>
-        <button className="wallet-inline-action" type="button" disabled title="Claim-all will enable once incentives reward query and execute wiring are available">
+        <button className="wallet-inline-action" type="button" disabled title="Open an individual pool to review and claim its available rewards.">
           Claim rewards unavailable
         </button>
       </div>
@@ -158,9 +158,9 @@ export function PortfolioPage() {
           </div>
         ) : null}
       </div>
-      {discovery.isError ? <ErrorState title="Factory discovery unavailable" error="Showing curated registry fallback only; unknown factory pairs are not fabricated." onRetry={() => void discovery.refetch()} /> : null}
+      {discovery.isError ? <OptionalDataState title="Some positions may be missing" onRetry={() => void discovery.refetch()}>Known positions remain available.</OptionalDataState> : null}
       {!walletAddress ? <p className="pool-metrics-copy">Connect a wallet to view LP positions, balances, rewards, and USD value.</p> : null}
-      {walletAddress && indexerData.access?.error ? <ErrorState title="Portfolio details unavailable" error="Some USD, rewards, and staked position details are temporarily unavailable." onRetry={() => void indexerData.refetch()} /> : null}
+      {walletAddress && indexerData.access?.error ? <OptionalDataState title="Some portfolio details are unavailable" onRetry={() => void indexerData.refetch()}>Balances remain available; prices, rewards, or staked amounts may be incomplete.</OptionalDataState> : null}
 
       {!walletAddress ? (
         <EmptyState title="Connect wallet to view portfolio" action={<Link className="wallet-inline-action" to="/pools">Browse pools</Link>}>
@@ -176,7 +176,7 @@ export function PortfolioPage() {
           }}
         />
       ) : isLoading ? (
-        <div className="lp-position-skeleton" aria-label="Loading portfolio">
+        <div className="lp-position-skeleton" role="status" aria-label="Loading portfolio">
           <Skeleton width="70%" height="1.2rem" />
           <Skeleton width="55%" height="1.2rem" />
           <Skeleton width="85%" height="1.2rem" />

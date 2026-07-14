@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import type { RegistryPool } from "../config/registry";
+import type { SwapRoute } from "../lib/astroport/routes";
 import { queryPairPool } from "../lib/astroport/queries";
 import { loadPoolActivity, loadPoolCandles, loadPoolMetrics, loadStatsDashboard, loadWalletIndexerData, type DataAccessState, type PoolCandleRange } from "../lib/data-access/indexerFallback";
 import type { IndexerCandleInterval } from "../lib/indexer/types";
@@ -15,6 +16,20 @@ export function usePoolReserves(pool: RegistryPool | undefined) {
       return queryPairPool(pool.pair);
     },
   });
+}
+
+export function useRouteReserves(route: SwapRoute | undefined) {
+  const queries = useQueries({
+    queries: (route?.hops ?? []).map((hop) => ({
+      queryKey: ["pool", hop.pool.pair],
+      queryFn: () => queryPairPool(hop.pool.pair),
+      staleTime: 15_000,
+    })),
+  });
+
+  return Object.fromEntries(
+    (route?.hops ?? []).flatMap((hop, index) => queries[index]?.data ? [[hop.pool.pair, queries[index].data]] : []),
+  );
 }
 
 export function usePoolMetrics(pools: RegistryPool[]) {

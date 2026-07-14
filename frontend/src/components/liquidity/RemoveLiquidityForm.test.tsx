@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
     isJunoReady: true,
   },
   mutateAsync: vi.fn(),
+  refetch: vi.fn(),
 }));
 
 vi.mock("../../wallet/WalletContext", () => ({
@@ -52,11 +53,13 @@ vi.mock("../../queries/usePools", () => ({
     isFetching: false,
     isError: false,
     error: undefined,
+    refetch: mocks.refetch,
   }),
 }));
 
 vi.mock("../../mutations/useWithdrawLiquidityTx", () => ({
-  useWithdrawLiquidityTx: () => ({ isPending: false, mutateAsync: mocks.mutateAsync }),
+  buildWithdrawLiquidityExecuteInstruction: () => ({ contractAddress: "juno1pair", msg: {} }),
+  useWithdrawLiquidityTx: () => ({ isPending: false, mutateAsync: mocks.mutateAsync, txState: { status: "idle", label: "Ready" } }),
 }));
 
 const pool: RegistryPool = {
@@ -67,10 +70,13 @@ const pool: RegistryPool = {
   type: "xyk",
   feeBps: 30,
   enabled: true,
+  status: "active",
+  verified: true,
+  source: "registry",
   explorer: "https://ping.pub/juno/wasm/contract/juno1pair",
   assets: [
-    { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },
-    { kind: "native", id: "factory/pair/token", symbol: "TOKEN", decimals: 6 },
+    { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6, verified: true },
+    { kind: "native", id: "factory/pair/token", symbol: "TOKEN", decimals: 6, verified: true },
   ],
 };
 
@@ -85,6 +91,16 @@ function renderForm() {
 describe("RemoveLiquidityForm", () => {
   beforeEach(() => {
     mocks.mutateAsync.mockReset();
+    mocks.refetch.mockReset();
+    mocks.refetch.mockResolvedValue({
+      data: {
+        total_share: "1000000000",
+        assets: [
+          { info: { native_token: { denom: "ujuno" } }, amount: "5000000000" },
+          { info: { native_token: { denom: "factory/pair/token" } }, amount: "10000000000" },
+        ],
+      },
+    });
   });
 
   it("fills LP amount from quick-fill percentages and updates underlying estimates", () => {
@@ -95,7 +111,7 @@ describe("RemoveLiquidityForm", () => {
     expect((screen.getByLabelText("LP amount amount") as HTMLInputElement).value).toBe("50");
     expect(container.textContent).toContain("250 / 248.75 JUNO");
     expect(container.textContent).toContain("500 / 497.5 TOKEN");
-    expect((screen.getByRole("button", { name: "Withdraw liquidity" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "Review withdrawal" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("passes LP amount and slippage-protected minimum assets to the withdraw mutation", async () => {
@@ -103,7 +119,8 @@ describe("RemoveLiquidityForm", () => {
     renderForm();
 
     fireEvent.click(screen.getByRole("button", { name: "50%" }));
-    fireEvent.click(screen.getByRole("button", { name: "Withdraw liquidity" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review withdrawal" }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm in wallet/i }));
 
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({
       pool,

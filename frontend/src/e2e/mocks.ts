@@ -17,6 +17,8 @@ type ExecuteCall = {
 type E2EWindow = Window & typeof globalThis & {
   __DEX_E2E_TXS__?: ExecuteCall[];
   __DEX_E2E_TX_COUNT__?: number;
+  __DEX_E2E_TX_MODE__?: "success" | "reject" | "fail" | "timeout" | "delay";
+  __DEX_E2E_RELEASE_TX__?: () => void;
 };
 
 export function isE2EMode() {
@@ -49,8 +51,17 @@ function labelForMsg(msg: unknown) {
 
 export function createE2ESigningClient() {
   return {
+    simulate: async () => 100_000,
     execute: async (sender: string, contractAddress: string, msg: unknown, fee: unknown, memo?: string, funds?: unknown) => {
+      const win = window as E2EWindow;
+      if (win.__DEX_E2E_TX_MODE__ === "reject") throw new Error("User rejected the signature request");
+      if (win.__DEX_E2E_TX_MODE__ === "fail") throw new Error("Broadcast failed before a transaction hash was returned");
       recordExecute({ sender, contractAddress, msg, fee, memo, funds });
+      if (win.__DEX_E2E_TX_MODE__ === "timeout") throw new Error("Transaction not found after broadcast timeout");
+      if (win.__DEX_E2E_TX_MODE__ === "delay") {
+        await new Promise<void>((resolve) => { win.__DEX_E2E_RELEASE_TX__ = resolve; });
+        win.__DEX_E2E_RELEASE_TX__ = undefined;
+      }
       return {
         transactionHash: txHashFor(labelForMsg(msg)),
         height: 123456,

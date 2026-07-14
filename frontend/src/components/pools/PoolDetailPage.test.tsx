@@ -30,6 +30,7 @@ const pool: RegistryPool = {
   ],
   explorer: "https://ping.pub/juno/wasm/contract/juno1pooldetail",
   enabled: true,
+  status: "active",
   verified: true,
   source: "registry",
   notes: "Test pool",
@@ -107,16 +108,18 @@ describe("PoolDetailPage", () => {
     expect(screen.getByText("$42,000")).toBeTruthy();
     expect(screen.getByText("5.75%")).toBeTruthy();
     expect(screen.getAllByText(/XYK/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/30 bps fee tier/i)).toBeTruthy();
-    expect(screen.getAllByText("50").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Live reserves")).toBeTruthy();
+    expect(screen.getAllByText(/30 bps fee/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("50")).toBeTruthy();
     expect(screen.getByText(/100 JUNO/i)).toBeTruthy();
     expect(screen.getByText(/250 USDC/i)).toBeTruthy();
     expect(screen.getByText(/28.57% of token units/i)).toBeTruthy();
     expect(screen.getByText(/1 JUNO ≈ 2.5 USDC/i)).toBeTruthy();
-    expect(screen.getByText(/Your pool share = wallet LP balance ÷ total LP shares/i)).toBeTruthy();
+    expect(screen.getByText(/Your pool percentage is your LP balance divided by all LP shares/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: /back to pools/i }).getAttribute("href")).toBe("/pools");
-    expect(screen.getByText("Show token ID")).toBeTruthy();
+    expect(screen.getByText("Technical pool details")).toBeTruthy();
+    const position = screen.getByText("LP position panel");
+    const performance = screen.getByRole("heading", { name: "Performance" });
+    expect(position.compareDocumentPosition(performance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add liquidity" }));
     expect(screen.getByText("Add liquidity form")).toBeTruthy();
   });
@@ -127,7 +130,7 @@ describe("PoolDetailPage", () => {
     const analytics = screen.getByLabelText("Pool analytics cards");
     expect(within(analytics).getAllByText("Metrics unavailable").length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText(/TVL, 24h volume, and APR are unavailable for this pool/i)).toBeTruthy();
-    expect(screen.getByText(/No candles returned/i)).toBeTruthy();
+    expect(screen.getByText(/No price history yet/i)).toBeTruthy();
     expect(screen.getByText(/No swap, add, withdraw, or claim activity was returned/i)).toBeTruthy();
     expect(screen.getByText(/USD value, volume, and APR require market data/i)).toBeTruthy();
   });

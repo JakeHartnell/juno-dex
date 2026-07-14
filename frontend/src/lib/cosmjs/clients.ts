@@ -1,4 +1,5 @@
 import type { OfflineSigner } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { Coin } from "@cosmjs/stargate";
 import type { ExecuteResult } from "@cosmjs/cosmwasm-stargate/build/signingcosmwasmclient.js";
 import type { StargateClient as ReadonlyStargateClient } from "@cosmjs/stargate/build/stargateclient.js";
@@ -19,6 +20,7 @@ export type ExecuteClient = {
     memo?: string,
     funds?: Coin[],
   ) => Promise<ExecuteResult>;
+  simulate?: (signerAddress: string, messages: readonly EncodeObject[], memo: string | undefined) => Promise<number>;
 };
 
 export type SigningClientGetter = () => Promise<ExecuteClient>;

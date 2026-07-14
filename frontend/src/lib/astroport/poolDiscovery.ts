@@ -1,4 +1,4 @@
-import { dexRegistry, enabledPools, type RegistryAsset, type RegistryPool } from "../../config/registry";
+import { configuredPools, dexRegistry, type RegistryAsset, type RegistryPool } from "../../config/registry";
 import { resolveAssetMetadata } from "../assets/assetMetadata";
 import type { AssetInfo, PairConfig, PairInfo, PairsResponse } from "../generated/Factory.types";
 
@@ -71,7 +71,7 @@ export async function queryAllFactoryPairs(queryPairs: FactoryPairsQuery, pageLi
 
 export function mergeDiscoveredPools(
   discoveredPairs: PairInfo[],
-  curatedPools: RegistryPool[] = enabledPools,
+  curatedPools: RegistryPool[] = configuredPools,
   feeBpsByPairType: Map<string, number> = new Map(),
 ): DiscoveredRegistryPool[] {
   const curatedByPair = new Map(curatedPools.map((pool) => [curatedKey(pool), pool]));
@@ -96,16 +96,17 @@ export function mergeDiscoveredPools(
       assets,
       explorer: curated?.explorer ?? `${dexRegistry.explorerBaseUrl}/wasm/contract/${pair.contract_addr}`,
       enabled: curated?.enabled ?? true,
+      status: curated?.status ?? "experimental",
       featured: curated?.featured,
       notes: curated?.notes ?? "Discovered from the factory. Metadata is unverified; review the assets before trading or providing liquidity.",
       source: curated ? "registry" : "factory",
-      verified: curated?.verified ?? Boolean(curated),
+      verified: curated?.verified === true,
     });
   }
 
   for (const curated of curatedPools) {
     if (!merged.has(curated.pair)) {
-      merged.set(curated.pair, { ...curated, source: "registry", verified: curated.verified ?? true });
+      merged.set(curated.pair, { ...curated, source: "registry", verified: curated.verified === true });
     }
   }
 

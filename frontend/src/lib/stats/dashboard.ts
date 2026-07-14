@@ -96,9 +96,9 @@ export function sortTopPools(pools: readonly TopPool[]) {
 }
 
 export function dashboardUnavailableCopy(access: DataAccessState | undefined) {
-  if (!access) return "Checking the configured indexer for protocol analytics…";
+  if (!access) return "Loading protocol analytics…";
   if (access.source === "indexer" || access.source === "mock") return undefined;
-  if (access.error?.code === "disabled") return "Protocol analytics need VITE_DEX_INDEXER_URL. Swap, pools, and liquidity remain available with on-chain reads.";
-  if (access.error?.code === "empty") return "The indexer responded but did not return protocol stats yet. No placeholder TVL, volume, or fee data is shown.";
-  return `Protocol analytics are unavailable from the indexer (${access.error?.message ?? "unknown error"}). No fake metrics are displayed.`;
+  if (access.error?.code === "disabled") return "Protocol analytics are not configured. Swap, pools, and liquidity remain available.";
+  if (access.error?.code === "empty") return "Protocol totals are not available yet. Unverified placeholder values are not shown.";
+  return "Protocol analytics are temporarily unavailable. Swap, pools, and liquidity remain available.";
 }

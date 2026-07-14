@@ -6,12 +6,25 @@ import { formatAmount, isBaseAmountGreaterThan, parseTokenAmount, toBaseAmount }
 import { getPoolTypeMetadata } from "../../lib/pools/poolTypes";
 import { assessPoolRisk } from "../../lib/risk";
 import { slippageBpsToMaxSpread } from "../../lib/swap/slippage";
-import { useProvideLiquidityTx } from "../../mutations/useProvideLiquidityTx";
+import { buildProvideLiquidityExecuteInstruction, useProvideLiquidityTx } from "../../mutations/useProvideLiquidityTx";
+import { estimateExecuteNetworkFee, type NetworkFeeEstimate } from "../../lib/cosmjs/fees";
 import { usePoolReserves } from "../../queries/usePools";
 import { getWalletBalanceAmount, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
-import { RiskAcknowledgement, RiskBadgeList, TokenAmountInput } from "../common";
+import { RiskAcknowledgement, RiskBadgeList, TokenAmountInput, TransactionReview } from "../common";
+import { TxStatusDialog } from "../tx/TxStatusDialog";
+
+type AddLiquidityReview = {
+  amounts: [string, string];
+  minLpToReceive?: string;
+  expectedLpAmount?: string;
+  poolShare?: string;
+  slippageBps: number;
+  reserveVersion: string;
+  isFirstProvider: boolean;
+  networkFeeEstimate?: NetworkFeeEstimate;
+};
 
 function hasPositiveBaseAmount(amount: string): boolean {
   return /^\d+$/.test(amount) && BigInt(amount) > 0n;
@@ -30,6 +43,9 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
   const [lastEditedIndex, setLastEditedIndex] = useState<0 | 1>(0);
   const [riskAcknowledged, setRiskAcknowledged] = useState(false);
   const [seedAcknowledgement, setSeedAcknowledgement] = useState("");
+  const [review, setReview] = useState<AddLiquidityReview>();
+  const [isPreparingReview, setIsPreparingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string>();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, [pool]);
   const reserves = usePoolReserves(pool);
@@ -81,7 +97,9 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
   const validationError = useMemo(() => {
     const parsed0 = parseTokenAmount(amounts[0], pool.assets[0].decimals);
     const parsed1 = parseTokenAmount(amounts[1], pool.assets[1].decimals);
+    if (risk.blocked) return "This pool or one of its assets is blocked";
     if (!poolType.supportsProvideLiquidity) return `${poolType.shortLabel} add liquidity is not supported in the UI yet`;
+    if (pool.assets.some((asset) => asset.kind === "cw20")) return "CW20 add liquidity is unavailable until exact token allowances are implemented";
     if (!parsed0.isValid) return `${pool.assets[0].symbol}: ${parsed0.error}`;
     if (!parsed1.isValid) return `${pool.assets[1].symbol}: ${parsed1.error}`;
     if (!hasPositiveBaseAmount(baseAmounts[0]) || !hasPositiveBaseAmount(baseAmounts[1])) return "Enter both token amounts";
@@ -97,17 +115,18 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
     }
     if (risk.requiresAcknowledgement && !riskAcknowledged) return "Acknowledge unverified pool";
     return undefined;
-  }, [amounts, balances.data, baseAmounts, isFirstProvider, pool.assets, poolType.shortLabel, poolType.supportsProvideLiquidity, quote, reserveAmounts, risk.requiresAcknowledgement, riskAcknowledged, seedAcknowledgement]);
+  }, [amounts, balances.data, baseAmounts, isFirstProvider, pool.assets, poolType.shortLabel, poolType.supportsProvideLiquidity, quote, reserveAmounts, risk.blocked, risk.requiresAcknowledgement, riskAcknowledged, seedAcknowledgement]);
 
   const submitDisabled = Boolean(validationError)
     || wallet.status !== "connected"
     || network.isWrongNetwork
-    || provideTx.isPending;
+    || provideTx.isPending
+    || isPreparingReview;
   const actionCopy = network.isWrongNetwork
     ? "Switch to Juno to add liquidity"
     : wallet.status !== "connected"
       ? "Connect wallet to add liquidity"
-      : validationError ?? (provideTx.isPending ? "Broadcasting…" : isFirstProvider ? "Seed initial liquidity" : "Add liquidity");
+      : validationError ?? (provideTx.isPending ? "Broadcasting…" : isPreparingReview ? "Refreshing reserves…" : isFirstProvider ? "Review initial liquidity" : "Review add liquidity");
 
   const onSubmit = async () => {
     if (wallet.status !== "connected") {
@@ -119,7 +138,53 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
       return;
     }
     if (submitDisabled) return;
-    provideTx.mutate({ pool, amounts: baseAmounts, slippageTolerance: maxSpread || slippageBpsToMaxSpread(slippageBps), minLpToReceive: isFirstProvider ? undefined : minLpToReceive });
+    setIsPreparingReview(true);
+    setReviewError(undefined);
+    const refreshed = await reserves.refetch();
+    setIsPreparingReview(false);
+    const freshAssets = refreshed.data?.assets;
+    if (!freshAssets || freshAssets.length < 2) {
+      setReviewError("Fresh pool reserves could not be loaded. Review remains unavailable.");
+      return;
+    }
+    const freshReserveAmounts: [string, string] = [freshAssets[0]?.amount ?? "0", freshAssets[1]?.amount ?? "0"];
+    const freshInitial = calculateInitialLiquidityQuote({ depositAmounts: baseAmounts, decimals: [pool.assets[0].decimals, pool.assets[1].decimals], reserves: freshReserveAmounts, totalShare: refreshed.data?.total_share });
+    const freshIsFirstProvider = poolType.supportsProvideLiquidity && freshInitial.isFirstProvider;
+    if (freshIsFirstProvider !== isFirstProvider) {
+      setReviewError("Pool liquidity changed while preparing review. Check the new pool state and review again.");
+      return;
+    }
+    const freshQuote = freshIsFirstProvider ? null : calculateProvideLiquidityQuote({ depositAmounts: baseAmounts, reserves: freshReserveAmounts, totalShare: refreshed.data?.total_share ?? "0" });
+    if (!freshIsFirstProvider && (!freshQuote || !freshQuote.isProportional)) {
+      setReviewError("The refreshed reserve ratio no longer matches these deposit amounts. Adjust the amount and review again.");
+      return;
+    }
+    const minLpToReceive = freshQuote ? applySlippageFloor(freshQuote.expectedLpAmount, slippageBps) : undefined;
+    const instruction = buildProvideLiquidityExecuteInstruction({ pool, amounts: [...baseAmounts] as [string, string], slippageTolerance: slippageBpsToMaxSpread(slippageBps), minLpToReceive });
+    const networkFeeEstimate = await estimateExecuteNetworkFee(signerOrClient, walletAddress, [instruction]).catch(() => undefined);
+    setReview({
+      amounts: [...baseAmounts] as [string, string],
+      minLpToReceive,
+      expectedLpAmount: freshQuote?.expectedLpAmount,
+      poolShare: freshQuote ? formatLpShareBps(freshQuote.poolShareBps) : "Approximately 100% before locked minimum liquidity",
+      slippageBps,
+      reserveVersion: `${freshReserveAmounts.join(":")}:${refreshed.data?.total_share ?? "0"}`,
+      isFirstProvider: freshIsFirstProvider,
+      networkFeeEstimate,
+    });
+  };
+
+  const currentReserveVersion = reserveAmounts ? `${reserveAmounts.join(":")}:${reserves.data?.total_share ?? "0"}` : "";
+  const reviewIsCurrent = Boolean(review
+    && review.amounts[0] === baseAmounts[0]
+    && review.amounts[1] === baseAmounts[1]
+    && review.slippageBps === slippageBps
+    && review.reserveVersion === currentReserveVersion);
+
+  const confirmAddLiquidity = () => {
+    if (!review || !reviewIsCurrent || provideTx.isPending) return;
+    provideTx.mutate({ pool, amounts: review.amounts, slippageTolerance: slippageBpsToMaxSpread(review.slippageBps), minLpToReceive: review.minLpToReceive });
+    setReview(undefined);
   };
 
   return (
@@ -188,10 +253,38 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
       <RiskAcknowledgement assessment={risk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="liquidity action" />
       {validationError && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validationError}</Text> : null}
-      {provideTx.isError ? <Text as="p" className="error-text">{provideTx.error instanceof Error ? provideTx.error.message : "Add liquidity failed"}</Text> : null}
-      {provideTx.isSuccess ? <Text as="p" className="success-text">Liquidity transaction broadcast. Balances and pool reserves are refreshing.</Text> : null}
-
+      {reviewError ? <p className="error-text" role="alert">{reviewError}</p> : null}
       <Button intent="primary" className="primary-action" disabled={wallet.status === "connected" && submitDisabled} fluidWidth onClick={onSubmit} domAttributes={{ type: "button" }}>{actionCopy}</Button>
+      <TxStatusDialog state={provideTx.txState} />
+      <TransactionReview
+        open={Boolean(review)}
+        title={review?.isFirstProvider ? "Review initial liquidity" : "Review add liquidity"}
+        description={review?.isFirstProvider ? "Both deposits are fixed and set the pool's initial price. LP output is contract-calculated and unavailable before signature." : "Both deposits are fixed. Expected LP output and pool share are estimates; minimum LP received is enforced."}
+        account={walletAddress}
+        chainId={network.connectedChainId ?? network.expectedChainId}
+        networkFeeEstimate={review?.networkFeeEstimate}
+        rows={review ? [
+          { label: `${pool.assets[0].symbol} deposit · fixed`, value: `${formatAmount(review.amounts[0], pool.assets[0].decimals)} ${pool.assets[0].symbol}` },
+          { label: `${pool.assets[1].symbol} deposit · fixed`, value: `${formatAmount(review.amounts[1], pool.assets[1].decimals)} ${pool.assets[1].symbol}` },
+          { label: "LP output · estimated", value: review.expectedLpAmount ? formatAmount(review.expectedLpAmount, 6) : "Contract-calculated after signature", tone: review.expectedLpAmount ? "default" as const : "warning" as const },
+          { label: "Minimum LP · enforced", value: review.minLpToReceive ? formatAmount(review.minLpToReceive, 6) : "Unavailable for initial liquidity", tone: review.minLpToReceive ? "default" as const : "warning" as const },
+          { label: "Pool share · estimated", value: review.poolShare ?? "Unavailable" },
+          { label: "Slippage tolerance · enforced", value: `${review.slippageBps / 100}%` },
+          { label: "Pool status", value: `${pool.status}${pool.verified === true ? ", verified" : ", unverified"}` },
+          { label: "Protocol commission", value: "No separate add-liquidity commission reported", tone: "warning" as const },
+        ] : []}
+        disclosures={[
+          { label: "Pair contract", value: pool.pair },
+          { label: "LP token", value: pool.lpToken },
+          { label: `${pool.assets[0].symbol} identifier`, value: pool.assets[0].id },
+          { label: `${pool.assets[1].symbol} identifier`, value: pool.assets[1].id },
+        ]}
+        warning={!reviewIsCurrent && review ? "Deposit amounts, slippage, or pool reserves changed. Close this review and prepare a new one." : undefined}
+        confirmDisabled={!reviewIsCurrent}
+        pending={provideTx.isPending}
+        onClose={() => setReview(undefined)}
+        onConfirm={confirmAddLiquidity}
+      />
     </Stack>
   );
 }

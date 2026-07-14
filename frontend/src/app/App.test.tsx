@@ -71,9 +71,12 @@ describe("App wallet state", () => {
   it("keeps read-only liquidity copy available without a wallet", async () => {
     renderApp();
 
+    expect(screen.getByRole("link", { name: /skip to main content/i }).getAttribute("href")).toBe("#main-content");
+    await waitFor(() => expect(document.title).toBe("Liquidity · Positions | JUNO DEX"));
+    expect(screen.getByRole("main").getAttribute("id")).toBe("main-content");
     expect(screen.getByRole("button", { name: /connect wallet/i })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Portfolio" })).toBeNull();
-    expect(await screen.findByText(/No wallet connected/i)).toBeTruthy();
+    expect(await screen.findByText(/No wallet connected/i, {}, { timeout: 5_000 })).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -86,7 +89,7 @@ describe("App wallet state", () => {
     await waitFor(() => expect(walletState.connect).toHaveBeenCalledTimes(1));
   });
 
-  it("keeps liquidity copy in sync with the connected header wallet", async () => {
+  it("keeps the app shell in sync with the connected header wallet", () => {
     walletState.wallet = {
       status: "connected",
       address: "juno1testwallet000000000000000000000000000000",
@@ -103,18 +106,17 @@ describe("App wallet state", () => {
       message: undefined,
     };
 
-    renderApp();
+    renderApp("/create");
 
     expect(screen.getAllByText(/QA wallet/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /disconnect/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /open wallet account menu/i }));
+    expect(screen.getByRole("button", { name: /disconnect wallet/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /view account in explorer/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Portfolio" }).getAttribute("href")).toBe("/portfolio");
-    expect(screen.getAllByRole("button", { name: /copy wallet address/i }).length).toBeGreaterThan(0);
-    expect(await screen.findByText(/Connected wallet:/i)).toBeTruthy();
     expect(screen.queryByText(/No wallet connected/i)).toBeNull();
-    expect(screen.getByText(/Connected wallet:/i).textContent).toContain("LP balances, shares, and underlying estimates refresh every 30 seconds");
   });
 
-  it("offers wrong-network recovery and blocks liquidity actions", async () => {
+  it("offers wrong-network recovery from the app shell", async () => {
     walletState.wallet = {
       status: "connected",
       address: "osmo1wrongwallet0000000000000000000000000000",
@@ -136,7 +138,6 @@ describe("App wallet state", () => {
 
     expect(screen.getByRole("alert").textContent).toContain("Switch to Juno (juno-1)");
     expect(screen.getByRole("button", { name: /^switch to juno$/i })).toBeTruthy();
-    await screen.findByRole("heading", { name: /juno/i });
 
     fireEvent.click(screen.getByRole("button", { name: /^switch to juno$/i }));
     await waitFor(() => expect(walletState.switchToJuno).toHaveBeenCalledTimes(1));

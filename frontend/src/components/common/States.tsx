@@ -24,3 +24,18 @@ export function ErrorState({ title = "Something went wrong", error, onRetry }: {
     </section>
   );
 }
+
+export function OptionalDataState({ title, children, onRetry }: { title: string; children?: ReactNode; onRetry?: () => void }) {
+  return (
+    <div className="optional-data-state">
+      <span>{title}</span>
+      {children || onRetry ? (
+        <details>
+          <summary>More information</summary>
+          {children ? <p>{children}</p> : null}
+          {onRetry ? <button type="button" onClick={onRetry}>Try again</button> : null}
+        </details>
+      ) : null}
+    </div>
+  );
+}

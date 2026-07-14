@@ -63,4 +63,22 @@ describe("QuoteCard layout", () => {
     expect(screen.queryByRole("button", { name: /quote details/i })).toBeNull();
     expect(screen.queryByText("Network fee")).toBeNull();
   });
+
+  it("always exposes the effective custom slippage value alongside presets", () => {
+    const pool = dexRegistry.pools[0];
+    const quote: RouteQuote = {
+      offer_amount: "1000000",
+      return_amount: "990000",
+      spread_amount: "1000",
+      commission_amount: "500",
+      source: "pair",
+      mode: "exact-in",
+      route: { id: "direct", hops: [{ pool, offerAsset: pool.assets[0], askAsset: pool.assets[1] }], operations: [] },
+    };
+
+    render(<QuoteCard quote={quote} offerAsset={pool.assets[0]} askAsset={pool.assets[1]} isLoading={false} slippageBps={237} onSlippageBps={vi.fn()} />);
+
+    expect(screen.getByLabelText("Current max slippage 2.37%")).toBeTruthy();
+    expect(screen.getByRole("group", { name: /max slippage preset/i })).toBeTruthy();
+  });
 });

@@ -16,10 +16,6 @@ type LpPositionPanelProps = {
   onStake?: () => void;
 };
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 export function LpPositionPanel({ pool, compact = false, onAdd, onRemove, onStake }: LpPositionPanelProps) {
   const { wallet } = useWallet();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
@@ -52,14 +48,14 @@ export function LpPositionPanel({ pool, compact = false, onAdd, onRemove, onStak
       ) : hasError ? (
         <ErrorState
           title="LP position unavailable"
-          error={`${balances.isError ? `Wallet balances: ${errorMessage(balances.error)}` : ""}${balances.isError && reserves.isError ? " · " : ""}${reserves.isError ? `Pool reserves: ${errorMessage(reserves.error)}` : ""}`}
+          error={`${balances.isError ? "Your LP balance could not be loaded." : ""}${balances.isError && reserves.isError ? " " : ""}${reserves.isError ? "Current pool balances could not be loaded." : ""}`}
           onRetry={() => {
             void balances.refetch();
             void reserves.refetch();
           }}
         />
       ) : isLoading ? (
-        <div className="lp-position-skeleton" aria-label="Loading LP position">
+        <div className="lp-position-skeleton" role="status" aria-label="Loading LP position">
           <Skeleton width="70%" height="1.2rem" />
           <Skeleton width="55%" height="1.2rem" />
           <Skeleton width="85%" height="1.2rem" />
@@ -74,7 +70,7 @@ export function LpPositionPanel({ pool, compact = false, onAdd, onRemove, onStak
             <div className="metric-card">
               <span>Wallet LP balance</span>
               <strong>{formatAmount(position.lpBalance, lp.decimals)} {lp.symbol}</strong>
-              <code>{pool.lpToken}</code>
+              <details className="identifier-disclosure"><summary>LP token identifier</summary><code>{pool.lpToken}</code></details>
             </div>
             <div className="metric-card">
               <span>Pool share</span>

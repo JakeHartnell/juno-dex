@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:e2e": "npm run build:e2e && playwright test",
     "test:a11y": "npm run build:e2e && playwright test e2e/a11y.spec.ts",
+    "release:check": "node scripts/check-release-readiness.mjs",
     "lint": "npm run typecheck",
     "codegen": "node scripts/codegen.mjs",
     "update:chain-registry-assets": "node scripts/update-chain-registry-assets.mjs"

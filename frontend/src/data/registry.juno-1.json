@@ -24,19 +24,23 @@
           "id": "ujuno",
           "symbol": "JUNO",
           "decimals": 6,
+          "verified": true,
           "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
         },
         {
           "kind": "native",
           "id": "factory/juno1xsx746x4375g39f9fj07hr7qm0wuf0ksl0an76/junoagenttest202607010323",
           "symbol": "JUNOAGENT-TEST",
-          "decimals": 6
+          "decimals": 6,
+          "verified": true
         }
       ],
       "explorer": "https://ping.pub/juno/wasm/contract/juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv",
       "enabled": true,
-      "featured": true,
-      "notes": "Preview/test TokenFactory pool from PR #9. Treat as experimental thin-liquidity infrastructure, not a public launch market."
+      "status": "active",
+      "verified": true,
+      "featured": false,
+      "notes": "Preview/test TokenFactory pool from PR #9. Treat as active thin-liquidity infrastructure, not a public launch market."
     },
     {
       "id": "season0-twolf-juno",
@@ -53,19 +57,21 @@
           "name": "Juno Meme Season 0 Test Wolf",
           "display": "twolf",
           "decimals": 6,
-          "verified": false
+          "verified": true
         },
         {
           "kind": "native",
           "id": "ujuno",
           "symbol": "JUNO",
           "decimals": 6,
+          "verified": true,
           "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
         }
       ],
       "explorer": "https://ping.pub/juno/wasm/contract/juno1cpvfjvx96eqj7lnksk7e83kpy8nmpnnz55ukzw6vg9c3ymt9j8gscr5lk9",
       "enabled": true,
-      "verified": false,
+      "status": "active",
+      "verified": true,
       "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
     },
     {
@@ -83,19 +89,21 @@
           "name": "Juno Meme Season 0 Test RAW",
           "display": "traw",
           "decimals": 6,
-          "verified": false
+          "verified": true
         },
         {
           "kind": "native",
           "id": "ujuno",
           "symbol": "JUNO",
           "decimals": 6,
+          "verified": true,
           "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
         }
       ],
       "explorer": "https://ping.pub/juno/wasm/contract/juno193yw4e925qdkh3pv6k2uw2m9gq0kx2p5760kup26ryw45pdzkcfqdv2nnm",
       "enabled": true,
-      "verified": false,
+      "status": "active",
+      "verified": true,
       "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
     },
     {
@@ -113,19 +121,21 @@
           "name": "Juno Meme Season 0 Test AHAB",
           "display": "tahab",
           "decimals": 6,
-          "verified": false
+          "verified": true
         },
         {
           "kind": "native",
           "id": "ujuno",
           "symbol": "JUNO",
           "decimals": 6,
+          "verified": true,
           "logoURI": "https://raw.githubusercontent.com/cosmos/chain-registry/master/juno/images/juno.svg"
         }
       ],
       "explorer": "https://ping.pub/juno/wasm/contract/juno1fckcyn7ww8tmj4p60qlfv4y7dxzlnj3hk22nhafm9875lcll5cmqvwnm77",
       "enabled": true,
-      "verified": false,
+      "status": "active",
+      "verified": true,
       "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
     },
     {
@@ -143,7 +153,7 @@
           "name": "Juno Meme Season 0 Test AHAB",
           "display": "tahab",
           "decimals": 6,
-          "verified": false
+          "verified": true
         },
         {
           "kind": "native",
@@ -152,12 +162,13 @@
           "name": "Juno Meme Season 0 Test FUD",
           "display": "tfud",
           "decimals": 6,
-          "verified": false
+          "verified": true
         }
       ],
       "explorer": "https://ping.pub/juno/wasm/contract/juno1mqkzf02hjlkzcnjn0yv9lr6d9j3tmx65qwfs0hcxy5ul4pfequ4s8n9hnn",
       "enabled": true,
-      "verified": false,
+      "status": "active",
+      "verified": true,
       "notes": "Juno Meme Season 0 disposable test-token pool on juno-1; thin liquidity, not a production launch market."
     }
   ]

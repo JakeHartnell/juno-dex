@@ -47,7 +47,7 @@ describe("StatsDashboardView", () => {
       error: { code: "disabled", message: "Indexer URL is not configured" },
     });
 
-    expect(screen.getByText(/protocol analytics need vite_dex_indexer_url/i)).toBeTruthy();
+    expect(screen.getByText(/protocol analytics are not configured/i)).toBeTruthy();
     expect(screen.getAllByText("Unavailable").length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText(/top pools unavailable/i)).toBeTruthy();
   });

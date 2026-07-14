@@ -43,6 +43,8 @@ describe("factory pool discovery", () => {
       ],
       explorer: `${dexRegistry.explorerBaseUrl}/wasm/contract/juno1curated0000000000000000000000000000000000`,
       enabled: true,
+      status: "active",
+      verified: true,
       featured: true,
       notes: "curated note",
     };
@@ -54,8 +56,17 @@ describe("factory pool discovery", () => {
 
     expect(pools).toHaveLength(2);
     expect(pools[0]).toMatchObject({ id: "curated-pool", label: "Curated JUNO / FOO", verified: true, source: "registry", featured: true });
-    expect(pools[1]).toMatchObject({ pair: "juno1unknown0000000000000000000000000000000000", type: "stable", verified: false, source: "factory", enabled: true });
+    expect(pools[1]).toMatchObject({ pair: "juno1unknown0000000000000000000000000000000000", type: "stable", status: "experimental", verified: false, source: "factory", enabled: true });
     expect(pools[1].assets[1]).toMatchObject({ kind: "cw20", id: "juno1token000000000000000000000000000000000000", decimals: 6 });
+  });
+
+  it("does not infer verification from curated registry provenance", () => {
+    const curated = { ...dexRegistry.pools[0], status: "active" as const, verified: false };
+    const [pool] = mergeDiscoveredPools([
+      pair(curated.pair, [native("ujuno"), native(curated.assets[1].id)]),
+    ], [curated]);
+
+    expect(pool).toMatchObject({ source: "registry", status: "active", verified: false });
   });
 
   it("keeps curated pools as fallback when factory discovery misses them and skips unsupported custom types", () => {

@@ -25,7 +25,7 @@
   flex: none;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--cream-faint);
@@ -34,7 +34,7 @@
   flex: none;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   letter-spacing: 0.02em;
   color: var(--cream-faint);
 }
@@ -107,7 +107,7 @@
 .swap-page-grid .swap-card .quote-rows dt {
   color: var(--cream-mute);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
 }
 .swap-page-grid .swap-card .quote-row-value {
@@ -115,7 +115,7 @@
   text-align: right;
   color: var(--cream);
   font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   font-weight: 400;
   overflow-wrap: anywhere;
   background: transparent;
@@ -134,6 +134,25 @@
   display: inline-flex;
   gap: 6px;
 }
+.swap-page-grid .swap-card .slippage-current {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--cream);
+}
+.swap-review-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.swap-review-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.transaction-review { display: grid; gap: 16px; }
+.transaction-review-description { margin: 0; line-height: 1.5; }
+.transaction-review-disclosure summary { cursor: pointer; color: var(--coral); font-weight: 700; }
+.transaction-review-disclosure code { overflow-wrap: anywhere; }
 .swap-page-grid .swap-card .slippage-chip {
   padding: 4px 10px;
   border: 1px solid var(--line-soft);
@@ -141,7 +160,7 @@
   background: transparent;
   color: var(--cream-mute);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: border-color 120ms var(--ease-mech), color 120ms var(--ease-mech), background 120ms var(--ease-mech);

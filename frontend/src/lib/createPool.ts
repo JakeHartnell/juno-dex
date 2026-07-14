@@ -61,11 +61,11 @@ export function createPoolOptions(pairConfigs: PairConfig[] | undefined): Create
       disabled: unavailable || config?.is_disabled || config?.permissioned,
       permissioned: config?.permissioned,
       unsupportedReason: unavailable
-        ? "This pool type is not configured in the live factory."
+        ? "This pool type is not available on the connected network."
         : config?.is_disabled
-          ? "This pool type is disabled in the live factory."
+          ? "This pool type is currently disabled."
           : config?.permissioned
-            ? "This pool type requires factory permission and cannot be created permissionlessly."
+            ? "This pool type requires operator permission and cannot be created from the app."
             : undefined,
     };
   });
@@ -84,7 +84,7 @@ export function buildCreatePoolAssets(pools: RegistryPool[] = []): Array<Registr
         ...existing,
         ...asset,
         logoURI: existing?.logoURI ?? asset.logoURI,
-        verified: existing?.verified ?? pool.verified ?? pool.source !== "factory",
+        verified: existing?.verified === true || asset.verified === true,
         poolCount: (existing?.poolCount ?? 0) + 1,
       });
     }
@@ -139,13 +139,17 @@ export function validateCreatePool(input: {
   const [assetA, assetB] = input.assets;
   if (!assetA || !assetB) return { isValid: false, error: "Choose two assets", warnings, requiresAcknowledgement: false, risk: { verified: false, badges: [], requiresAcknowledgement: false } };
 
-  const riskBadges = [...assessAssetRisk(assetA, { inheritedVerified: assetA.verified }).badges, ...assessAssetRisk(assetB, { inheritedVerified: assetB.verified }).badges];
+  const assetARisk = assessAssetRisk(assetA);
+  const assetBRisk = assessAssetRisk(assetB);
+  const riskBadges = [...assetARisk.badges, ...assetBRisk.badges];
   const risk: RiskAssessment = {
     verified: Boolean(assetA.verified && assetB.verified),
     badges: riskBadges.filter((badge, index, all) => all.findIndex((candidate) => candidate.id === badge.id) === index),
     requiresAcknowledgement: riskBadges.some((badge) => badge.requiresAcknowledgement),
+    blocked: Boolean(assetARisk.blocked || assetBRisk.blocked),
   };
 
+  if (risk.blocked) return { isValid: false, error: "Blocked assets cannot be used to create pools", warnings, requiresAcknowledgement: false, risk };
   if (assetKey(assetA) === assetKey(assetB)) return { isValid: false, error: "Choose two different assets", warnings, requiresAcknowledgement: risk.requiresAcknowledgement, risk };
   if (!input.option) return { isValid: false, error: "Choose a pool type", warnings, requiresAcknowledgement: risk.requiresAcknowledgement, risk };
   if (input.option.disabled) return { isValid: false, error: input.option.unsupportedReason ?? "Pool type is not available", warnings, requiresAcknowledgement: risk.requiresAcknowledgement, risk };

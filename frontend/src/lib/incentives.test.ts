@@ -10,6 +10,7 @@ const pool: RegistryPool = {
   type: "xyk",
   feeBps: 30,
   enabled: true,
+  status: "active",
   explorer: "https://ping.pub/juno/wasm/contract/juno1pair",
   assets: [
     { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },

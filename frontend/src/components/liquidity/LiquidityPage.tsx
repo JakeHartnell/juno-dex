@@ -3,7 +3,7 @@ import { truncateAddress } from "../../lib/format/addresses";
 import { useDexRegistry } from "../../queries/useDexRegistry";
 import { useWalletIndexerData } from "../../queries/usePools";
 import { useWallet } from "../../wallet/WalletContext";
-import { EmptyState, ErrorState, Skeleton } from "../common";
+import { EmptyState, OptionalDataState, Skeleton } from "../common";
 import { WalletAddressActions } from "../wallet/WalletAddressActions";
 import { WalletTransactionHistory } from "../wallet/WalletTransactionHistory";
 import { LpPositionPanel } from "./LpPositionPanel";
@@ -21,14 +21,15 @@ export function LiquidityPage() {
     <section className="panel-page liquidity-page">
       <p className="eyebrow">Liquidity · Positions</p>
       <h2>Wallet LP overview</h2>
-      <p>V1 prefers wallet position/history from the indexer when available, then falls back to factory-discovered pools, curated registry metadata, verified LP denoms, wallet balances, and live pair reserves.</p>
-      {discovery.isError ? <ErrorState title="Factory discovery unavailable" error="Showing curated registry fallback only; LP estimates do not include unknown factory pairs." onRetry={() => void discovery.refetch()} /> : null}
-      {discovery.isFetching ? <div className="lp-position-skeleton" aria-label="Refreshing liquidity pools"><Skeleton width="13rem" /><Skeleton width="20rem" /></div> : null}
+      <p>See the pools this wallet has joined, the tokens represented by each position, and recent liquidity activity.</p>
+      {discovery.isError ? <OptionalDataState title="Some pools may be missing" onRetry={() => void discovery.refetch()}>Known positions remain available. Try again before concluding that a newer position is absent.</OptionalDataState> : null}
+      {discovery.isFetching ? <div className="lp-position-skeleton" role="status" aria-label="Refreshing liquidity pools"><Skeleton width="13rem" /><Skeleton width="20rem" /></div> : null}
       {walletAddress ? <p className="pool-metrics-copy">Manage LP positions and recent activity for the connected wallet.</p> : null}
-      {walletAddress && indexerData.access?.error ? <ErrorState title="LP history unavailable" error="LP estimates remain available where reserve data can be queried." onRetry={() => void indexerData.refetch()} /> : null}
+      {walletAddress && indexerData.access?.error ? <OptionalDataState title="Recent liquidity activity is unavailable" onRetry={() => void indexerData.refetch()}>Current positions remain available.</OptionalDataState> : null}
       {walletAddress ? <div className="contract-strip"><span>Wallet</span><WalletAddressActions address={walletAddress} /></div> : null}
-      <EmptyState title={walletAddress ? "LP position estimates" : "LP positions unavailable"}>{walletCopy}</EmptyState>
-      {pools.length === 0 ? <EmptyState title="No pools available for LP estimates">Curated registry and factory discovery returned no pools; no placeholder LP data is displayed.</EmptyState> : <div className="lp-position-list">{pools.map((pool) => <LpPositionPanel pool={pool} key={pool.id} />)}</div>}
+      {!walletAddress ? <EmptyState title="LP positions unavailable">{walletCopy}</EmptyState> : null}
+      {walletAddress && !indexerData.isLoading && !indexerData.access?.error && indexerData.data.positions.length === 0 ? <EmptyState title="No saved positions found">Balances for each available pool are still checked below.</EmptyState> : null}
+      {pools.length === 0 ? <EmptyState title="No pools available">Pool information could not be loaded. Try again later.</EmptyState> : <div className="lp-position-list">{pools.map((pool) => <LpPositionPanel pool={pool} key={pool.id} />)}</div>}
       <WalletTransactionHistory
         history={indexerData.data.history}
         access={indexerData.access}

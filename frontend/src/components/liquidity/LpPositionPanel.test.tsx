@@ -50,6 +50,7 @@ const pool: RegistryPool = {
   type: "xyk",
   feeBps: 30,
   enabled: true,
+  status: "active",
   explorer: "https://ping.pub/juno/wasm/contract/juno1pair",
   assets: [
     { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },
@@ -110,7 +111,7 @@ describe("LpPositionPanel", () => {
         <LpPositionPanel pool={pool} />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("alert").textContent).toContain("Pool reserves: RPC unavailable");
+    expect(screen.getByRole("alert").textContent).toContain("Current pool balances could not be loaded");
     mocks.reserves.isError = false;
     mocks.reserves.error = undefined;
   });

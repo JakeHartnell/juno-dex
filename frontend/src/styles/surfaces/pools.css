@@ -47,7 +47,7 @@
   background: var(--coral);
   color: var(--maroon-deep);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -68,7 +68,7 @@
 .pools-page .pool-list-controls label {
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--cream-faint);
@@ -109,7 +109,7 @@
 .pools-page .pool-metric > span,
 .pools-page .pool-position > span { display: none; }
 .pools-page .pool-metric small {
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   color: var(--cream-faint);
 }
@@ -188,7 +188,7 @@
   flex: none;
   align-self: flex-start;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -217,7 +217,7 @@
   flex: none;
   width: 84px;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -248,7 +248,7 @@
 .pool-detail-page .pool-detail-section > h3 {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -270,7 +270,7 @@
 .pool-detail-page .metric-card > span,
 .pool-detail-page .metric-card .pool-asset-heading {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -287,7 +287,7 @@
 .pool-detail-page .metric-card code,
 .pool-detail-page .metric-card small {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--cream-faint);
 }
 /* Honest unavailable / long-text values sit quietly, not as a hero number */
@@ -309,11 +309,33 @@
   font-size: 0.78rem;
   color: var(--cream-mute);
 }
+.pool-service-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 2px solid var(--signal-warn);
+  background: color-mix(in srgb, var(--signal-warn) 8%, transparent);
+  color: var(--text-secondary);
+}
+.pool-technical-details {
+  padding: 16px 18px;
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-sm, 3px);
+  background: var(--surface-inset);
+}
+.pool-technical-details > summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.pool-technical-details[open] > summary { margin-bottom: 16px; }
+.pool-technical-details .pool-detail-identity { margin-bottom: 14px; }
 
 /* --- Definition-list sections: mono uppercase keys, quiet values --- */
 .pool-detail-page .pool-detail-section dt {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;

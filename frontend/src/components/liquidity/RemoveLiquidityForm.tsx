@@ -5,33 +5,38 @@ import { applySlippageToAssets, calculatePercentageFill, estimateWithdrawAssets 
 import { getPoolTypeMetadata } from "../../lib/pools/poolTypes";
 import { assessPoolRisk } from "../../lib/risk";
 import { formatBpsPercent } from "../../lib/swap/slippage";
-import { useWithdrawLiquidityTx } from "../../mutations/useWithdrawLiquidityTx";
+import { buildWithdrawLiquidityExecuteInstruction, useWithdrawLiquidityTx } from "../../mutations/useWithdrawLiquidityTx";
+import { estimateExecuteNetworkFee, type NetworkFeeEstimate } from "../../lib/cosmjs/fees";
 import { usePoolReserves } from "../../queries/usePools";
 import { getWalletBalanceAmount, resolveDenom, useWalletBalances } from "../../queries/useWalletBalances";
 import { useSlippageSettings } from "../../settings/SlippageSettingsContext";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
-import { RiskAcknowledgement, RiskBadgeList, TokenAmountInput, useToast } from "../common";
+import { RiskAcknowledgement, RiskBadgeList, TokenAmountInput, TransactionReview } from "../common";
+import { TxStatusDialog } from "../tx/TxStatusDialog";
 
 const QUICK_FILL_PERCENTAGES = [25, 50, 75, 100] as const;
+type WithdrawAssets = ReturnType<typeof estimateWithdrawAssets>;
+type RemoveLiquidityReview = {
+  lpAmount: string;
+  expectedAssets: WithdrawAssets;
+  minimumAssets: WithdrawAssets;
+  slippageBps: number;
+  reserveVersion: string;
+  networkFeeEstimate?: NetworkFeeEstimate;
+};
 
 function isPositiveBaseAmount(amount: string) {
   return /^\d+$/.test(amount) && BigInt(amount) > 0n;
 }
 
-function txHashFromResult(result: unknown): string | undefined {
-  if (result && typeof result === "object" && "transactionHash" in result) {
-    const hash = (result as { transactionHash?: unknown }).transactionHash;
-    return typeof hash === "string" ? hash : undefined;
-  }
-  return undefined;
-}
-
 export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
   const { wallet } = useWallet();
   const { network } = useNetworkGuard();
-  const toast = useToast();
   const [amount, setAmount] = useState("");
   const [riskAcknowledged, setRiskAcknowledged] = useState(false);
+  const [review, setReview] = useState<RemoveLiquidityReview>();
+  const [isPreparingReview, setIsPreparingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string>();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, [pool]);
   const reserves = usePoolReserves(pool);
@@ -56,7 +61,9 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
     && !exceedsBalance
     && expectedAssets.length > 0
     && !reserves.isError
+    && !risk.blocked
     && (!risk.requiresAcknowledgement || riskAcknowledged)
+    && !isPreparingReview
     && !withdraw.isPending;
 
   const actionCopy = network.isWrongNetwork
@@ -65,6 +72,8 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
       ? "Connect wallet to withdraw"
       : !hasAmount
         ? "Enter LP amount"
+        : risk.blocked
+          ? "Pool or asset blocked"
         : exceedsBalance
           ? "Insufficient LP balance"
           : reserves.isError
@@ -75,25 +84,53 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
                 ? "Acknowledge unverified pool"
               : withdraw.isPending
                 ? "Withdrawing…"
-                : "Withdraw liquidity";
+                : isPreparingReview
+                  ? "Refreshing reserves…"
+                  : "Review withdrawal";
 
   const setBaseAmount = (baseAmount: string) => {
     const displayValue = formatAmount(baseAmount, lp.decimals, lp.decimals).replace(/,/g, "");
     setAmount(displayValue === "0" ? "" : displayValue);
   };
 
-  const handleWithdraw = async () => {
+  const prepareWithdraw = async () => {
     if (!canWithdraw) return;
-    const pendingId = toast.pending({ title: "Withdrawing liquidity", message: `Broadcasting ${formatAmount(lpBaseAmount, lp.decimals)} ${lp.symbol}` });
-    try {
-      const result = await withdraw.mutateAsync({ pool, lpAmount: lpBaseAmount, minAssetsToReceive });
-      toast.dismiss(pendingId);
-      toast.success({ title: "Liquidity withdrawn", message: "Balances and reserves are refreshing.", txHash: txHashFromResult(result) });
-      setAmount("");
-    } catch (error) {
-      toast.dismiss(pendingId);
-      toast.error({ title: "Withdraw failed", message: error instanceof Error ? error.message : String(error) });
+    setIsPreparingReview(true);
+    setReviewError(undefined);
+    const refreshed = await reserves.refetch();
+    setIsPreparingReview(false);
+    if (!refreshed.data) {
+      setReviewError("Fresh pool reserves could not be loaded. Review remains unavailable.");
+      return;
     }
+    const freshExpectedAssets = estimateWithdrawAssets(refreshed.data, lpBaseAmount);
+    if (freshExpectedAssets.length === 0) {
+      setReviewError("Withdrawal outputs could not be estimated from refreshed reserves.");
+      return;
+    }
+    const minimumAssets = applySlippageToAssets(freshExpectedAssets, slippageBps);
+    const instruction = buildWithdrawLiquidityExecuteInstruction({ pool, lpAmount: lpBaseAmount, minAssetsToReceive: minimumAssets });
+    const networkFeeEstimate = await estimateExecuteNetworkFee(signerOrClient, walletAddress, [instruction]).catch(() => undefined);
+    setReview({
+      lpAmount: lpBaseAmount,
+      expectedAssets: freshExpectedAssets,
+      minimumAssets,
+      slippageBps,
+      reserveVersion: `${refreshed.data.assets.map((asset) => asset.amount).join(":")}:${refreshed.data.total_share}`,
+      networkFeeEstimate,
+    });
+  };
+
+  const currentReserveVersion = reserves.data ? `${reserves.data.assets.map((asset) => asset.amount).join(":")}:${reserves.data.total_share}` : "";
+  const reviewIsCurrent = Boolean(review && review.lpAmount === lpBaseAmount && review.slippageBps === slippageBps && review.reserveVersion === currentReserveVersion);
+
+  const handleWithdraw = async () => {
+    if (!review || !reviewIsCurrent || withdraw.isPending) return;
+    try {
+      await withdraw.mutateAsync({ pool, lpAmount: review.lpAmount, minAssetsToReceive: review.minimumAssets });
+      setAmount("");
+      setReview(undefined);
+    } catch { /* Shared transaction runner owns failure state and recovery copy. */ }
   };
 
   return (
@@ -123,9 +160,7 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
           </button>
         ))}
       </div>
-      <code>{pool.lpToken}</code>
       <dl className="quote-details">
-        <div><dt>LP denom</dt><dd className="quote-detail-value"><code>{pool.lpToken}</code></dd></div>
         <div><dt>Wallet LP balance</dt><dd className="quote-detail-value">{lpBalance ? `${formatAmount(lpBalance, lp.decimals)} ${lp.symbol}` : wallet.status === "connected" ? "Loading…" : "Connect wallet"}</dd></div>
         {pool.assets.map((asset, index) => {
           const expected = expectedAssets[index]?.amount;
@@ -140,15 +175,47 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
           );
         })}
       </dl>
+      <details className="identifier-disclosure"><summary>LP token identifier</summary><code>{pool.lpToken}</code></details>
       {!poolType.supportsWithdrawSimulation ? (
         <p className="price-impact-warning" role="status">{poolType.shortLabel} withdraw simulation is not implemented locally. The amounts above are proportional estimates from live reserves; verify final outputs in the wallet before signing.</p>
       ) : null}
-      {balances.isError ? <p className="error-text">Wallet balance query failed: {balances.error instanceof Error ? balances.error.message : String(balances.error)}</p> : null}
-      {reserves.isError ? <p className="error-text">Pool reserve query failed: {reserves.error instanceof Error ? reserves.error.message : String(reserves.error)}</p> : null}
+      {balances.isError ? <p className="error-text">Your LP balance could not be loaded. Try again before removing liquidity.</p> : null}
+      {reserves.isError ? <p className="error-text">Current pool balances could not be loaded. Output estimates are unavailable; try again.</p> : null}
       {network.isWrongNetwork ? <p className="error-text">Switch to Juno to withdraw liquidity. Transactions are blocked off-network.</p> : null}
+      {reviewError ? <p className="error-text" role="alert">{reviewError}</p> : null}
       <RiskAcknowledgement assessment={risk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="liquidity withdrawal" />
-      {wallet.status !== "connected" ? <p className="empty-state">Connect a wallet to load your LP balance and broadcast withdrawal.</p> : null}
-      <button type="button" disabled={!canWithdraw} onClick={handleWithdraw}>{actionCopy}</button>
+      {wallet.status !== "connected" ? <p className="empty-state">Connect a wallet to see your position and remove liquidity.</p> : null}
+      <button type="button" disabled={!canWithdraw} onClick={prepareWithdraw}>{actionCopy}</button>
+      <TxStatusDialog state={withdraw.txState} />
+      <TransactionReview
+        open={Boolean(review)}
+        title="Review liquidity withdrawal"
+        description="LP tokens sent are fixed. Underlying outputs are reserve-based estimates; each displayed minimum is enforced on-chain."
+        account={walletAddress}
+        chainId={network.connectedChainId ?? network.expectedChainId}
+        networkFeeEstimate={review?.networkFeeEstimate}
+        rows={review ? [
+          { label: "LP tokens sent · fixed", value: `${formatAmount(review.lpAmount, lp.decimals)} ${lp.symbol}` },
+          ...pool.assets.flatMap((asset, index) => [
+            { label: `${asset.symbol} receive · estimated`, value: `${formatAmount(review.expectedAssets[index]?.amount ?? "0", asset.decimals)} ${asset.symbol}` },
+            { label: `${asset.symbol} minimum · enforced`, value: `${formatAmount(review.minimumAssets[index]?.amount ?? "0", asset.decimals)} ${asset.symbol}` },
+          ]),
+          { label: "Slippage tolerance · enforced", value: formatBpsPercent(review.slippageBps) },
+          { label: "Price impact", value: poolType.supportsWithdrawSimulation ? "Included in contract simulation" : "Unavailable; proportional reserve estimate only", tone: poolType.supportsWithdrawSimulation ? "default" as const : "warning" as const },
+          { label: "Protocol commission", value: "Unavailable from current withdrawal simulation", tone: "warning" as const },
+          { label: "Pool status", value: `${pool.status}${pool.verified === true ? ", verified" : ", unverified"}` },
+        ] : []}
+        disclosures={[
+          { label: "Pair contract", value: pool.pair },
+          { label: "LP token", value: pool.lpToken },
+          ...pool.assets.map((asset) => ({ label: `${asset.symbol} identifier`, value: asset.id })),
+        ]}
+        warning={!reviewIsCurrent && review ? "LP amount, slippage, or reserves changed. Close this review and prepare a new one." : !poolType.supportsWithdrawSimulation ? "Output impact is unavailable for this pool type. Verify the enforced minimums carefully before signing." : undefined}
+        confirmDisabled={!reviewIsCurrent}
+        pending={withdraw.isPending}
+        onClose={() => setReview(undefined)}
+        onConfirm={() => void handleWithdraw()}
+      />
     </section>
   );
 }

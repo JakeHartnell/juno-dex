@@ -40,9 +40,9 @@ export function PoolTable({ pools }: { pools: RegistryPool[] }) {
       <div className="pool-table" role="table" aria-label="Juno pools">
         <div className="pool-table-header" role="row">
           <span role="columnheader">Pool node</span>
-          <span role="columnheader"><button type="button" onClick={() => setControls((current) => toggleSort(current, "tvl"))}>TVL</button></span>
-          <span role="columnheader"><button type="button" onClick={() => setControls((current) => toggleSort(current, "apr"))}>APR</button></span>
-          <span role="columnheader"><button type="button" onClick={() => setControls((current) => toggleSort(current, "volume"))}>24h vol</button></span>
+          <span role="columnheader" aria-sort={ariaSort(controls, "tvl")}><button type="button" onClick={() => setControls((current) => toggleSort(current, "tvl"))}>TVL <SortDirection controls={controls} sortKey="tvl" /></button></span>
+          <span role="columnheader" aria-sort={ariaSort(controls, "apr")}><button type="button" onClick={() => setControls((current) => toggleSort(current, "apr"))}>APR <SortDirection controls={controls} sortKey="apr" /></button></span>
+          <span role="columnheader" aria-sort={ariaSort(controls, "volume")}><button type="button" onClick={() => setControls((current) => toggleSort(current, "volume"))}>24h vol <SortDirection controls={controls} sortKey="volume" /></button></span>
           <span role="columnheader">Your position</span>
         </div>
         {visiblePools.map((pool) => (
@@ -116,6 +116,15 @@ function toggleSort(controls: PoolListControls, sortKey: PoolListSortKey): PoolL
     sortKey,
     sortDirection: controls.sortKey === sortKey && controls.sortDirection === "desc" ? "asc" : "desc",
   };
+}
+
+function ariaSort(controls: PoolListControls, sortKey: PoolListSortKey): "ascending" | "descending" | "none" {
+  if (controls.sortKey !== sortKey) return "none";
+  return controls.sortDirection === "asc" ? "ascending" : "descending";
+}
+
+function SortDirection({ controls, sortKey }: { controls: PoolListControls; sortKey: PoolListSortKey }) {
+  return <span aria-hidden="true">{controls.sortKey === sortKey ? controls.sortDirection === "asc" ? "↑" : "↓" : "↕"}</span>;
 }
 
 function PoolRow({ pool, metrics, balances, access }: { pool: RegistryPool; metrics?: PoolMetrics; balances?: readonly WalletBalance[]; access?: DataAccessState }) {

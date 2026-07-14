@@ -40,7 +40,7 @@ export function StatsDashboardView({ data, access, isLoading = false }: { data: 
           <p className="eyebrow">TVL / volume trend</p>
           <h3 id="stats-trend-title">Trend charts</h3>
         </div>
-        <p>Historical chart series are not exposed by the current indexer stats payload yet. This panel intentionally shows no synthetic trend line; it will render as soon as real time-series data is available.</p>
+        <p>Historical trends are not available yet. Current totals remain available above.</p>
       </section>
 
       <section className="stats-top-pools" aria-labelledby="top-pools-title">
@@ -51,7 +51,7 @@ export function StatsDashboardView({ data, access, isLoading = false }: { data: 
           </div>
           <Link to="/pools">View all pools</Link>
         </div>
-        {data.topPools.length > 0 ? <TopPoolsTable pools={data.topPools} access={access} /> : <EmptyState title="Top pools unavailable">The indexer did not return pool TVL, volume, or APR rankings yet. Use the Pools page for registry-backed navigation.</EmptyState>}
+        {data.topPools.length > 0 ? <TopPoolsTable pools={data.topPools} access={access} /> : <EmptyState title="Top pools unavailable">Rankings could not be loaded. You can still browse known pools from the Pools page.</EmptyState>}
       </section>
     </section>
   );

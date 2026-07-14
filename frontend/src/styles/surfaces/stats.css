@@ -43,7 +43,7 @@
 .stats-metric-card { padding: 16px 18px; gap: 6px; }
 .stats-metric-card span {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--cream-faint);
@@ -57,7 +57,7 @@
 }
 .stats-metric-card small {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   color: var(--cream-faint);
 }

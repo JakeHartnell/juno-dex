@@ -6,15 +6,22 @@ import type { RegistryAsset } from "../../config/registry";
 import { dexRegistry } from "../../config/registry";
 import { toAssetInfo } from "../../lib/astroport/assetInfo";
 import { queryFactoryConfig, queryFactoryPair } from "../../lib/astroport/queries";
-import { buildCreatePoolAssets, createPoolOptions, makeCustomAsset, poolMatchesAssets, validateCreatePool, type CreatePoolType } from "../../lib/createPool";
-import { useCreatePoolTx } from "../../mutations/useCreatePoolTx";
+import { buildCreatePoolAssets, createPoolOptions, makeCustomAsset, poolMatchesAssets, validateCreatePool, type CreatePoolConfigOption, type CreatePoolType } from "../../lib/createPool";
+import { buildCreatePoolExecuteInstruction, useCreatePoolTx } from "../../mutations/useCreatePoolTx";
+import { estimateExecuteNetworkFee, type NetworkFeeEstimate } from "../../lib/cosmjs/fees";
 import { useDexRegistry } from "../../queries/useDexRegistry";
 import { useNetworkGuard, useWallet } from "../../wallet/WalletContext";
-import { EmptyState, ErrorState, RiskAcknowledgement, Skeleton } from "../common";
+import { EmptyState, ErrorState, RiskAcknowledgement, Skeleton, TransactionReview } from "../common";
 import { TxStatusDialog } from "../tx/TxStatusDialog";
 import { TokenSelect } from "../swap/TokenSelect";
 
 type AssetSide = "a" | "b";
+type CreatePoolReview = {
+  assets: [RegistryAsset, RegistryAsset];
+  option: CreatePoolConfigOption;
+  configVersion: string;
+  networkFeeEstimate?: NetworkFeeEstimate;
+};
 
 function feeLabel(feeBps?: number) {
   return typeof feeBps === "number" ? `${(feeBps / 100).toFixed(2)}% total fee` : "Factory default fee";
@@ -36,6 +43,9 @@ export function CreatePoolPage() {
   const [assetBId, setAssetBId] = useState("");
   const [customAssets, setCustomAssets] = useState<Partial<Record<AssetSide, RegistryAsset>>>({});
   const [riskAcknowledged, setRiskAcknowledged] = useState(false);
+  const [review, setReview] = useState<CreatePoolReview>();
+  const [isPreparingReview, setIsPreparingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string>();
   const configQuery = useQuery({ queryKey: ["factory-config", dexRegistry.factory], queryFn: queryFactoryConfig, staleTime: 5 * 60_000, retry: 2 });
   const options = useMemo(() => createPoolOptions(configQuery.data?.pair_configs), [configQuery.data?.pair_configs]);
   const selectedOption = options.find((option) => option.id === poolType) ?? options[0];
@@ -75,14 +85,14 @@ export function CreatePoolPage() {
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const signerOrClient = wallet.status === "connected" ? wallet.signer : undefined;
   const createPoolTx = useCreatePoolTx(signerOrClient, walletAddress);
-  const submitDisabled = wallet.status !== "connected" || !network.isJunoReady || network.isWrongNetwork || configQuery.isError || duplicateQuery.isError || !validation.isValid || createPoolTx.isPending;
+  const submitDisabled = wallet.status !== "connected" || !network.isJunoReady || network.isWrongNetwork || configQuery.isError || duplicateQuery.isError || !validation.isValid || createPoolTx.isPending || isPreparingReview;
   const actionCopy = network.isWrongNetwork
     ? "Switch to Juno to create pool"
     : wallet.status !== "connected"
       ? "Connect wallet to create pool"
       : createPoolTx.isPending
         ? "Creating pool…"
-        : validation.error ?? "Create pool";
+        : isPreparingReview ? "Rechecking availability…" : validation.error ?? "Review pool creation";
 
   const handleCreateCustomAsset = (side: AssetSide, query: string) => {
     const id = query.trim();
@@ -93,10 +103,42 @@ export function CreatePoolPage() {
     else setAssetBId(asset.id);
   };
 
-  const handleCreate = () => {
+  const prepareCreateReview = async () => {
     if (submitDisabled || !selectedAssets || !selectedOption) return;
-    createPoolTx.mutate({ assets: selectedAssets, option: selectedOption }, {
+    setIsPreparingReview(true);
+    setReviewError(undefined);
+    const [freshConfig, freshDuplicate] = await Promise.all([configQuery.refetch(), duplicateQuery.refetch()]);
+    setIsPreparingReview(false);
+    if (!freshConfig.data || freshConfig.isError) {
+      setReviewError("Current pool-creation settings could not be verified. Try again before reviewing.");
+      return;
+    }
+    if (localDuplicate || freshDuplicate.data) {
+      setReviewError("A pool for these assets now exists. Creation is blocked to avoid a duplicate market.");
+      return;
+    }
+    const freshOption = createPoolOptions(freshConfig.data.pair_configs).find((option) => option.id === selectedOption.id);
+    if (!freshOption || freshOption.disabled) {
+      setReviewError("The selected pool type is no longer available.");
+      return;
+    }
+    const reviewedAssets = [...selectedAssets] as [RegistryAsset, RegistryAsset];
+    const instruction = buildCreatePoolExecuteInstruction({ assets: reviewedAssets, option: freshOption });
+    const networkFeeEstimate = await estimateExecuteNetworkFee(signerOrClient, walletAddress, [instruction]).catch(() => undefined);
+    setReview({ assets: reviewedAssets, option: freshOption, configVersion: JSON.stringify(freshConfig.data.pair_configs), networkFeeEstimate });
+  };
+
+  const reviewIsCurrent = Boolean(review
+    && review.assets[0].id === selectedAssets?.[0].id
+    && review.assets[1].id === selectedAssets?.[1].id
+    && review.option.id === selectedOption?.id
+    && review.configVersion === JSON.stringify(configQuery.data?.pair_configs));
+
+  const handleCreate = () => {
+    if (!review || !reviewIsCurrent || createPoolTx.isPending) return;
+    createPoolTx.mutate({ assets: review.assets, option: review.option }, {
       onSuccess: (result) => {
+        setReview(undefined);
         if (result.pairAddress) navigate(`/pools/${result.pairAddress}`);
       },
     });
@@ -106,7 +148,7 @@ export function CreatePoolPage() {
     <section className="panel-page create-pool-page" aria-labelledby="create-pool-title">
       <p className="eyebrow">Create pool</p>
       <h2 id="create-pool-title">Permissionless pool</h2>
-      <p>Select two verified or custom assets, choose an available pool type, review risk guardrails, then broadcast <code>create_pair</code> on Juno.</p>
+      <p>Select two assets, choose an available pool type, and review the risks before asking your wallet to create the empty pool.</p>
 
       <Stack className="swap-card" direction="vertical" space="6">
         <Stack className="swap-card-header" direction="horizontal" align="center" justify="space-between" flexWrap="wrap">
@@ -122,9 +164,9 @@ export function CreatePoolPage() {
 
         <Box>
           <Text as="p" className="eyebrow">2 · Pool type</Text>
-          {configQuery.isLoading ? <div className="lp-position-skeleton" aria-label="Loading factory config"><Skeleton width="16rem" /><Skeleton width="24rem" /></div> : null}
-          {configQuery.isError ? <ErrorState title="Factory config unavailable" error="Pool type availability cannot be verified, so pool creation stays disabled until the factory config query succeeds." onRetry={() => void configQuery.refetch()} /> : null}
-          {!configQuery.isLoading && options.length === 0 ? <EmptyState title="No factory pool types available">The factory returned no enabled create_pair configs. No default pool type is assumed.</EmptyState> : null}
+          {configQuery.isLoading ? <div className="lp-position-skeleton" role="status" aria-label="Loading available pool types"><Skeleton width="16rem" /><Skeleton width="24rem" /></div> : null}
+          {configQuery.isError ? <ErrorState title="Pool types unavailable" error="Pool creation stays disabled until the available types can be verified. Try again." onRetry={() => void configQuery.refetch()} /> : null}
+          {!configQuery.isLoading && options.length === 0 ? <EmptyState title="No pool types available">This network currently offers no pool type that can be created from the app.</EmptyState> : null}
           <div className="create-pool-type-grid" role="radiogroup" aria-label="Pool type">
             {options.map((option) => (
               <label className={`metric-card create-pool-type${option.id === poolType ? " active" : ""}${option.disabled ? " disabled" : ""}`} key={option.id}>
@@ -133,7 +175,7 @@ export function CreatePoolPage() {
                 <span className="create-pool-type-copy">
                   <strong>{option.label}</strong>
                   <span>{feeLabel(option.feeBps)}</span>
-                  {option.unsupportedReason ? <small className="error-text">{option.unsupportedReason}</small> : <small>Factory configured for permissionless create_pair.</small>}
+                  {option.unsupportedReason ? <small className="error-text">{option.unsupportedReason}</small> : <small>Available for anyone to create.</small>}
                 </span>
               </label>
             ))}
@@ -141,15 +183,41 @@ export function CreatePoolPage() {
         </Box>
 
         {localDuplicate ? <div className="empty-state"><strong>Existing pool detected.</strong> <a href={`/pools/${localDuplicate.pair}`}>Open {localDuplicate.label}</a> instead of creating a duplicate.</div> : null}
-        {duplicateQuery.isFetching ? <p>Checking factory for an existing pair…</p> : null}
+        {duplicateQuery.isFetching ? <p>Checking for an existing pool…</p> : null}
         <div className="empty-state compact create-guardrails"><strong>Guardrails</strong><ul>{validation.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>
         <RiskAcknowledgement assessment={validation.risk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="pool creation" />
         {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
         {validation.error && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validation.error}</Text> : null}
-        {createPoolTx.isError ? <Text as="p" className="error-text">{createPoolTx.error instanceof Error ? createPoolTx.error.message : "Create pool failed"}</Text> : null}
-        {createPoolTx.isSuccess ? <Text as="p" className="success-text">Create pool transaction broadcast. Factory pools are refreshing.</Text> : null}
+        {reviewError ? <p className="error-text" role="alert">{reviewError}</p> : null}
+        <Button intent="primary" className="primary-action" disabled={submitDisabled} fluidWidth onClick={prepareCreateReview} domAttributes={{ type: "button" }}>{actionCopy}</Button>
         <TxStatusDialog state={createPoolTx.txState} />
-        <Button intent="primary" className="primary-action" disabled={submitDisabled} fluidWidth onClick={handleCreate} domAttributes={{ type: "button" }}>{actionCopy}</Button>
+        <TransactionReview
+          open={Boolean(review)}
+          title="Review pool creation"
+          description="This transaction creates an empty pool only. It does not deposit assets or establish a price; liquidity must be added in a separate reviewed transaction."
+          account={walletAddress}
+          chainId={network.connectedChainId ?? network.expectedChainId}
+          networkFeeEstimate={review?.networkFeeEstimate}
+          rows={review ? [
+            { label: "First asset · fixed", value: `${review.assets[0].symbol} · ${review.assets[0].verified === true ? "verified" : "unverified"}`, tone: review.assets[0].verified === true ? "default" as const : "warning" as const },
+            { label: "Second asset · fixed", value: `${review.assets[1].symbol} · ${review.assets[1].verified === true ? "verified" : "unverified"}`, tone: review.assets[1].verified === true ? "default" as const : "warning" as const },
+            { label: "Pool type · fixed", value: review.option.label },
+            { label: "Trading fee · network configured", value: feeLabel(review.option.feeBps) },
+            { label: "Initial liquidity", value: "None — separate transaction required", tone: "warning" as const },
+            { label: "Price and impact", value: "Not applicable until liquidity is deposited" },
+          ] : []}
+          disclosures={review ? [
+            { label: "Pool creation contract", value: dexRegistry.factory },
+            { label: `${review.assets[0].symbol} identifier`, value: review.assets[0].id },
+            { label: `${review.assets[1].symbol} identifier`, value: review.assets[1].id },
+            { label: "Pair type", value: JSON.stringify(review.option.pairType) },
+          ] : []}
+          warning={!reviewIsCurrent && review ? "Assets, pool type, or network settings changed. Close this review and prepare a new one." : review?.assets.some((asset) => asset.verified !== true) ? "At least one asset is unverified. Verify its full identifier before signing." : undefined}
+          confirmDisabled={!reviewIsCurrent}
+          pending={createPoolTx.isPending}
+          onClose={() => setReview(undefined)}
+          onConfirm={handleCreate}
+        />
       </Stack>
     </section>
   );

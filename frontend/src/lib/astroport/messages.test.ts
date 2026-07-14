@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RegistryAsset } from "../../config/registry";
-import { createProvideLiquidityMessage, createSwapMessage } from "./messages";
+import { fromBase64, fromUtf8 } from "@cosmjs/encoding";
+import { createCw20SwapSendMessage, createProvideLiquidityMessage, createSwapMessage } from "./messages";
 
 const juno: RegistryAsset = { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 };
 const testToken: RegistryAsset = { kind: "ibc", id: "ibc/test", symbol: "TEST", decimals: 6 };
@@ -10,6 +11,7 @@ const factoryToken: RegistryAsset = {
   symbol: "AGENT",
   decimals: 6,
 };
+const cw20: RegistryAsset = { kind: "cw20", id: "juno1cw20token000000000000000000000000000000000", symbol: "CW20", decimals: 6 };
 
 describe("createSwapMessage", () => {
   it("builds a direct pair swap payload with native funds and max spread", () => {
@@ -26,6 +28,14 @@ describe("createSwapMessage", () => {
       funds: [{ denom: "ujuno", amount: "1000000" }],
     });
   });
+
+  it("uses an atomic CW20 send hook instead of an unfunded pair execute", () => {
+    const msg = createCw20SwapSendMessage("juno1pair", testToken, "1000000", "0.005");
+    expect(msg.send).toMatchObject({ contract: "juno1pair", amount: "1000000" });
+    expect(JSON.parse(fromUtf8(fromBase64(msg.send.msg)))).toEqual({
+      swap: { ask_asset_info: { native_token: { denom: "ibc/test" } }, max_spread: "0.005" },
+    });
+  });
 });
 
 describe("createProvideLiquidityMessage", () => {
@@ -40,5 +50,9 @@ describe("createProvideLiquidityMessage", () => {
       { denom: factoryToken.id, amount: "2000000" },
       { denom: "ujuno", amount: "1000000" },
     ]);
+  });
+
+  it("hard-blocks CW20 deposits until exact allowance execution is implemented", () => {
+    expect(() => createProvideLiquidityMessage([juno, cw20], ["1", "1"])).toThrow(/exact allowances/i);
   });
 });

@@ -23,12 +23,12 @@ export function RiskBadgeList({ assessment, max = 4 }: { assessment: RiskAssessm
 }
 
 export function RiskAcknowledgement({ assessment, checked, onChange, action }: { assessment: RiskAssessment; checked: boolean; onChange: (checked: boolean) => void; action: string }) {
-  if (!assessment.requiresAcknowledgement) return null;
+  if (!assessment.requiresAcknowledgement || assessment.blocked) return null;
   const risks = assessment.badges.filter((badge) => badge.requiresAcknowledgement).map((badge) => badge.label).join(", ");
   return (
     <label className="price-impact-warning price-impact-danger risk-acknowledgement">
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      I understand this {action} uses unverified or risky assets ({risks}) and have verified the denoms and pool address.
+      I understand this {action} uses unverified or risky assets ({risks}) and have checked the asset identifiers and pool address.
     </label>
   );
 }

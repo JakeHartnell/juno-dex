@@ -3,7 +3,7 @@ import type { RegistryPool } from "../../config/registry";
 import { type PoolCandleRange } from "../../lib/data-access/indexerFallback";
 import type { IndexerCandleInterval, IndexerPoolCandle } from "../../lib/indexer/types";
 import { usePoolCandles } from "../../queries/usePools";
-import { EmptyState, ErrorState, Skeleton } from "../common";
+import { OptionalDataState, Skeleton } from "../common";
 
 const INTERVALS: IndexerCandleInterval[] = ["5m", "1h", "1d"];
 const RANGES: PoolCandleRange[] = ["24h", "7d", "30d", "90d"];
@@ -43,10 +43,14 @@ export function PriceCandleChart({ pool, title = "Price chart", compact = false,
 
       {showControls ? <ChartControls interval={interval} range={range} onInterval={setInterval} onRange={setRange} /> : null}
 
+      {candles.data.length > 0 && candles.access?.updatedAt ? (
+        <p className="optional-data-timestamp">{candles.access.isStale ? "Last available" : "Updated"} {formatDataTime(candles.access.updatedAt)}</p>
+      ) : null}
+
       {candles.isLoading || candles.isFetching ? <div className="chart-loading"><Skeleton width="100%" /> Loading candles…</div> : null}
-      {candles.access?.error ? <ErrorState title="Candle data unavailable" error={`${candles.access.error.message}. No synthetic chart data is shown.`} onRetry={() => void candles.refetch()} /> : null}
+      {candles.access?.error ? <OptionalDataState title="Price history is unavailable" onRetry={() => void candles.refetch()}>Trading and pool actions are unaffected.</OptionalDataState> : null}
       {!candles.isLoading && !candles.access?.error && candles.data.length === 0 ? (
-        <EmptyState title="No candles returned">The indexer did not return {interval} candles for {range}; no fake chart is displayed.</EmptyState>
+        <OptionalDataState title="No price history yet">No {interval} prices were returned for {range}. Trading and pool actions are unaffected.</OptionalDataState>
       ) : null}
       {candles.data.length > 0 ? <SvgCandleChart candles={candles.data} compact={compact} labelId={describedBy} unit={pool.assets[1]?.symbol ?? "quote"} /> : null}
     </section>
@@ -75,9 +79,11 @@ function SvgCandleChart({ candles, compact, labelId, unit }: { candles: IndexerP
   const hoveredPoint = geometry.points.find((point) => point.key === hoveredPointKey);
   const last = candles.at(-1);
   const first = candles[0];
+  const low = Math.min(...candles.map((candle) => candle.low));
+  const high = Math.max(...candles.map((candle) => candle.high));
 
   return (
-    <div className="chart-render" role="img" aria-describedby={labelId} aria-label={`${candles.length} price candles from ${formatDate(first?.bucketStart)} to ${formatDate(last?.bucketStart)}`}>
+    <div className="chart-render" role="img" tabIndex={0} aria-describedby={labelId} aria-label={`${candles.length} price candles from ${formatDate(first?.bucketStart)} to ${formatDate(last?.bucketStart)}. Latest ${formatPrice(last?.close)} ${unit}; range ${formatPrice(low)} to ${formatPrice(high)} ${unit}.`}>
       <div className={`chart-plot ${compact ? "chart-plot-compact" : ""}`}>
         {!compact ? (
           <div className="chart-y-labels" aria-hidden="true">
@@ -105,10 +111,8 @@ function SvgCandleChart({ candles, compact, labelId, unit }: { candles: IndexerP
             <g
               key={point.key}
               className="chart-point-group"
-              tabIndex={0}
-              aria-label={`${formatDate(point.bucketStart)} close ${formatPrice(point.value)} ${unit}`}
-              onBlur={() => setHoveredPointKey(null)}
-              onFocus={() => setHoveredPointKey(point.key)}
+              aria-hidden="true"
+              data-point-label={`${formatDate(point.bucketStart)} close ${formatPrice(point.value)} ${unit}`}
               onMouseEnter={() => setHoveredPointKey(point.key)}
               onMouseLeave={() => setHoveredPointKey(null)}
             >
@@ -133,6 +137,20 @@ function SvgCandleChart({ candles, compact, labelId, unit }: { candles: IndexerP
           </>
         ) : null}
       </div>
+      {!compact ? (
+        <details className="chart-data-summary">
+          <summary>Accessible price summary</summary>
+          <table>
+            <caption>Price range shown in the chart</caption>
+            <tbody>
+              <tr><th scope="row">Start</th><td>{formatDate(first?.bucketStart)} · {formatPrice(first?.open)} {unit}</td></tr>
+              <tr><th scope="row">Latest</th><td>{formatDate(last?.bucketStart)} · {formatPrice(last?.close)} {unit}</td></tr>
+              <tr><th scope="row">Low</th><td>{formatPrice(low)} {unit}</td></tr>
+              <tr><th scope="row">High</th><td>{formatPrice(high)} {unit}</td></tr>
+            </tbody>
+          </table>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -211,4 +229,10 @@ function formatDate(value: string | undefined) {
 function formatAxisDate(value: string | undefined) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric" }).format(new Date(value));
+}
+
+function formatDataTime(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "at an unknown time";
+  return parsed.toLocaleString();
 }

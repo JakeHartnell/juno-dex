@@ -18,6 +18,9 @@ export function QuoteCard({
   isLoading,
   error,
   slippageBps,
+  minimumReceive,
+  expiresInMs,
+  isExpired,
   onSlippageBps,
 }: {
   quote?: RouteQuote;
@@ -27,6 +30,9 @@ export function QuoteCard({
   error?: unknown;
   slippageBps: number;
   updatedAt?: number;
+  minimumReceive?: string;
+  expiresInMs?: number;
+  isExpired?: boolean;
   onSlippageBps?: (bps: number) => void;
 }) {
   const priceImpact = quote
@@ -35,14 +41,15 @@ export function QuoteCard({
         returnAmount: quote.return_amount,
       })
     : null;
-  const priceImpactClass =
-    priceImpact?.severity === "high"
+  const isRouterRoute = quote?.source === "router";
+  const priceImpactClass = isRouterRoute
+    ? "status-warn"
+    : priceImpact?.severity === "high" || priceImpact?.severity === "extreme"
       ? "status-danger"
       : priceImpact?.severity === "warning"
       ? "status-warn"
       : "status-ok";
   const route = quote?.route;
-  const isRouterRoute = quote?.source === "router";
   const rateLabel =
     quote && offerAsset && askAsset
       ? `1 ${offerAsset.symbol} = ${(
@@ -65,7 +72,7 @@ export function QuoteCard({
   const maxSlippageLabel = formatBpsPercent(slippageBps);
 
   return (
-    <section className="quote-card">
+    <section className={`quote-card${isLoading && quote ? " quote-card-updating" : ""}`} aria-busy={isLoading}>
       <span className="sr-only" aria-live="polite">{isLoading ? "Updating quote" : ""}</span>
       {error ? (
         <ErrorState
@@ -78,6 +85,9 @@ export function QuoteCard({
                 )}`
           }
         />
+      ) : null}
+      {!quote && !error ? (
+        <div className="quote-placeholder" role="status">{isLoading ? "Finding the best available route…" : "Enter an amount to preview rate, route, impact, and minimum received."}</div>
       ) : null}
       {quote && askAsset && route ? (
         <>
@@ -97,15 +107,22 @@ export function QuoteCard({
               <dt>Price impact</dt>
               <dd className={`quote-row-value ${priceImpactClass}`}>
                 {isRouterRoute
-                  ? "—"
+                  ? "Unavailable"
                   : priceImpact
                   ? formatBpsPercent(priceImpact.bps)
                   : "—"}
               </dd>
             </div>
+            {minimumReceive ? (
+              <div>
+                <dt>Minimum received</dt>
+                <dd className="quote-row-value">{formatAmount(minimumReceive, askAsset.decimals)} {askAsset.symbol}</dd>
+              </div>
+            ) : null}
             <div className="slippage-row">
               <dt>Max slippage</dt>
               <dd className="quote-row-value">
+                <span className="slippage-current" aria-label={`Current max slippage ${maxSlippageLabel}`}>{maxSlippageLabel}</span>
                 {onSlippageBps ? (
                   <span
                     className="slippage-chips"
@@ -126,9 +143,13 @@ export function QuoteCard({
                       </button>
                     ))}
                   </span>
-                ) : (
-                  maxSlippageLabel
-                )}
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt>Quote status</dt>
+              <dd className={`quote-row-value ${isExpired ? "status-danger" : "status-ok"}`}>
+                {isExpired ? "Expired — refresh required" : expiresInMs === undefined ? "Fresh" : `Expires in ${Math.max(0, Math.ceil(expiresInMs / 1000))}s`}
               </dd>
             </div>
           </dl>

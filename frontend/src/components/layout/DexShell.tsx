@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import junoLogo from "../../assets/juno-logo-salmon.svg";
 import junoWordmark from "../../assets/juno-wordmark-salmon.svg";
@@ -6,9 +6,13 @@ import { navigationItems, walletNavigationItems } from "../../app/routes";
 import { WalletProvider } from "../../wallet/WalletContext";
 import { NetworkGuardBanner } from "../wallet/NetworkGuardBanner";
 import { WalletConnectButton } from "../wallet/WalletConnectButton";
+import { ChainStatusBadge } from "../wallet/ChainStatusBadge";
+import { IndexerStatusBadge } from "../wallet/IndexerStatusBadge";
+import { junoDeployment } from "../../config/deployment";
 import { SlippageSettingsProvider } from "../../settings/SlippageSettingsContext";
 import { navIconByRoute } from "./NavIcons";
 import { useWallet } from "../../wallet/WalletContext";
+import { useTxHistory } from "../../tx/TxHistoryContext";
 
 export function DexShell({ children }: { children: ReactNode }) {
   return (
@@ -22,8 +26,10 @@ export function DexShell({ children }: { children: ReactNode }) {
 
 function DexShellContent({ children }: { children: ReactNode }) {
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const { wallet } = useWallet();
+  const isMobileLayout = useMediaQuery("(max-width: 860px)");
+  const { wallet, network } = useWallet();
   const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
   useEffect(() => setIsNavOpen(false), [location.pathname]);
   const currentRoute = navigationItems.find((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
   const pageTitle = currentRoute?.label ?? "Swap";
@@ -36,11 +42,17 @@ function DexShellContent({ children }: { children: ReactNode }) {
     ["/liquidity", "Liquidity · Positions"],
   ];
   const topbarCoord = coordByPrefix.find(([prefix]) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))?.[1] ?? pageTitle;
+  useEffect(() => {
+    document.title = `${topbarCoord} | JUNO DEX`;
+    mainRef.current?.focus();
+  }, [location.pathname, topbarCoord]);
 
   const visibleNavigationItems = wallet.status === "connected" ? [...navigationItems, ...walletNavigationItems] : navigationItems;
 
   return (
       <div className="dex-shell">
+        <a className="skip-link" href="#main-content" onClick={() => mainRef.current?.focus()}>Skip to main content</a>
+        <p className="sr-only" aria-live="polite" aria-atomic="true">{topbarCoord} page loaded</p>
         <header className="app-header">
           <div className="header-inner">
             <NavLink className="brand-lockup" to="/swap" aria-label="Juno DEX home">
@@ -52,6 +64,7 @@ function DexShellContent({ children }: { children: ReactNode }) {
                 </h1>
               </span>
             </NavLink>
+            {isMobileLayout ? <div className="mobile-header-account"><WalletConnectButton /></div> : null}
             <button
               className="mobile-nav-toggle"
               type="button"
@@ -82,22 +95,50 @@ function DexShellContent({ children }: { children: ReactNode }) {
           </nav>
           <div className="sidebar-network">
             <span className="eyebrow">Network</span>
-            <div><span>Chain</span><strong>juno-1</strong></div>
-            <div><span>Status</span><strong className="net-live"><span className="net-dot" aria-hidden="true" />Live</strong></div>
-            <div><span>Phase</span><strong>Δ.4.0.0</strong></div>
+            <div><span>Wallet chain</span><strong>{network.connectedChainId ?? "Not connected"}</strong></div>
+            <div><span>Required chain</span><strong>{network.expectedChainId}</strong></div>
+            <div><span>Status</span><strong className={network.isWrongNetwork ? "status-danger" : "net-live"}>{network.isRecovering ? "Connecting" : network.isWrongNetwork ? "Wrong network" : wallet.status === "connected" ? "Ready" : "Read-only"}</strong></div>
+            <div><span>RPC health</span><ChainStatusBadge rpcEndpoint={junoDeployment.rpcEndpoint} /></div>
+            <div><span>Indexer</span><IndexerStatusBadge /></div>
           </div>
         </header>
 
         <div className="app-topbar">
           <span className="eyebrow topbar-coord">{topbarCoord}</span>
           <div className="topbar-actions">
-            <WalletConnectButton />
+            {!isMobileLayout ? <WalletConnectButton /> : null}
           </div>
         </div>
 
         <NetworkGuardBanner />
 
-        <main className="app-main" tabIndex={-1}>{children}</main>
+        <main id="main-content" ref={mainRef} className="app-main" tabIndex={-1}>{children}</main>
+        {isMobileLayout ? <MobileQuickNav walletConnected={wallet.status === "connected"} /> : null}
       </div>
+  );
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(query).matches : false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+  return matches;
+}
+
+function MobileQuickNav({ walletConnected }: { walletConnected: boolean }) {
+  const { records, setCenterOpen } = useTxHistory();
+  return (
+    <nav className="mobile-quick-nav" aria-label="Mobile quick navigation">
+      <NavLink to="/swap" className={({ isActive }) => isActive ? "active" : ""}>Swap</NavLink>
+      <NavLink to="/pools" className={({ isActive }) => isActive ? "active" : ""}>Pools</NavLink>
+      {walletConnected ? <NavLink to="/portfolio" className={({ isActive }) => isActive ? "active" : ""}>Portfolio</NavLink> : null}
+      <button type="button" disabled={records.length === 0} aria-controls="recent-transactions" onClick={() => setCenterOpen(true)}>Activity{records.length > 0 ? ` ${records.length}` : ""}</button>
+    </nav>
   );
 }

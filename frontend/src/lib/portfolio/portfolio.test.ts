@@ -12,6 +12,7 @@ const pool: RegistryPool = {
   feeBps: 30,
   explorer: "https://ping.pub/juno",
   enabled: true,
+  status: "active",
   assets: [
     { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },
     { kind: "native", id: "ibc/usdc", symbol: "USDC", decimals: 6 },

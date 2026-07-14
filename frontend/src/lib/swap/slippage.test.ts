@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateMinimumReceived,
   calculatePriceImpactBps,
+  clampSlippageBps,
   classifyPriceImpact,
   formatBpsPercent,
   slippageBpsToMaxSpread,
@@ -21,6 +22,11 @@ describe("slippage math", () => {
     expect(slippageBpsToMaxSpread(100)).toBe("0.01");
     expect(slippagePercentToBps(0.25)).toBe(25);
   });
+
+  it("clamps legacy stored 50% slippage to the 5% safety ceiling", () => {
+    expect(clampSlippageBps(5_000)).toBe(500);
+    expect(slippagePercentToBps(50)).toBe(500);
+  });
 });
 
 describe("price impact math", () => {
@@ -36,5 +42,7 @@ describe("price impact math", () => {
     expect(classifyPriceImpact(100)).toBe("warning");
     expect(classifyPriceImpact(499)).toBe("warning");
     expect(classifyPriceImpact(500)).toBe("high");
+    expect(classifyPriceImpact(1_499)).toBe("high");
+    expect(classifyPriceImpact(1_500)).toBe("extreme");
   });
 });

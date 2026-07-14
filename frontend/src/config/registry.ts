@@ -19,7 +19,10 @@ export type RegistryAsset = {
     counterpartyChannelId?: string;
   };
   verified?: boolean;
+  blocked?: boolean;
 };
+
+export type PoolLifecycle = "experimental" | "active" | "deprecated" | "blocked";
 
 export type RegistryPool = {
   id: string;
@@ -31,6 +34,7 @@ export type RegistryPool = {
   assets: [RegistryAsset, RegistryAsset];
   explorer: string;
   enabled: boolean;
+  status: PoolLifecycle;
   featured?: boolean;
   notes?: string;
   source?: "registry" | "factory";
@@ -96,7 +100,8 @@ function parseAsset(value: unknown, label: string): RegistryAsset {
   if (typeof value.denomTrace !== "undefined") assertString(value.denomTrace, `${label}.denomTrace`);
   if (typeof value.coingeckoId !== "undefined") assertString(value.coingeckoId, `${label}.coingeckoId`);
   if (typeof value.trace !== "undefined") assertRecord(value.trace, `${label}.trace`);
-  if (typeof value.verified !== "undefined" && typeof value.verified !== "boolean") throw new Error(`${label}.verified must be boolean`);
+  if (typeof value.verified !== "boolean") throw new Error(`${label}.verified must be an explicit boolean`);
+  if (typeof value.blocked !== "undefined" && typeof value.blocked !== "boolean") throw new Error(`${label}.blocked must be boolean when provided`);
   return value as RegistryAsset;
 }
 
@@ -119,6 +124,10 @@ function parsePool(value: unknown, index: number): RegistryPool {
   assertString(value.explorer, `${label}.explorer`);
   if (!value.explorer.startsWith("https://")) throw new Error(`${label}.explorer must be https`);
   if (typeof value.enabled !== "boolean") throw new Error(`${label}.enabled must be boolean`);
+  if (value.status !== "experimental" && value.status !== "active" && value.status !== "deprecated" && value.status !== "blocked") {
+    throw new Error(`${label}.status must be experimental, active, deprecated, or blocked`);
+  }
+  if (typeof value.verified !== "boolean") throw new Error(`${label}.verified must be an explicit boolean`);
   return {
     ...value,
     assets: [parseAsset(value.assets[0], `${label}.assets[0]`), parseAsset(value.assets[1], `${label}.assets[1]`)],
@@ -173,4 +182,9 @@ export function applyDexRegistryEnvOverrides(registry: DexRegistry): DexRegistry
 }
 
 export const dexRegistry = withChainRegistryMetadata(applyDexRegistryEnvOverrides(parseDexRegistry(registryJson)));
-export const enabledPools = dexRegistry.pools.filter((pool) => pool.enabled);
+export function isPoolTradeable(pool: RegistryPool): boolean {
+  return pool.enabled && pool.status === "active" && pool.assets.every((asset) => asset.blocked !== true);
+}
+
+export const configuredPools = dexRegistry.pools.filter((pool) => pool.enabled);
+export const enabledPools = configuredPools.filter(isPoolTradeable);

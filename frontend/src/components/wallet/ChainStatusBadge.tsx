@@ -35,7 +35,7 @@ export function ChainStatusBadge({ rpcEndpoint }: { rpcEndpoint: string }) {
   return (
     <span
       className={`status-pill ${status.isError || isFallback ? "status-warn" : "status-ok"}`}
-      title={isFallback ? `Primary RPC degraded; using fallback ${status.data?.endpoint}` : rpcEndpoint}
+      title={isFallback ? "Primary RPC degraded; a configured fallback is responding." : status.isError ? "No configured RPC endpoint responded." : "Configured Juno RPC is responding."}
     >
       {status.isLoading ? "Juno RPC…" : status.isError ? "RPC degraded" : isFallback ? `Fallback RPC · Block ${status.data?.height}` : `Block ${status.data?.height}`}
     </span>

@@ -21,7 +21,7 @@
 .action-card dt,
 .lp-position-panel dt {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -31,7 +31,7 @@
 /* Big mono numerics for LP position metrics */
 .lp-position-panel .metric-card > span {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -46,7 +46,7 @@
   color: var(--cream);
 }
 .lp-position-panel .metric-card code {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--cream-faint);
 }
 
@@ -67,7 +67,7 @@
 .incentives-panel h4 {
   margin: 0 0 6px;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;

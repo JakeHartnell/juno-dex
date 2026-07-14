@@ -13,10 +13,13 @@ const pool: RegistryPool = {
   type: "xyk",
   feeBps: 30,
   enabled: true,
+  status: "active",
+  verified: true,
+  source: "registry",
   explorer: "https://ping.pub/juno/wasm/contract/juno1pair",
   assets: [
-    { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6 },
-    { kind: "native", id: "factory/pair/token", symbol: "TOKEN", decimals: 6 },
+    { kind: "native", id: "ujuno", symbol: "JUNO", decimals: 6, verified: true },
+    { kind: "native", id: "factory/pair/token", symbol: "TOKEN", decimals: 6, verified: true },
   ],
 };
 
@@ -45,8 +48,9 @@ const mocks = vi.hoisted(() => ({
     } as IncentivesPoolState,
     isLoading: false,
     isError: false,
-  },
+  } as any,
   mutateAsync: vi.fn(),
+  refetch: vi.fn(),
 }));
 
 vi.mock("../../wallet/WalletContext", () => ({
@@ -65,7 +69,8 @@ vi.mock("../../queries/useIncentives", () => ({
 }));
 
 vi.mock("../../mutations/useIncentivesTx", () => ({
-  useIncentivesTx: () => ({ isPending: false, mutateAsync: mocks.mutateAsync }),
+  buildIncentivesExecuteInstruction: () => ({ contractAddress: "juno1incentives", msg: {} }),
+  useIncentivesTx: () => ({ isPending: false, mutateAsync: mocks.mutateAsync, txState: { status: "idle", label: "Ready" } }),
 }));
 
 function renderPanel() {
@@ -82,6 +87,7 @@ describe("IncentivesPanel", () => {
     mocks.network.isWrongNetwork = false;
     mocks.network.isJunoReady = true;
     mocks.mutateAsync.mockReset();
+    mocks.refetch.mockReset();
     mocks.incentives.data = {
       configured: true,
       contractAddress: "juno1incentives",
@@ -90,12 +96,14 @@ describe("IncentivesPanel", () => {
       pendingRewards: [{ info: { native_token: { denom: "ujuno" } }, amount: "1230000" }],
       rewardInfo: [{ index: "0", orphaned: "0", rps: "0.25", reward: { ext: { info: { native_token: { denom: "factory/reward" } }, next_update_ts: 10 } } }],
     };
+    mocks.incentives.refetch = mocks.refetch;
+    mocks.refetch.mockImplementation(async () => ({ data: mocks.incentives.data }));
   });
 
   it("shows configured incentives, APR, staked LP, pending rewards, and external programs", () => {
     renderPanel();
 
-    expect(screen.getByText("12.5% (indexer)")).toBeTruthy();
+    expect(screen.getByText("12.5% estimated")).toBeTruthy();
     expect(screen.getAllByText(/50 JUNO\/TOKEN LP/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/1.23 ujuno/)).toBeTruthy();
     expect(screen.getByText(/External factory\/reward/)).toBeTruthy();
@@ -114,7 +122,8 @@ describe("IncentivesPanel", () => {
     renderPanel();
 
     fireEvent.change(screen.getByLabelText("Stake LP amount"), { target: { value: "25" } });
-    fireEvent.click(screen.getByRole("button", { name: "Stake LP" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review stake" }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm in wallet/i }));
 
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({ action: "stake", pool, amount: "25000000" }));
   });
@@ -124,8 +133,10 @@ describe("IncentivesPanel", () => {
     renderPanel();
 
     fireEvent.change(screen.getByLabelText("Unstake LP amount"), { target: { value: "10" } });
-    fireEvent.click(screen.getByRole("button", { name: "Unstake LP" }));
-    fireEvent.click(screen.getByRole("button", { name: "Claim rewards" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review unstake" }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm in wallet/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Review claim" }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm in wallet/i }));
 
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({ action: "unstake", pool, amount: "10000000" }));
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({ action: "claim", pool, amount: undefined }));

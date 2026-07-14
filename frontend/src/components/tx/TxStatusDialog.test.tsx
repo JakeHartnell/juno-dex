@@ -9,17 +9,17 @@ const result = {
 
 describe("TxStatusDialog", () => {
   it("renders pending/signing state", () => {
-    render(<TxStatusDialog state={{ status: "signing", label: "Awaiting wallet signature", description: "Confirm in wallet" }} />);
+    render(<TxStatusDialog state={{ status: "awaiting-signature", label: "Awaiting wallet signature", description: "Confirm in wallet" }} />);
     expect(screen.getByText("Transaction status")).toBeTruthy();
     expect(screen.getByText("Awaiting wallet signature")).toBeTruthy();
     expect(screen.getByText("Confirm in wallet")).toBeTruthy();
   });
 
   it("renders success with tx hash", () => {
-    render(<TxStatusDialog state={{ status: "success", label: "Transaction succeeded", result }} />);
-    expect(screen.getByText("Transaction succeeded")).toBeTruthy();
+    render(<TxStatusDialog state={{ status: "confirmed", label: "Transaction confirmed", result }} />);
+    expect(screen.getByText("Transaction confirmed")).toBeTruthy();
     expect(screen.getByText("ABC123DEF456")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: /view/i })).toBeNull();
+    expect(screen.getByRole("link", { name: /view transaction in explorer/i }).getAttribute("href")).toContain("/tx/ABC123DEF456");
   });
 
   it("renders failure copy with retry affordance", () => {
