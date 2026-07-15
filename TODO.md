@@ -1,0 +1,16 @@
+UI Cleanup:
+- Clean up Swap form. No "Transaction status" "Awaiting wallet signature" "Swapping JUNO for JUNOAGENT-TEST on Juno…" "Retry transaction" "Request rejected" Tx hash, etc. Those don't belong in the swap form.
+- Remove querying route from swap form, it shifts layout
+- On pools detail page, clean up price chart component. No candles count or "Latest available". Review code and try to make the best UX possible for traders.
+- Pools detail page, Remove pointless Add liquidity, Remove liquidity, Stake / claim buttons on pools details page, or better yet have them open appropriate modals from the manage liquidity section.
+- Pools detail page, Incentives query degraded: REST smart query failed: 500
+- Pools detail page, Remove tags: Verified pool XYK No logo
+- On pools detail page the activity table needs work. Pools / assets column shouldn't show long addresses or token factory address, just tickers. Conver ujuno to Juno, and make sure decimals are applied for numbers. The withdraws column shows USD unavailable, Fee unavailable. I should be easily able to copy the TX hash
+- Hide the stats page for now.
+- Navigation looks horrible on mobile, let's use best practices here.
+- Select your wallet modal doesn't match theme.
+- Right column on swap page needs real data. Real price chart, real recent transactions (last 10)
+- Hide create page from nav for now.
+- Make a SKILL.md file for agents trading on Juno DEX.
+- Choose a different styling for the connect wallet button, it looks visually off.
+- Only show "Portfolio" nav item if wallet is connected

@@ -123,7 +123,6 @@ describe("AddLiquidityForm", () => {
   it("disables stable and PCL add liquidity until type-specific provide math is wired", () => {
     render(<AddLiquidityForm pool={{ ...pool, type: "concentrated" }} />);
 
-    expect(screen.getByText(/PCL deposits disabled/i)).toBeTruthy();
     expect(screen.getAllByText(/PCL provide rules depend on concentration parameters/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: /PCL add liquidity is not supported in the UI yet/i }).hasAttribute("disabled")).toBe(true);
   });
@@ -145,7 +144,6 @@ describe("AddLiquidityForm", () => {
     expect(screen.getByText("Seed initial liquidity")).toBeTruthy();
     expect(screen.getByText("First-provider warning")).toBeTruthy();
     expect(screen.getByPlaceholderText("SEED")).toBeTruthy();
-    expect(screen.getByText(/Initial seeding requires both sides/i)).toBeTruthy();
   });
 
   it("requires typed acknowledgement and review before first deposit", async () => {

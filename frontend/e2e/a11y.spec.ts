@@ -22,7 +22,7 @@ async function expectCurrentPageAxeClean(page: Page) {
 test.describe("accessibility smoke checks", () => {
   test("has no serious or critical WCAG 2.2 axe violations on core routes", async ({ page }) => {
     test.setTimeout(60_000);
-    for (const route of ["/swap", "/pools", "/portfolio", "/create", "/liquidity", "/stats"]) {
+    for (const route of ["/swap", "/pools", "/portfolio", "/create"]) {
       await expectNoSeriousOrCriticalAxeViolations(route, page);
     }
   });
@@ -60,7 +60,7 @@ test.describe("accessibility smoke checks", () => {
   });
 
   test("renders informative text at 12 CSS pixels or larger across core routes", async ({ page }) => {
-    for (const route of ["/swap", "/pools", "/portfolio", "/create", "/liquidity", "/stats"]) {
+    for (const route of ["/swap", "/pools", "/portfolio", "/create"]) {
       await page.goto(route);
       const undersized = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>("body *")).flatMap((element) => {
         const visible = element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";

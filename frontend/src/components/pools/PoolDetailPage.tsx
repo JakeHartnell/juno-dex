@@ -41,33 +41,16 @@ export function PoolDetailPage() {
           <p className="eyebrow pool-detail-eyebrow">Pool · {pool.assets.map((asset) => asset.symbol).join(" / ")}</p>
           <h2>{pool.label}</h2>
           <p className="pool-detail-meta">{poolType?.label ?? pool.type.toUpperCase()} · {pool.feeBps} bps fee</p>
-          <RiskBadgeList assessment={risk} />
+          <RiskBadgeList assessment={risk} max={6} />
         </div>
         <Link className="pool-detail-back" to="/pools">← Back to pools</Link>
       </header>
 
       <section id="position"><LpPositionPanel pool={pool} compact onAdd={() => setManageAction("add")} onRemove={() => setManageAction("remove")} onStake={() => setManageAction("stake")} /></section>
 
-      <section className="pool-detail-section" aria-labelledby="manage-liquidity-title">
-        <h3 id="manage-liquidity-title">Manage your position</h3>
-        <p className="pool-metrics-copy">Choose what you want to do with this pool.</p>
-        <div className="manage-liquidity-actions">
-          <button type="button" onClick={() => setManageAction("add")}>Add liquidity</button>
-          <button type="button" onClick={() => setManageAction("remove")}>Remove liquidity</button>
-          <button type="button" onClick={() => setManageAction("stake")}>Manage rewards</button>
-        </div>
-      </section>
-
       <Modal open={manageAction === "add"} title={`Add liquidity · ${pool.label}`} onClose={() => setManageAction(null)}><AddLiquidityForm pool={pool} /></Modal>
       <Modal open={manageAction === "remove"} title={`Remove liquidity · ${pool.label}`} onClose={() => setManageAction(null)}><RemoveLiquidityForm pool={pool} /></Modal>
       <Modal open={manageAction === "stake"} title={`LP incentives · ${pool.label}`} onClose={() => setManageAction(null)}><IncentivesPanel pool={pool} metrics={metrics} /></Modal>
-
-      <section className="pool-detail-section" aria-labelledby="risk-title">
-        <h3 id="risk-title">Pool status and risk</h3>
-        <RiskBadgeList assessment={risk} max={6} />
-        <p className="pool-metrics-copy">{risk.verified ? "This pool is in the reviewed pool list." : "This pool is not verified. Check both assets and the pool address before continuing."}</p>
-        {reserves.isError ? <p className="pool-service-note">Current balances are unavailable. Position estimates and pool composition may be incomplete.</p> : null}
-      </section>
 
       <section className="pool-detail-section" aria-labelledby="analytics-title">
         <h3 id="analytics-title">Performance</h3>
@@ -83,12 +66,13 @@ export function PoolDetailPage() {
       </section>
 
       <section className="pool-detail-section" aria-labelledby="composition-title">
-        <h3 id="composition-title">Reserve composition</h3>
+        <h3 id="composition-title">Pool reserves</h3>
+        {reserves.isError ? <p className="pool-service-note">Current balances are unavailable. Position estimates and reserves may be incomplete.</p> : null}
         <div className="metrics-grid">
           {pool.assets.map((asset, index) => (
-            <ReserveCard key={asset.id} asset={asset} index={index} pool={pool} reserves={reserves.data} />
+            <ReserveCard key={asset.id} asset={asset} index={index} reserves={reserves.data} />
           ))}
-          <MetricCard label="Current price" value={formatCurrentPrice(pool, reserves.data)} hint={`${poolType?.swapCopy ?? "Spot ratio from reserves"} Spot ratio from ${pool.assets[0].symbol} and ${pool.assets[1].symbol} reserves`} />
+          <MetricCard label="Current price" value={formatCurrentPrice(pool, reserves.data)} hint={`Spot ratio from ${pool.assets[0].symbol} and ${pool.assets[1].symbol} reserves`} />
         </div>
       </section>
 
@@ -134,14 +118,12 @@ function MetricCard({ label, value, hint }: { label: string; value: string; hint
   return <div className="metric-card"><span>{label}</span><strong className={valueClass}>{value}</strong>{hint ? <code>{hint}</code> : null}</div>;
 }
 
-function ReserveCard({ asset, index, pool, reserves }: { asset: RegistryAsset; index: number; pool: RegistryPool; reserves: PoolResponse | undefined }) {
+function ReserveCard({ asset, index, reserves }: { asset: RegistryAsset; index: number; reserves: PoolResponse | undefined }) {
   const reserve = reserves?.assets[index]?.amount;
-  const share = reserveCompositionPercent(pool, reserves, index);
   return (
     <div className="metric-card">
     <span className="pool-asset-heading"><TokenLogo asset={asset} size="sm" /> {asset.name ?? asset.symbol}</span>
     <strong>{reserve ? `${formatAmount(reserve, asset.decimals)} ${asset.symbol}` : "—"}</strong>
-    <code>{share ?? "Composition unavailable"}</code>
     <details className="identifier-disclosure"><summary>Asset identifier</summary><code>{asset.id}</code>{asset.denomTrace ? <small>{asset.denomTrace}</small> : null}</details>
     </div>
   );
@@ -154,22 +136,12 @@ function typeSpecificCopy(pool: RegistryPool) {
   return metadata.detailCopy;
 }
 
-function reserveCompositionPercent(pool: RegistryPool, reserves: PoolResponse | undefined, index: number) {
-  if (!reserves) return undefined;
-  const normalized = pool.assets.map((asset, assetIndex) => normalizedNumber(reserves.assets[assetIndex]?.amount, asset.decimals));
-  const total = normalized.reduce((sum, value) => sum + value, 0);
-  if (!Number.isFinite(total) || total <= 0) return undefined;
-  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format((normalized[index] / total) * 100)}% of token units`;
-}
-
 function formatCurrentPrice(pool: RegistryPool, reserves: PoolResponse | undefined) {
   if (!reserves) return "—";
   const base = normalizedNumber(reserves.assets[0]?.amount, pool.assets[0].decimals);
   const quote = normalizedNumber(reserves.assets[1]?.amount, pool.assets[1].decimals);
   if (!Number.isFinite(base) || !Number.isFinite(quote) || base <= 0 || quote <= 0) return "Unavailable";
-  const price = quote / base;
-  const inverse = base / quote;
-  return `1 ${pool.assets[0].symbol} ≈ ${formatRatio(price)} ${pool.assets[1].symbol} · 1 ${pool.assets[1].symbol} ≈ ${formatRatio(inverse)} ${pool.assets[0].symbol}`;
+  return `1 ${pool.assets[0].symbol} ≈ ${formatRatio(quote / base)} ${pool.assets[1].symbol}`;
 }
 
 function normalizedNumber(amount: string | undefined, decimals: number) {

@@ -76,9 +76,6 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           </p>
         ) : null}
       </fieldset>
-      <dl>
-        <div><dt>Selected slippage</dt><dd>{formatSlippagePercent(slippageBps)}%</dd></div>
-      </dl>
       <details className="identifier-disclosure">
         <summary>Technical settings</summary>
         <dl>

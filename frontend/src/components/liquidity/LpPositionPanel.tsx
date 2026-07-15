@@ -61,7 +61,7 @@ export function LpPositionPanel({ pool, compact = false, onAdd, onRemove, onStak
           <Skeleton width="85%" height="1.2rem" />
         </div>
       ) : !position.hasPosition ? (
-        <EmptyState title="No LP balance for this pool" action={onAdd ? <button className="wallet-inline-action" type="button" onClick={onAdd}>Add liquidity</button> : <Link className="wallet-inline-action" to={poolHref}>Add liquidity</Link>}>
+        <EmptyState title="No LP balance for this pool">
           Your wallet does not currently hold {lp.symbol}. Add liquidity to mint LP shares for this pool.
         </EmptyState>
       ) : (
@@ -89,10 +89,6 @@ export function LpPositionPanel({ pool, compact = false, onAdd, onRemove, onStak
                 </dd>
               </div>
             ))}
-            <div>
-              <dt>Underlying value</dt>
-              <dd className="quote-detail-value">USD pricing unavailable</dd>
-            </div>
           </dl>
         </>
       )}
@@ -100,7 +96,7 @@ export function LpPositionPanel({ pool, compact = false, onAdd, onRemove, onStak
       <div className="lp-position-actions" aria-label="LP quick actions">
         {onAdd ? <button className="wallet-inline-action" type="button" onClick={onAdd}>Add liquidity</button> : <Link className="wallet-inline-action" to={poolHref}>Add liquidity</Link>}
         {onRemove ? <button className="wallet-inline-action" type="button" onClick={onRemove}>Remove liquidity</button> : <Link className="wallet-inline-action" to={poolHref}>Remove liquidity</Link>}
-        {onStake ? <button className="wallet-inline-action" type="button" onClick={onStake}>Stake / claim</button> : <Link className="wallet-inline-action" to={`${poolHref}#incentives`}>Stake / claim</Link>}
+        {onStake ? <button className="wallet-inline-action" type="button" onClick={onStake}>Stake / claim</button> : <Link className="wallet-inline-action" to={poolHref}>Stake / claim</Link>}
       </div>
     </section>
   );

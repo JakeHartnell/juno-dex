@@ -91,7 +91,36 @@
   height: 15px;
 }
 
-/* ── Inline quote rows (Rate / Route / Price impact / Max slippage) ── */
+/* ── Quote: the rate is the only always-visible line; the rest expands ── */
+.swap-page-grid .swap-card .quote-disclosure {
+  margin: 0;
+}
+.swap-page-grid .swap-card .quote-rate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--cream);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+.swap-page-grid .swap-card .quote-rate::-webkit-details-marker { display: none; }
+.swap-page-grid .swap-card .quote-disclosure-chevron {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--cream-mute);
+  border-bottom: 1.5px solid var(--cream-mute);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+.swap-page-grid .swap-card .quote-disclosure[open] .quote-disclosure-chevron {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+
 .swap-page-grid .swap-card .quote-rows {
   display: grid;
   gap: 10px;
@@ -130,15 +159,6 @@
 .swap-page-grid .swap-card .quote-details { margin-top: 10px; }
 
 /* ── Slippage preset chips ───────────────────────────────────────── */
-.swap-page-grid .swap-card .slippage-chips {
-  display: inline-flex;
-  gap: 6px;
-}
-.swap-page-grid .swap-card .slippage-current {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--cream);
-}
 .swap-review-rows {
   display: grid;
   gap: 10px;
@@ -153,24 +173,3 @@
 .transaction-review-description { margin: 0; line-height: 1.5; }
 .transaction-review-disclosure summary { cursor: pointer; color: var(--coral); font-weight: 700; }
 .transaction-review-disclosure code { overflow-wrap: anywhere; }
-.swap-page-grid .swap-card .slippage-chip {
-  padding: 4px 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-sm, 3px);
-  background: transparent;
-  color: var(--cream-mute);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: border-color 120ms var(--ease-mech), color 120ms var(--ease-mech), background 120ms var(--ease-mech);
-}
-.swap-page-grid .swap-card .slippage-chip:hover {
-  border-color: var(--line-strong);
-  color: var(--cream);
-}
-.swap-page-grid .swap-card .slippage-chip.active {
-  border-color: var(--coral);
-  color: var(--coral);
-  background: var(--coral-a12);
-}

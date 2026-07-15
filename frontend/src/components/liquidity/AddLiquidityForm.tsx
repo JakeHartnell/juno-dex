@@ -245,11 +245,6 @@ export function AddLiquidityForm({ pool }: { pool: RegistryPool }) {
         </Box>
       ) : null}
 
-      <Box className="empty-state compact">
-        <strong>{poolType.supportsProvideLiquidity ? isFirstProvider ? "Initial seeding requires both sides" : "Single-sided deposits unavailable" : `${poolType.shortLabel} deposits disabled`}</strong>
-        <p>{poolType.supportsProvideLiquidity ? isFirstProvider ? "Because this pool is empty, enter both assets manually to define the starting price before broadcasting provide_liquidity." : "This pool currently exposes proportional provide liquidity only in the app. Enter either side and the other side will be calculated from current reserves." : poolType.provideCopy}</p>
-      </Box>
-
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
       <RiskAcknowledgement assessment={risk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="liquidity action" />
       {validationError && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validationError}</Text> : null}

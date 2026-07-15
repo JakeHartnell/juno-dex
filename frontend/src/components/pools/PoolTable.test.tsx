@@ -138,7 +138,7 @@ describe("PoolTable", () => {
     mocks.access = { source: "indexer", isFallback: false, isMock: false, isStale: false };
     renderPoolTable();
 
-    fireEvent.change(screen.getByLabelText(/sort by/i), { target: { value: "tvl" } });
+    fireEvent.click(screen.getByRole("button", { name: /^TVL/ }));
     const rows = screen.getAllByRole("row").slice(1);
     expect(within(rows[0]).getByText("ATOM / USDC")).toBeTruthy();
     expect(within(rows[1]).getByText("JUNO / USDC")).toBeTruthy();
@@ -163,7 +163,7 @@ describe("PoolTable", () => {
     mocks.access = { source: "indexer", isFallback: false, isMock: false, isStale: false };
     renderPoolTable();
 
-    fireEvent.change(screen.getByLabelText(/sort by/i), { target: { value: "tvl" } });
+    fireEvent.click(screen.getByRole("button", { name: /^TVL/ }));
     const rows = screen.getAllByRole("row").slice(1);
     expect(within(rows[0]).getByText("ATOM / USDC")).toBeTruthy();
     expect(screen.getByText("500 JUNO")).toBeTruthy();

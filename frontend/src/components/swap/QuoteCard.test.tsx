@@ -15,7 +15,7 @@ vi.mock("../../queries/usePools", () => ({
 }));
 
 describe("QuoteCard layout", () => {
-  it("shows the route inline and marks values so long text can wrap inside the card", () => {
+  it("keeps the route inside the collapsed details and marks values so long text can wrap", () => {
     const pool = dexRegistry.pools[0];
     const askAsset = pool.assets[1];
     const quote: RouteQuote = {
@@ -36,12 +36,12 @@ describe("QuoteCard layout", () => {
 
     const routeLabel = screen.getAllByText("Route").find((element) => element.tagName === "DT");
     expect(routeLabel?.closest("dl")?.className).toBe("quote-rows");
+    expect(routeLabel?.closest("details")).toBeTruthy();
     expect(screen.getByText(/JUNO → JUNOAGENT-TEST/i).closest("dd")?.className).toBe("quote-row-value route-value");
   });
 
-  it("renders the compact inline quote rows without an expandable details panel", () => {
-    const pool = { ...dexRegistry.pools[0], type: "stable" as const };
-    const askAsset = pool.assets[1];
+  it("shows the rate as the only always-visible line and collapses the detail rows", () => {
+    const pool = dexRegistry.pools[0];
     const quote: RouteQuote = {
       offer_amount: "1000000",
       return_amount: "1000000",
@@ -56,15 +56,17 @@ describe("QuoteCard layout", () => {
       },
     };
 
-    render(<QuoteCard quote={quote} askAsset={askAsset} isLoading={false} slippageBps={50} />);
+    render(<QuoteCard quote={quote} offerAsset={pool.assets[0]} askAsset={pool.assets[1]} isLoading={false} slippageBps={50} />);
 
-    expect(screen.getByText("Rate")).toBeTruthy();
-    expect(screen.getByText("Max slippage")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /quote details/i })).toBeNull();
-    expect(screen.queryByText("Network fee")).toBeNull();
+    const details = document.querySelector("details.quote-disclosure");
+    expect(details).toBeTruthy();
+    expect((details as HTMLDetailsElement).open).toBe(false);
+    expect(screen.getByText(/^1 JUNO = /)).toBeTruthy();
+    expect(screen.getByText("Max slippage").closest("details")).toBe(details);
+    expect(screen.queryByText("Quote status")).toBeNull();
   });
 
-  it("always exposes the effective custom slippage value alongside presets", () => {
+  it("reports the effective slippage read-only; the gear is the only place to change it", () => {
     const pool = dexRegistry.pools[0];
     const quote: RouteQuote = {
       offer_amount: "1000000",
@@ -76,9 +78,10 @@ describe("QuoteCard layout", () => {
       route: { id: "direct", hops: [{ pool, offerAsset: pool.assets[0], askAsset: pool.assets[1] }], operations: [] },
     };
 
-    render(<QuoteCard quote={quote} offerAsset={pool.assets[0]} askAsset={pool.assets[1]} isLoading={false} slippageBps={237} onSlippageBps={vi.fn()} />);
+    render(<QuoteCard quote={quote} offerAsset={pool.assets[0]} askAsset={pool.assets[1]} isLoading={false} slippageBps={237} />);
 
-    expect(screen.getByLabelText("Current max slippage 2.37%")).toBeTruthy();
-    expect(screen.getByRole("group", { name: /max slippage preset/i })).toBeTruthy();
+    expect(screen.getByText("2.37%")).toBeTruthy();
+    expect(screen.queryByRole("group", { name: /max slippage preset/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "0.5%" })).toBeNull();
   });
 });

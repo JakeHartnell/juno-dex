@@ -357,43 +357,14 @@ select:focus-visible {
   display: grid;
   gap: 8px;
   padding: 0 6px;
-  color: var(--cream-mute);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
 }
+.sidebar-network:empty { display: none; }
 
-.sidebar-network .eyebrow {
-  margin-bottom: 2px;
-  color: var(--cream-faint);
-}
 
-.sidebar-network div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
 
-.sidebar-network span { color: var(--cream-faint); }
 
-.sidebar-network strong {
-  color: var(--cream-dim);
-  font-weight: 400;
-}
 
-.sidebar-network .net-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--signal-ok);
-}
 
-.net-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--signal-ok);
-  box-shadow: 0 0 8px var(--signal-ok);
-}
 
 .settings-panel {
   position: absolute;
@@ -689,13 +660,10 @@ select:focus-visible {
 .hero-panel,
 .swap-card,
 .panel-page,
-.risk-notice,
 .quote-card,
 .metric-card,
 .action-card,
 .tx-card,
-.stats-chart-panel,
-.stats-top-pools,
 .lp-position-panel,
 .wallet-history-section,
 .price-chart-card {
@@ -734,12 +702,19 @@ select:focus-visible {
 }
 
 .slippage-icon-button {
-  width: 34px;
   height: 34px;
-  display: grid;
-  place-items: center;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
   color: var(--cream-mute);
+}
+
+/* The current tolerance is visible on the trigger, so the quote card doesn't repeat it. */
+.slippage-pill-value {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--cream-dim);
 }
 
 .slippage-icon {
@@ -922,13 +897,7 @@ select:focus,
 
 .quote-card-updating { opacity: 0.66; }
 
-.swap-mode-copy {
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-}
 
-.swap-mode-copy strong { color: var(--cream); }
 
 .selected-token-origin {
   color: var(--cream-mute);
@@ -1123,7 +1092,6 @@ button:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
 .error-text { color: var(--coral-hot); }
 .success-text { color: var(--signal-ok); }
 
-.risk-notice,
 .price-impact-warning,
 .network-guard-banner,
 .empty-state,
@@ -1134,8 +1102,6 @@ button:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
   color: var(--cream-dim);
 }
 
-.risk-notice { padding: 16px; margin-bottom: 16px; }
-.risk-notice-compact { font-size: 0.95rem; }
 .price-impact-warning { margin-top: 12px; padding: 12px; line-height: 1.45; }
 .price-impact-danger { display: flex; gap: 10px; align-items: flex-start; border-color: rgba(255, 123, 124, 0.55); background: rgba(198, 72, 74, 0.14); }
 .price-impact-danger input { width: auto; margin-top: 0.25rem; }
@@ -1508,14 +1474,6 @@ button:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
 }
 .primary-link:hover { color: var(--maroon-deep); background: var(--coral-bright); }
 .secondary-link { background: transparent; color: var(--coral); }
-.stats-unavailable { margin: 0; }
-.stats-metric-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-.stats-metric-card { margin: 0; min-width: 0; }
-.stats-metric-card small { color: var(--coral); }
 .metric-card,
 .action-card {
   padding: 18px;
@@ -1525,7 +1483,6 @@ button:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
 }
 .metric-card span { color: var(--cream-mute); }
 .metric-card strong { font-size: 1.6rem; }
-.stats-chart-panel,
 .stats-top-pools {
   padding: 18px;
 }
@@ -1628,29 +1585,7 @@ button:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
   text-transform: uppercase;
 }
 
-.manage-liquidity-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-.manage-liquidity-actions button {
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-sm);
-  padding: 10px 13px;
-  background: var(--surface-inset);
-  color: var(--coral);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.manage-liquidity-actions button:hover { border-color: var(--line-strong); background: var(--coral-a08); }
 
-.market-activity-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.market-activity-heading h3 { margin: 4px 0 0; }
-.market-activity-heading > span { color: var(--cream-faint); font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; }
 .market-panel > .price-chart-card { margin: 0; }
 .market-panel .price-chart-compact { padding: 20px; }
 .market-panel .price-chart-compact .price-chart-header { align-items: flex-start; }
@@ -2435,7 +2370,6 @@ button:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
   .wallet-history-filters { grid-template-columns: 1fr 1fr; }
   .pool-assets { grid-template-columns: 1fr; }
   .lp-position-metrics,
-  .stats-metric-grid { grid-template-columns: 1fr 1fr; }
   .portfolio-hero {
     display: grid;
   }
@@ -2556,7 +2490,6 @@ button:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
   .pool-list-controls,
   .custom-asset-grid,
   .create-pool-type-grid,
-  .stats-metric-grid { grid-template-columns: 1fr; }
   .portfolio-total-grid,
   .lp-position-metrics {
     grid-template-columns: 1fr;

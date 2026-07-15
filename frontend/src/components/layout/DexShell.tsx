@@ -34,12 +34,10 @@ function DexShellContent({ children }: { children: ReactNode }) {
   const currentRoute = navigationItems.find((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
   const pageTitle = currentRoute?.label ?? "Swap";
   const coordByPrefix: Array<[string, string]> = [
-    ["/swap", "Exchange · Swap"],
-    ["/pools", "Liquidity · Pools"],
-    ["/stats", "Data · Stats"],
+    ["/swap", "Swap"],
+    ["/pools", "Pools"],
     ["/portfolio", "Portfolio"],
-    ["/create", "Liquidity · Create"],
-    ["/liquidity", "Liquidity · Positions"],
+    ["/create", "Create pool"],
   ];
   const topbarCoord = coordByPrefix.find(([prefix]) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))?.[1] ?? pageTitle;
   useEffect(() => {
@@ -94,12 +92,8 @@ function DexShellContent({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="sidebar-network">
-            <span className="eyebrow">Network</span>
-            <div><span>Wallet chain</span><strong>{network.connectedChainId ?? "Not connected"}</strong></div>
-            <div><span>Required chain</span><strong>{network.expectedChainId}</strong></div>
-            <div><span>Status</span><strong className={network.isWrongNetwork ? "status-danger" : "net-live"}>{network.isRecovering ? "Connecting" : network.isWrongNetwork ? "Wrong network" : wallet.status === "connected" ? "Ready" : "Read-only"}</strong></div>
-            <div><span>RPC health</span><ChainStatusBadge rpcEndpoint={junoDeployment.rpcEndpoint} /></div>
-            <div><span>Indexer</span><IndexerStatusBadge /></div>
+            <ChainStatusBadge rpcEndpoint={junoDeployment.rpcEndpoint} />
+            <IndexerStatusBadge />
           </div>
         </header>
 

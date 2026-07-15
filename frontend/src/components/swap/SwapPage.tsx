@@ -5,10 +5,6 @@ import type { RegistryPool } from "../../config/registry";
 import { EmptyState, ErrorState, OptionalDataState, Skeleton } from "../common";
 import { SwapForm } from "./SwapForm";
 import { PriceCandleChart } from "../charts/PriceCandleChart";
-import { usePoolActivity } from "../../queries/usePools";
-import { formatAssetFlow, formatTimestamp } from "../wallet/WalletTransactionHistory";
-import { dexRegistry } from "../../config/registry";
-import { ExplorerLink } from "../common";
 
 export function SwapPage() {
   const { pools, discovery } = useDexRegistry();
@@ -25,31 +21,11 @@ export function SwapPage() {
         {discovery.isError && !pool ? <ErrorState title="Markets could not be loaded" error="Swap is unavailable until a reviewed pool can be verified. Try again." onRetry={() => void discovery.refetch()} /> : null}
         {pool ? <SwapForm pool={pool} pools={pools} onMarketPoolChange={handleMarketPoolChange} /> : <EmptyState title="No enabled verified pools">Add a real Juno pair to the strict registry before exposing swaps.</EmptyState>}
       </Stack>
-      {marketPool ? <MarketPanel pool={marketPool} /> : null}
+      {marketPool ? (
+        <Stack className="context-panel market-panel" direction="vertical" space="6">
+          <PriceCandleChart pool={marketPool} title={`${marketPool.assets[0].symbol} / ${marketPool.assets[1].symbol}`} compact showControls={false} limit={48} />
+        </Stack>
+      ) : null}
     </Box>
-  );
-}
-
-function MarketPanel({ pool }: { pool: RegistryPool }) {
-  const activity = usePoolActivity(pool, 10);
-  return (
-    <Stack className="context-panel market-panel" direction="vertical" space="6">
-      <PriceCandleChart pool={pool} title={`${pool.assets[0].symbol} / ${pool.assets[1].symbol}`} compact showControls={false} limit={48} />
-      <Box className="market-card transmissions-card">
-        <div className="market-activity-heading"><div><p className="eyebrow">Market activity</p><h3>Recent transactions</h3></div><span>Last 10</span></div>
-        {activity.isLoading ? <p className="pool-metrics-copy">Loading recent activity…</p> : null}
-        {!activity.isLoading && activity.access?.error ? <p className="pool-metrics-copy">Recent activity is temporarily unavailable.</p> : null}
-        {!activity.isLoading && !activity.access?.error && activity.data.length === 0 ? <p className="pool-metrics-copy">No recent transactions for this market.</p> : null}
-        <div className="transaction-list">
-          {activity.data.map((tx) => (
-            <div className="transaction-row" key={`${tx.txHash}-${tx.type}-${tx.height}`}>
-              <span className={`transaction-kind ${tx.type}`} aria-hidden="true">{tx.type === "provide_liquidity" ? "+" : tx.type === "withdraw_liquidity" ? "−" : "⇄"}</span>
-              <div><strong>{formatAssetFlow(tx, pool)}</strong><small>{formatTimestamp(tx.timestamp)}</small></div>
-              <ExplorerLink href={`${dexRegistry.explorerBaseUrl}/tx/${tx.txHash}`}>View</ExplorerLink>
-            </div>
-          ))}
-        </div>
-      </Box>
-    </Stack>
   );
 }

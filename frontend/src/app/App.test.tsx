@@ -36,7 +36,7 @@ vi.mock("../wallet/WalletContext", () => ({
 
 const testPair = "juno1s0klsaye2vuueet7utec6vmyua3pq6wv8ddr2phcrgg8v9gw9r5sqvfefv";
 
-function renderApp(route = "/liquidity") {
+function renderApp(route = "/portfolio") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   return render(
@@ -68,15 +68,15 @@ describe("App wallet state", () => {
     walletState.switchToJuno.mockReset();
   });
 
-  it("keeps read-only liquidity copy available without a wallet", async () => {
+  it("keeps read-only portfolio copy available without a wallet", async () => {
     renderApp();
 
     expect(screen.getByRole("link", { name: /skip to main content/i }).getAttribute("href")).toBe("#main-content");
-    await waitFor(() => expect(document.title).toBe("Liquidity · Positions | JUNO DEX"));
+    await waitFor(() => expect(document.title).toBe("Portfolio | JUNO DEX"));
     expect(screen.getByRole("main").getAttribute("id")).toBe("main-content");
     expect(screen.getByRole("button", { name: /connect wallet/i })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Portfolio" })).toBeNull();
-    expect(await screen.findByText(/No wallet connected/i, {}, { timeout: 5_000 })).toBeTruthy();
+    expect(await screen.findByText(/Connect wallet to view portfolio/i, {}, { timeout: 5_000 })).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -157,7 +157,7 @@ describe("App wallet state", () => {
 
     renderApp();
 
-    expect(await screen.findByText(/No wallet connected/i)).toBeTruthy();
+    expect(await screen.findByText(/Connect wallet to view portfolio/i)).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toContain("not enabled");
     expect(screen.getByRole("button", { name: /^switch to juno$/i })).toBeTruthy();
   });

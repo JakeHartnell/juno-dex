@@ -1,9 +1,8 @@
 import type { RegistryPool } from "../../config/registry";
 import { isE2EMode } from "../../e2e/mocks";
 import { createIndexerClient, getConfiguredIndexerBaseUrl, IndexerRequestError } from "../indexer/client";
-import type { IndexerCandleInterval, IndexerPoolCandle, IndexerPoolMetrics, IndexerPoolPosition, IndexerProtocolStats, IndexerWalletTransaction } from "../indexer/types";
+import type { IndexerCandleInterval, IndexerPoolCandle, IndexerPoolMetrics, IndexerPoolPosition, IndexerWalletTransaction } from "../indexer/types";
 import type { PoolMetrics, PoolMetricsByPair } from "../pools/poolList";
-import { sortTopPools, type ProtocolStats, type StatsDashboardData, type TopPool } from "../stats/dashboard";
 
 export type DataSourceKind = "indexer" | "mock" | "fallback" | "disabled";
 export type DataAccessErrorCode = "disabled" | "health" | "timeout" | "http" | "network" | "empty" | "invalid-response";
@@ -135,66 +134,6 @@ function normalizePoolMetric(row: Partial<IndexerPoolMetrics> & Record<string, u
     updatedAt,
   }];
 }
-
-function normalizeProtocolStats(row: Partial<IndexerProtocolStats> & Record<string, unknown>, staleAfterMs: number): ProtocolStats | undefined {
-  const updatedAt = typeof row.updatedAt === "string" ? row.updatedAt : undefined;
-  const hasAnyMetric = [
-    row.poolCount ?? row.pool_count,
-    row.tvlUsd ?? row.tvl_usd,
-    row.tvlJuno ?? row.tvl_juno,
-    row.volume24hUsd ?? row.volume_24h_usd ?? row.volume24h_usd,
-    row.volume24hJuno ?? row.volume_24h_juno ?? row.volume24h_juno,
-    row.fees24hUsd ?? row.fees_24h_usd ?? row.fees24h_usd,
-    row.fees24hJuno ?? row.fees_24h_juno ?? row.fees24h_juno,
-  ].some((value) => optionalNumber(value) !== undefined);
-  if (!hasAnyMetric) return undefined;
-  const isMock = Boolean(row.isMock || row.dataSource === "mock");
-  return {
-    poolCount: optionalNumber(row.poolCount ?? row.pool_count),
-    tvlUsd: optionalNumber(row.tvlUsd ?? row.tvl_usd),
-    tvlJuno: optionalNumber(row.tvlJuno ?? row.tvl_juno),
-    volume24hUsd: optionalNumber(row.volume24hUsd ?? row.volume_24h_usd ?? row.volume24h_usd),
-    volume24hJuno: optionalNumber(row.volume24hJuno ?? row.volume_24h_juno ?? row.volume24h_juno),
-    volume7dUsd: optionalNumber(row.volume7dUsd ?? row.volume_7d_usd ?? row.volume7d_usd),
-    volume7dJuno: optionalNumber(row.volume7dJuno ?? row.volume_7d_juno ?? row.volume7d_juno),
-    fees24hUsd: optionalNumber(row.fees24hUsd ?? row.fees_24h_usd ?? row.fees24h_usd),
-    fees24hJuno: optionalNumber(row.fees24hJuno ?? row.fees_24h_juno ?? row.fees24h_juno),
-    incentivizedPools: optionalNumber(row.incentivizedPools ?? row.incentivized_pools),
-    source: isMock ? "mock" : "indexer",
-    isMock,
-    isStale: updatedAt ? Date.now() - Date.parse(updatedAt) > staleAfterMs : false,
-    updatedAt,
-  };
-}
-
-function normalizeTopPool(row: Partial<IndexerPoolMetrics> & Record<string, unknown>, poolsByPair: Map<string, RegistryPool>, staleAfterMs: number): TopPool | undefined {
-  const pair = (row.pair ?? row.pairAddress ?? row.pair_address ?? row.address) as string | undefined;
-  if (!pair) return undefined;
-  const registryPool = poolsByPair.get(pair);
-  const updatedAt = typeof row.updatedAt === "string" ? row.updatedAt : undefined;
-  const isMock = Boolean(row.isMock || row.dataSource === "mock");
-  const symbols = Array.isArray(row.assets) ? row.assets.map((asset) => (asset as { symbol?: string } | undefined)?.symbol).filter(Boolean).join(" / ") : undefined;
-  return {
-    pool: registryPool,
-    id: String(row.id ?? registryPool?.id ?? pair),
-    label: registryPool?.label ?? symbols ?? String(row.id ?? pair),
-    pair,
-    tvlUsd: optionalNumber(row.tvlUsd ?? row.tvl_usd),
-    tvlJuno: optionalNumber(row.tvlJuno ?? row.tvl_juno),
-    volume24hUsd: optionalNumber(row.volume24hUsd ?? row.volume_24h_usd ?? row.volume24h_usd),
-    volume24hJuno: optionalNumber(row.volume24hJuno ?? row.volume_24h_juno ?? row.volume24h_juno),
-    fees24hUsd: optionalNumber(row.fees24hUsd ?? row.fees_24h_usd ?? row.fees24h_usd),
-    fees24hJuno: optionalNumber(row.fees24hJuno ?? row.fees_24h_juno ?? row.fees24h_juno),
-    feeApr: optionalNumber(row.feeApr ?? row.fee_apr),
-    incentivesApr: optionalNumber(row.incentivesApr ?? row.incentives_apr),
-    totalApr: optionalNumber(row.totalApr ?? row.total_apr),
-    source: isMock ? "mock" : "indexer",
-    isMock,
-    isStale: updatedAt ? Date.now() - Date.parse(updatedAt) > staleAfterMs : false,
-    updatedAt,
-  };
-}
-
 function normalizeCandle(row: Partial<IndexerPoolCandle> & Record<string, unknown>): IndexerPoolCandle | undefined {
   const bucketStart = (row.bucketStart ?? row.bucket_start) as string | undefined;
   const open = optionalNumber(row.open);
@@ -281,48 +220,6 @@ export async function loadPoolMetrics(pools: RegistryPool[], config = getIndexer
     const accessError = toAccessError(error, "network");
     openCircuit(config, accessError);
     return { data: {}, state: fallbackState(accessError) };
-  }
-}
-
-export async function loadStatsDashboard(pools: RegistryPool[], config = getIndexerRuntimeConfig()): Promise<DataAccessResult<StatsDashboardData>> {
-  const empty = { topPools: [] };
-  const earlyFallback = shouldUseFallback(config);
-  if (earlyFallback) return { data: empty, state: earlyFallback };
-  try {
-    const client = createIndexerClient({ baseUrl: config.baseUrl!, timeoutMs: config.timeoutMs });
-    const health = await withAttempts(config.retry, () => client.health());
-    if (health.status !== "ok") throw new IndexerRequestError(`Indexer health is ${health.status}`, { code: "invalid-response" });
-    const [statsResult, poolsResult] = await Promise.allSettled([
-      withAttempts(config.retry, () => client.stats()),
-      withAttempts(config.retry, () => client.pools({ limit: Math.max(pools.length, 10) })),
-    ]);
-    const stats = statsResult.status === "fulfilled"
-      ? normalizeProtocolStats(statsResult.value as Partial<IndexerProtocolStats> & Record<string, unknown>, config.staleAfterMs)
-      : undefined;
-    const poolsByPair = new Map(pools.map((pool) => [pool.pair, pool]));
-    const topPools = poolsResult.status === "fulfilled"
-      ? sortTopPools(poolsResult.value.data.map((row) => normalizeTopPool(row, poolsByPair, config.staleAfterMs)).filter((row): row is TopPool => Boolean(row))).slice(0, 5)
-      : [];
-    if (statsResult.status === "rejected" || poolsResult.status === "rejected") {
-      const failed = statsResult.status === "rejected" ? statsResult.reason : poolsResult.status === "rejected" ? poolsResult.reason : undefined;
-      return { data: { stats, topPools }, state: fallbackState(toAccessError(failed, "network")) };
-    }
-    if (!stats && topPools.length === 0) return { data: empty, state: fallbackState({ code: "empty", message: "Indexer returned no protocol stats or pool metrics" }) };
-    const first = stats ?? topPools[0];
-    return {
-      data: { stats, topPools },
-      state: {
-        source: first?.isMock ? "mock" : "indexer",
-        isFallback: false,
-        isMock: Boolean(first?.isMock),
-        isStale: Boolean(first?.isStale),
-        updatedAt: first?.updatedAt,
-      },
-    };
-  } catch (error) {
-    const accessError = toAccessError(error, "network");
-    openCircuit(config, accessError);
-    return { data: empty, state: fallbackState(accessError) };
   }
 }
 

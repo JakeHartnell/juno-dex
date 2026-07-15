@@ -13,10 +13,11 @@ export function IndexerStatusBadge() {
     refetchInterval: 60_000,
   });
 
-  if (config.disabled) return <strong className="status-warn">Disabled</strong>;
-  if (!config.baseUrl) return <strong className="status-warn">Not configured</strong>;
-  if (status.isLoading) return <strong>Checking…</strong>;
-  if (status.isError) return <strong className="status-warn">Unavailable</strong>;
+  // Failure-only: a healthy indexer is the expected case and renders no chrome.
+  if (config.disabled) return <strong className="status-warn">Indexer disabled</strong>;
+  if (!config.baseUrl) return <strong className="status-warn">Indexer not configured</strong>;
+  if (status.isLoading) return null;
+  if (status.isError) return <strong className="status-warn">Indexer unavailable</strong>;
   if (status.data?.isMock) return <strong className="status-warn">Preview data</strong>;
-  return <strong className="net-live">Healthy</strong>;
+  return null;
 }

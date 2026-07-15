@@ -5,12 +5,6 @@ import { formatAmount } from "../../lib/format/amounts";
 import { formatBpsPercent, getPriceImpact } from "../../lib/swap/slippage";
 import { ErrorState } from "../common";
 
-const SLIPPAGE_PRESETS = [
-  { label: "0.1%", bps: 10 },
-  { label: "0.5%", bps: 50 },
-  { label: "1.0%", bps: 100 },
-];
-
 export function QuoteCard({
   quote,
   askAsset,
@@ -19,9 +13,6 @@ export function QuoteCard({
   error,
   slippageBps,
   minimumReceive,
-  expiresInMs,
-  isExpired,
-  onSlippageBps,
 }: {
   quote?: RouteQuote;
   askAsset?: RegistryAsset;
@@ -29,11 +20,7 @@ export function QuoteCard({
   isLoading: boolean;
   error?: unknown;
   slippageBps: number;
-  updatedAt?: number;
   minimumReceive?: string;
-  expiresInMs?: number;
-  isExpired?: boolean;
-  onSlippageBps?: (bps: number) => void;
 }) {
   const priceImpact = quote
     ? getPriceImpact({
@@ -91,68 +78,41 @@ export function QuoteCard({
       ) : null}
       {quote && askAsset && route ? (
         <>
-          <dl className="quote-rows">
-            <div>
-              <dt>Rate</dt>
-              <dd className="quote-row-value">{rateLabel}</dd>
-            </div>
-            <div>
-              <dt>Route</dt>
-              <dd className="quote-row-value route-value">
-                {routeSymbols(route)} · {route.hops.length} hop
-                {route.hops.length === 1 ? "" : "s"}
-              </dd>
-            </div>
-            <div>
-              <dt>Price impact</dt>
-              <dd className={`quote-row-value ${priceImpactClass}`}>
-                {isRouterRoute
-                  ? "Unavailable"
-                  : priceImpact
-                  ? formatBpsPercent(priceImpact.bps)
-                  : "—"}
-              </dd>
-            </div>
-            {minimumReceive ? (
+          <details className="quote-disclosure">
+            <summary className="quote-rate">
+              <span className="quote-rate-value">{rateLabel}</span>
+              <span className="quote-disclosure-chevron" aria-hidden="true" />
+            </summary>
+            <dl className="quote-rows">
+              {minimumReceive ? (
+                <div>
+                  <dt>Minimum received</dt>
+                  <dd className="quote-row-value">{formatAmount(minimumReceive, askAsset.decimals)} {askAsset.symbol}</dd>
+                </div>
+              ) : null}
               <div>
-                <dt>Minimum received</dt>
-                <dd className="quote-row-value">{formatAmount(minimumReceive, askAsset.decimals)} {askAsset.symbol}</dd>
+                <dt>Price impact</dt>
+                <dd className={`quote-row-value ${priceImpactClass}`}>
+                  {isRouterRoute
+                    ? "Unavailable"
+                    : priceImpact
+                    ? formatBpsPercent(priceImpact.bps)
+                    : "—"}
+                </dd>
               </div>
-            ) : null}
-            <div className="slippage-row">
-              <dt>Max slippage</dt>
-              <dd className="quote-row-value">
-                <span className="slippage-current" aria-label={`Current max slippage ${maxSlippageLabel}`}>{maxSlippageLabel}</span>
-                {onSlippageBps ? (
-                  <span
-                    className="slippage-chips"
-                    role="group"
-                    aria-label="Max slippage preset"
-                  >
-                    {SLIPPAGE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.bps}
-                        type="button"
-                        className={`slippage-chip${
-                          slippageBps === preset.bps ? " active" : ""
-                        }`}
-                        aria-pressed={slippageBps === preset.bps}
-                        onClick={() => onSlippageBps(preset.bps)}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </span>
-                ) : null}
-              </dd>
-            </div>
-            <div>
-              <dt>Quote status</dt>
-              <dd className={`quote-row-value ${isExpired ? "status-danger" : "status-ok"}`}>
-                {isExpired ? "Expired — refresh required" : expiresInMs === undefined ? "Fresh" : `Expires in ${Math.max(0, Math.ceil(expiresInMs / 1000))}s`}
-              </dd>
-            </div>
-          </dl>
+              <div>
+                <dt>Max slippage</dt>
+                <dd className="quote-row-value">{maxSlippageLabel}</dd>
+              </div>
+              <div>
+                <dt>Route</dt>
+                <dd className="quote-row-value route-value">
+                  {routeSymbols(route)} · {route.hops.length} hop
+                  {route.hops.length === 1 ? "" : "s"}
+                </dd>
+              </div>
+            </dl>
+          </details>
         </>
       ) : null}
     </section>

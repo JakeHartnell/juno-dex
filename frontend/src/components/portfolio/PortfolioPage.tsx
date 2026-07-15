@@ -12,6 +12,7 @@ import { useWalletIndexerData } from "../../queries/usePools";
 import { useWalletBalances } from "../../queries/useWalletBalances";
 import { useWallet } from "../../wallet/WalletContext";
 import { EmptyState, ErrorState, OptionalDataState, Skeleton } from "../common";
+import { WalletTransactionHistory } from "../wallet/WalletTransactionHistory";
 
 function usd(value: number | null) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "USD price unavailable";
@@ -100,9 +101,6 @@ function PortfolioPositionCard({ position }: { position: PortfolioPosition }) {
       </dl>
       <div className="lp-position-actions" aria-label="Portfolio position actions">
         <Link className="wallet-inline-action" to={`/pools/${position.pool.pair}`}>Manage liquidity</Link>
-        <button className="wallet-inline-action" type="button" disabled title="Open an individual pool to review and claim its available rewards.">
-          Claim rewards unavailable
-        </button>
       </div>
     </article>
   );
@@ -110,7 +108,7 @@ function PortfolioPositionCard({ position }: { position: PortfolioPosition }) {
 
 export function PortfolioPage() {
   const { wallet } = useWallet();
-  const { pools, discovery } = useDexRegistry();
+  const { pools, discovery, registry } = useDexRegistry();
   const walletAddress = wallet.status === "connected" ? wallet.address : undefined;
   const balances = useWalletBalances(walletAddress, pools);
   const indexerData = useWalletIndexerData(walletAddress);
@@ -192,12 +190,7 @@ export function PortfolioPage() {
             <div className="metric-card">
               <span>Total claimable</span>
               <MetricValue muted={portfolio.claimableRewardCount === 0 || !hasMarketValue(portfolio.totalClaimableUsd, portfolio.totalClaimableJuno)}>{portfolio.claimableRewardCount ? marketValue(portfolio.totalClaimableUsd, portfolio.totalClaimableJuno) : "No rewards found"}</MetricValue>
-              <small>{portfolio.claimableRewardCount ? `${portfolio.claimableRewardCount} reward row(s)` : "No rewards found"}</small>
-            </div>
-            <div className="metric-card">
-              <span>Known balances</span>
-              <MetricValue>{portfolio.walletBalances.filter((balance) => BigInt(balance.amount || "0") > 0n).length}</MetricValue>
-              <small>Non-zero known balances</small>
+              {portfolio.claimableRewardCount ? <small>{portfolio.claimableRewardCount} reward row(s)</small> : null}
             </div>
           </div>
 
@@ -228,6 +221,14 @@ export function PortfolioPage() {
               {portfolio.walletBalances.every((balance) => BigInt(balance.amount || "0") === 0n) ? <div><dt>No non-zero known balances</dt><dd className="quote-detail-value">—</dd></div> : null}
             </dl>
           </section>
+
+          <WalletTransactionHistory
+            history={indexerData.data.history}
+            access={indexerData.access}
+            explorerBaseUrl={registry.explorerBaseUrl}
+            walletConnected={Boolean(walletAddress)}
+            isLoading={indexerData.isLoading}
+          />
         </>
       )}
     </section>

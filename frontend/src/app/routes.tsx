@@ -2,7 +2,6 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 const CreatePoolPage = lazy(() => import("../components/create/CreatePoolPage").then((module) => ({ default: module.CreatePoolPage })));
-const LiquidityPage = lazy(() => import("../components/liquidity/LiquidityPage").then((module) => ({ default: module.LiquidityPage })));
 const PoolDetailPage = lazy(() => import("../components/pools/PoolDetailPage").then((module) => ({ default: module.PoolDetailPage })));
 const PoolsPage = lazy(() => import("../components/pools/PoolsPage").then((module) => ({ default: module.PoolsPage })));
 const PortfolioPage = lazy(() => import("../components/portfolio/PortfolioPage").then((module) => ({ default: module.PortfolioPage })));
@@ -17,10 +16,6 @@ export const walletNavigationItems = [
   { to: "/portfolio", label: "Portfolio" },
 ] as const;
 
-function LegacyLiquidityPage() {
-  return <LiquidityPage />;
-}
-
 export function AppRoutes() {
   return (
     <Suspense fallback={<div aria-busy="true"><div className="state-card"><strong>Loading route…</strong><p>Preparing the Juno DEX experience.</p></div></div>}>
@@ -31,7 +26,7 @@ export function AppRoutes() {
         <Route path="/pools" element={<PoolsPage />} />
         <Route path="/pools/:pairAddress" element={<PoolDetailPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
-        <Route path="/liquidity" element={<LegacyLiquidityPage />} />
+        <Route path="/liquidity" element={<Navigate to="/portfolio" replace />} />
         <Route path="/create" element={<CreatePoolPage />} />
         <Route path="*" element={<Navigate to="/swap" replace />} />
       </Routes>

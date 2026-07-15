@@ -154,7 +154,6 @@ export function IncentivesPanel({ pool, metrics }: { pool: RegistryPool; metrics
           ...(review.amount ? [{ label: "LP amount · fixed", value: `${formatAmount(review.amount, lp.decimals)} ${lp.symbol}` }] : []),
           ...(review.action === "claim" ? review.rewards.map((reward) => ({ label: `${assetInfoLabel(reward.info)} reward · estimated`, value: formatAmount(reward.amount, 6) })) : []),
           { label: "Reward APR", value: typeof metrics?.incentivesApr === "number" ? `${formatPercent(metrics.incentivesApr)} · estimated` : "Unavailable", tone: typeof metrics?.incentivesApr === "number" ? "default" as const : "warning" as const },
-          { label: "Protocol commission", value: "Unavailable from incentives query", tone: "warning" as const },
           { label: "Pool status", value: `${pool.status}${pool.verified === true ? ", verified" : ", unverified"}` },
         ] : []}
         disclosures={[

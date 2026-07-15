@@ -41,16 +41,6 @@ export function Modal({ open, title, children, onClose }: { open: boolean; title
   );
 }
 
-export function useModal(initialOpen = false) {
-  const [isOpen, setIsOpen] = useState(initialOpen);
-  return {
-    isOpen,
-    open: useCallback(() => setIsOpen(true), []),
-    close: useCallback(() => setIsOpen(false), []),
-    toggle: useCallback(() => setIsOpen((value) => !value), []),
-  };
-}
-
 const focusableSelector = [
   "a[href]",
   "button:not([disabled])",

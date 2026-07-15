@@ -1,18 +1,5 @@
 /* Surface overrides: liquidity. Cascades after theme.css — scoped, page-specific rules only. */
 
-/* --- Eyebrow-led page header: no billboard title --- */
-.liquidity-page h2 {
-  margin: 0 0 10px;
-  font-size: 1.25rem;
-  line-height: 1.15;
-  letter-spacing: 0;
-  color: var(--cream);
-}
-.liquidity-page > p:not(.eyebrow) {
-  max-width: 76ch;
-  color: var(--cream-mute);
-  font-size: 0.9rem;
-}
 
 /* --- Machine-voice labels on the LP action/position cards --- */
 /* .action-card covers add / remove / incentives; .lp-position-panel covers */

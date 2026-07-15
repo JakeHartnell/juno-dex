@@ -18,14 +18,22 @@ describe("IndexerStatusBadge", () => {
   it("labels an unconfigured indexer without implying health", () => {
     vi.stubEnv("VITE_DEX_INDEXER_URL", "");
     renderBadge();
-    expect(screen.getByText("Not configured")).toBeTruthy();
+    expect(screen.getByText("Indexer not configured")).toBeTruthy();
   });
 
-  it("reports healthy production indexer responses", async () => {
+  it("renders no chrome at all when the indexer is healthy", async () => {
     vi.stubEnv("VITE_DEX_INDEXER_URL", "https://indexer.invalid");
     vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ status: "ok", service: "indexer", dataSource: "indexer", isMock: false }) } as Response);
+    const { container } = renderBadge();
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
+    expect(container.textContent).toBe("");
+  });
+
+  it("surfaces an unreachable indexer", async () => {
+    vi.stubEnv("VITE_DEX_INDEXER_URL", "https://indexer.invalid");
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
     renderBadge();
-    await waitFor(() => expect(screen.getByText("Healthy")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Indexer unavailable")).toBeTruthy(), { timeout: 5_000 });
   });
 
   it("labels mock-backed health as preview data", async () => {

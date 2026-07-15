@@ -202,7 +202,6 @@ export function RemoveLiquidityForm({ pool }: { pool: RegistryPool }) {
           ]),
           { label: "Slippage tolerance · enforced", value: formatBpsPercent(review.slippageBps) },
           { label: "Price impact", value: poolType.supportsWithdrawSimulation ? "Included in contract simulation" : "Unavailable; proportional reserve estimate only", tone: poolType.supportsWithdrawSimulation ? "default" as const : "warning" as const },
-          { label: "Protocol commission", value: "Unavailable from current withdrawal simulation", tone: "warning" as const },
           { label: "Pool status", value: `${pool.status}${pool.verified === true ? ", verified" : ", unverified"}` },
         ] : []}
         disclosures={[

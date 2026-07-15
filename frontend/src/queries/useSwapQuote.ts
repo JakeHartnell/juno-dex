@@ -70,7 +70,6 @@ export function selectBestRouteQuote(quotes: RouteQuote[], mode: SwapQuoteMode =
 
 export function useSwapQuote(pools: RegistryPool[], offerAsset: RegistryAsset | undefined, askAsset: RegistryAsset | undefined, amount: string, mode: SwapQuoteMode = "exact-in", maxHops = 3) {
   const debouncedAmount = useDebouncedValue(amount, SWAP_QUOTE_DEBOUNCE_MS);
-  const [now, setNow] = useState(() => Date.now());
   const query = useQuery({
     queryKey: ["swap-route-quote", mode, pools.map((pool) => pool.pair).join(","), offerAsset?.id, askAsset?.id, debouncedAmount, maxHops],
     enabled: Boolean(pools.length && offerAsset && askAsset && isPositiveAmount(debouncedAmount)),
@@ -90,15 +89,26 @@ export function useSwapQuote(pools: RegistryPool[], offerAsset: RegistryAsset | 
     refetchIntervalInBackground: false,
   });
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   const quoteUpdatedAt = query.dataUpdatedAt || 0;
-  const quoteAgeMs = quoteUpdatedAt ? Math.max(0, now - quoteUpdatedAt) : undefined;
-  const expiresInMs = quoteAgeMs === undefined ? undefined : Math.max(0, SWAP_QUOTE_TTL_MS - quoteAgeMs);
-  const isExpired = quoteAgeMs !== undefined && quoteAgeMs >= SWAP_QUOTE_TTL_MS;
+  const [isExpired, setIsExpired] = useState(false);
+
+  // One timer per quote, firing once at its TTL. A repeating tick here would
+  // re-render every consumer of this hook once a second for the whole session.
+  useEffect(() => {
+    if (!quoteUpdatedAt) {
+      setIsExpired(false);
+      return;
+    }
+    const remainingMs = quoteUpdatedAt + SWAP_QUOTE_TTL_MS - Date.now();
+    if (remainingMs <= 0) {
+      setIsExpired(true);
+      return;
+    }
+    setIsExpired(false);
+    const timer = window.setTimeout(() => setIsExpired(true), remainingMs);
+    return () => window.clearTimeout(timer);
+  }, [quoteUpdatedAt]);
+
   const isDebouncing = amount !== debouncedAmount;
 
   return useMemo(() => ({
@@ -106,9 +116,7 @@ export function useSwapQuote(pools: RegistryPool[], offerAsset: RegistryAsset | 
     debouncedAmount,
     isDebouncing,
     quoteUpdatedAt,
-    quoteAgeMs,
-    expiresInMs,
     isExpired,
     refreshQuote: query.refetch,
-  }), [query, debouncedAmount, isDebouncing, quoteUpdatedAt, quoteAgeMs, expiresInMs, isExpired]);
+  }), [query, debouncedAmount, isDebouncing, quoteUpdatedAt, isExpired]);
 }

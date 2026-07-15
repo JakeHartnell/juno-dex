@@ -32,12 +32,15 @@ export function ChainStatusBadge({ rpcEndpoint }: { rpcEndpoint: string }) {
 
   const isFallback = Boolean(status.data?.fallback);
 
+  // Chrome only earns its space when something is wrong. A healthy RPC says nothing.
+  if (status.isLoading || (!status.isError && !isFallback)) return null;
+
   return (
     <span
-      className={`status-pill ${status.isError || isFallback ? "status-warn" : "status-ok"}`}
-      title={isFallback ? "Primary RPC degraded; a configured fallback is responding." : status.isError ? "No configured RPC endpoint responded." : "Configured Juno RPC is responding."}
+      className="status-pill status-warn"
+      title={isFallback ? "Primary RPC degraded; a configured fallback is responding." : "No configured RPC endpoint responded."}
     >
-      {status.isLoading ? "Juno RPC…" : status.isError ? "RPC degraded" : isFallback ? `Fallback RPC · Block ${status.data?.height}` : `Block ${status.data?.height}`}
+      {status.isError ? "RPC degraded" : `Fallback RPC · Block ${status.data?.height}`}
     </span>
   );
 }

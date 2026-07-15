@@ -39,7 +39,7 @@ export function PoolTable({ pools }: { pools: RegistryPool[] }) {
       <PoolListControls controls={controls} onChange={setControls} />
       <div className="pool-table" role="table" aria-label="Juno pools">
         <div className="pool-table-header" role="row">
-          <span role="columnheader">Pool node</span>
+          <span role="columnheader" aria-sort={ariaSort(controls, "pool")}><button type="button" onClick={() => setControls((current) => toggleSort(current, "pool"))}>Pool <SortDirection controls={controls} sortKey="pool" /></button></span>
           <span role="columnheader" aria-sort={ariaSort(controls, "tvl")}><button type="button" onClick={() => setControls((current) => toggleSort(current, "tvl"))}>TVL <SortDirection controls={controls} sortKey="tvl" /></button></span>
           <span role="columnheader" aria-sort={ariaSort(controls, "apr")}><button type="button" onClick={() => setControls((current) => toggleSort(current, "apr"))}>APR <SortDirection controls={controls} sortKey="apr" /></button></span>
           <span role="columnheader" aria-sort={ariaSort(controls, "volume")}><button type="button" onClick={() => setControls((current) => toggleSort(current, "volume"))}>24h vol <SortDirection controls={controls} sortKey="volume" /></button></span>
@@ -94,16 +94,6 @@ function PoolListControls({ controls, onChange }: { controls: PoolListControls; 
           <option value="all">All incentives</option>
           <option value="incentivized">Incentivized</option>
           <option value="unincentivized">Unincentivized</option>
-        </select>
-      </label>
-      <label>
-        Sort by
-        <select value={controls.sortKey} onChange={(event) => onChange({ ...controls, sortKey: event.target.value as PoolListSortKey })}>
-          <option value="featured">Featured</option>
-          <option value="pool">Pool name</option>
-          <option value="tvl">TVL</option>
-          <option value="volume">24h volume</option>
-          <option value="apr">APR</option>
         </select>
       </label>
     </div>

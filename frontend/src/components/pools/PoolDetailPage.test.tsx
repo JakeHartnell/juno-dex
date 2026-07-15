@@ -64,7 +64,12 @@ vi.mock("../liquidity/RemoveLiquidityForm", () => ({
 }));
 
 vi.mock("../liquidity/LpPositionPanel", () => ({
-  LpPositionPanel: () => <section>LP position panel</section>,
+  LpPositionPanel: ({ onAdd }: { onAdd?: () => void }) => (
+    <section>
+      LP position panel
+      <button type="button" onClick={onAdd}>Add liquidity</button>
+    </section>
+  ),
 }));
 
 vi.mock("../incentives/IncentivesPanel", () => ({
@@ -95,7 +100,7 @@ describe("PoolDetailPage", () => {
     };
   });
 
-  it("renders per-pool analytics, reserves, composition, actions, and status", () => {
+  it("renders per-pool analytics, reserves, actions, and status", () => {
     mocks.metrics = {
       [pool.pair]: { tvlUsd: 125000, volume24hUsd: 42000, feeApr: 4.5, incentivesApr: 1.25, totalApr: 5.75, incentivized: true },
     };
@@ -112,7 +117,6 @@ describe("PoolDetailPage", () => {
     expect(screen.getByText("50")).toBeTruthy();
     expect(screen.getByText(/100 JUNO/i)).toBeTruthy();
     expect(screen.getByText(/250 USDC/i)).toBeTruthy();
-    expect(screen.getByText(/28.57% of token units/i)).toBeTruthy();
     expect(screen.getByText(/1 JUNO ≈ 2.5 USDC/i)).toBeTruthy();
     expect(screen.getByText(/Your pool percentage is your LP balance divided by all LP shares/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: /back to pools/i }).getAttribute("href")).toBe("/pools");
@@ -129,7 +133,6 @@ describe("PoolDetailPage", () => {
 
     const analytics = screen.getByLabelText("Pool analytics cards");
     expect(within(analytics).getAllByText("Metrics unavailable").length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText(/TVL, 24h volume, and APR are unavailable for this pool/i)).toBeTruthy();
     expect(screen.getByText(/No price history yet/i)).toBeTruthy();
     expect(screen.getByText(/No swap, add, withdraw, or claim activity was returned/i)).toBeTruthy();
     expect(screen.getByText(/USD value, volume, and APR require market data/i)).toBeTruthy();

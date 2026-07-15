@@ -89,7 +89,7 @@ export function SwapForm({ pool, pools, onMarketPoolChange }: SwapFormProps) {
   const [isPreparingReview, setIsPreparingReview] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const closeSettings = useCallback(() => setSettingsOpen(false), []);
-  const { slippageBps, formattedSlippagePercent, maxSpread, setSlippageBps } = useSlippageSettings();
+  const { slippageBps, formattedSlippagePercent } = useSlippageSettings();
   const offerAsset = selectableAssets.find((asset) => asset.id === offerId) ?? pool.assets[0];
   const askAsset = selectableAssets.find((asset) => asset.id === askId && asset.id !== offerAsset.id) ?? selectableAssets.find((asset) => asset.id !== offerAsset.id) ?? pool.assets[1];
   const parsedOfferInput = parseTokenAmount(amount, offerAsset.decimals);
@@ -281,13 +281,7 @@ export function SwapForm({ pool, pools, onMarketPoolChange }: SwapFormProps) {
   return (
     <Stack className="swap-card" direction="vertical" space="6">
       <Stack className="swap-card-header" direction="horizontal" align="center" justify="space-between" flexWrap="wrap">
-        <Box>
-          <Text as="h2" variant="heading">Swap</Text>
-          <Text as="p" className="swap-mode-copy">
-            <strong>{quoteMode === "exact-out" ? "Target buy" : "Sell exact"}</strong>
-            {quoteMode === "exact-out" ? " · enter the amount you want to receive" : " · enter the amount you want to send"}
-          </Text>
-        </Box>
+        <Text as="h2" variant="heading">Swap</Text>
         <div className="swap-settings">
           <button
             className="icon-button slippage-icon-button"
@@ -295,8 +289,8 @@ export function SwapForm({ pool, pools, onMarketPoolChange }: SwapFormProps) {
             aria-label={`Slippage ${formattedSlippagePercent}%`}
             aria-expanded={settingsOpen}
             onClick={() => setSettingsOpen((open) => !open)}
-            title={`Swap max_spread ${maxSpread}`}
           >
+            <span className="slippage-pill-value">{formattedSlippagePercent}%</span>
             <span className="slippage-icon" aria-hidden="true" />
           </button>
           {settingsOpen ? <SettingsPanel onClose={closeSettings} /> : null}
@@ -345,11 +339,7 @@ export function SwapForm({ pool, pools, onMarketPoolChange }: SwapFormProps) {
           </Stack>
         </Stack>
       </div>
-      {quoteMode === "exact-out" ? <p className="price-impact-warning" role="status">Target output is an estimate, not a guarantee. Execution uses the estimated input shown above and enforces the minimum received below.</p> : null}
-      <QuoteCard quote={quote.data} askAsset={askAsset} offerAsset={offerAsset} isLoading={quote.isFetching || quote.isDebouncing} error={quote.error} slippageBps={slippageBps} updatedAt={quote.quoteUpdatedAt} minimumReceive={minimumReceive} expiresInMs={quote.expiresInMs} isExpired={quote.isExpired} onSlippageBps={setSlippageBps} />
-      {priceImpact?.severity === "warning" ? (
-        <div className="price-impact-warning" role="status">Price impact is elevated at {formatBpsPercent(priceImpact.bps)}. Review size and pool liquidity before swapping.</div>
-      ) : null}
+      <QuoteCard quote={quote.data} askAsset={askAsset} offerAsset={offerAsset} isLoading={quote.isFetching || quote.isDebouncing} error={quote.error} slippageBps={slippageBps} minimumReceive={minimumReceive} />
       {hasHighPriceImpact ? (
         <label className="price-impact-warning price-impact-danger risk-acknowledgement">
           <input type="checkbox" checked={priceImpactAcknowledged} onChange={(event) => setPriceImpactAcknowledged(event.target.checked)} />
@@ -372,7 +362,6 @@ export function SwapForm({ pool, pools, onMarketPoolChange }: SwapFormProps) {
       {selectedRoute ? <RiskBadgeList assessment={routeRisk} /> : null}
       <RiskAcknowledgement assessment={routeRisk} checked={riskAcknowledged} onChange={setRiskAcknowledged} action="swap route" />
       {network.isWrongNetwork ? <Text as="p" className="error-text">Transactions are blocked while your wallet is off Juno mainnet.</Text> : null}
-      {validationError && wallet.status === "connected" && !network.isWrongNetwork ? <Text as="p" className="error-text">{validationError}</Text> : null}
       <Button intent="primary" className="primary-action" disabled={primaryActionDisabled} fluidWidth onClick={handlePrimaryAction} domAttributes={{ type: "button" }}>{actionCopy}</Button>
       <TxStatusDialog state={swapTx.txState} />
       <TransactionReview

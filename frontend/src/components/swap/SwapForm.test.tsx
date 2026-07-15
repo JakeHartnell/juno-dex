@@ -292,7 +292,8 @@ describe("SwapForm", () => {
     render(<SwapForm pool={pool} />);
     const receiveInput = screen.getByRole("textbox", { name: /you receive amount/i });
     fireEvent.change(receiveInput, { target: { value: "2" } });
-    expect(screen.getByText(/target output is an estimate, not a guarantee/i)).toBeTruthy();
+    // Exact-out is signalled once, by the input label, not by a separate notice.
+    expect(screen.getByRole("textbox", { name: /target receive amount/i })).toBeTruthy();
     expect(screen.queryByText(/swap exact output/i)).toBeNull();
   });
 
@@ -327,7 +328,6 @@ describe("SwapForm", () => {
     render(<SwapForm pool={pool} />);
     const input = screen.getByRole("textbox", { name: /you send amount/i }) as HTMLInputElement;
     expect(input.value).toBe("");
-    expect(screen.getByText(/sell exact/i)).toBeTruthy();
     expect(screen.getAllByText(/verified · juno native/i).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /max/i }));
     expect(input.value).toBe("1.75");
@@ -338,10 +338,10 @@ describe("SwapForm", () => {
     mocks.quote = { ...mocks.quote, isFetching: true };
     render(<SwapForm pool={pool} />);
 
-    const quote = screen.getByText(/quote status/i).closest("section");
+    const quote = document.querySelector("section.quote-card");
     expect(quote?.className).toContain("quote-card-updating");
     expect(quote?.getAttribute("aria-busy")).toBe("true");
-    expect(screen.getByText(/expires in/i)).toBeTruthy();
+    expect(screen.getByText(/^1 JUNO = /)).toBeTruthy();
   });
 
   it("feeds live route reserves into visible liquidity risk", () => {
